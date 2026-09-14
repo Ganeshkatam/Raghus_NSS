@@ -1,0 +1,23 @@
+# Java
+backend/.gradle/
+backend/build/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Python
+analytics/__pycache__/
+analytics/.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
