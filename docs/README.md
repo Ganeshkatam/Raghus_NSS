@@ -12,6 +12,7 @@ This directory contains the project documentation baseline for the B.Tech colleg
 - FEATURES.md — feature-wise specification
 - DATABASE.md — database and ER-model contract
 - TECHNICAL_RECOMMENDATIONS.md — technical evaluation and architectural recommendations
+- COMMIT_CONVENTIONS.md — commit message guidelines and verification standards
 
 ## Core workflow
 
