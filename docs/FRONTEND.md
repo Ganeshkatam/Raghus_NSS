@@ -2,7 +2,7 @@
 
 ## Stack
 
-React, TypeScript and Vite.
+React, TypeScript, Vite, React Router, and a centralized HTTP client (Fetch/Axios) with authorization interceptors.
 
 ## Feature structure
 

@@ -7,11 +7,11 @@ Freeze requirements, roles, workflows, API conventions, error model and data mod
 ## Phase 1 — Foundation
 
 - Repository structure
-- Docker Compose
-- PostgreSQL
-- Redis
+- Docker Compose (PostgreSQL, Redis, backend, frontend, analytics)
+- PostgreSQL & Redis configuration
+- Flyway database migration foundation
 - Spring Boot application
-- React application
+- React application shell
 - Python analytics service
 - CI pipeline
 - Environment configuration
@@ -19,7 +19,11 @@ Freeze requirements, roles, workflows, API conventions, error model and data mod
 
 ## Phase 2 — Identity and RBAC
 
-Users, roles, permissions, user-role assignments, authentication, account activation/deactivation and server-side authorization.
+- Spring Security integration (stateless JWT authentication with Redis token revocation)
+- Password hashing (BCrypt / Argon2)
+- Database migrations: users, roles, permissions, user_roles
+- Account activation/deactivation and server-side RBAC authorization (@PreAuthorize)
+- Authentication API endpoints (/api/v1/auth/login, /api/v1/auth/refresh, /api/v1/auth/me)
 
 ## Phase 3 — Volunteers and units
 

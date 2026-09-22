@@ -23,6 +23,10 @@ DRAFT → PUBLISHED → OPEN → CLOSED → COMPLETED
 
 Alternative terminal state: CANCELLED. Historical records remain available according to retention policy.
 
+## Migration Strategy
+
+All database schema evolutions are governed through automated Flyway migrations placed under `backend/src/main/resources/db/migration/`. Manual DDL scripts or unchecked schema alterations are prohibited in production. Migrations follow the standard versioning pattern: `V{version}__{description}.sql`.
+
 ## ER model
 
 The detailed visual ER model is maintained separately as a design artifact; this document records the repository-level data contract and invariants.

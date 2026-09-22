@@ -2,7 +2,7 @@
 
 ## Stack
 
-Java 21, Spring Boot, Spring Web, Validation, Spring Data JPA, PostgreSQL, Redis and Actuator.
+Java 21, Spring Boot, Spring Security (Stateless JWT / Session), Spring Web, Validation, Spring Data JPA, Flyway, PostgreSQL, Redis and Actuator.
 
 ## Module boundaries
 

@@ -11,6 +11,7 @@ This directory contains the project documentation baseline for the B.Tech colleg
 - BACKEND.md — backend implementation
 - FEATURES.md — feature-wise specification
 - DATABASE.md — database and ER-model contract
+- TECHNICAL_RECOMMENDATIONS.md — technical evaluation and architectural recommendations
 
 ## Core workflow
 
