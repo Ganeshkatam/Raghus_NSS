@@ -14,6 +14,7 @@ import { Attendance } from "./pages/Attendance";
 import { ServiceHours } from "./pages/ServiceHours";
 import { Announcements } from "./pages/Announcements";
 import { Reports } from "./pages/Reports";
+import { Admin } from "./pages/Admin";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -295,17 +296,7 @@ export const AppContent: React.FC = () => {
         element={
           <ProtectedRoute>
             <AdminRoute>
-              <ModulePlaceholder
-                title="Institutional Administration"
-                category="Administration"
-                description="User access control, role assignments, system status, and immutable audit logs."
-                phase="Future Scope"
-                features={[
-                  "Staff and student leader role assignment and permission tuning",
-                  "System health diagnostics, database migration status, and cache controls",
-                  "Comprehensive audit event log query tool"
-                ]}
-              />
+              <Admin />
             </AdminRoute>
           </ProtectedRoute>
         }
