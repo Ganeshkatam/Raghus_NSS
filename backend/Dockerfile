@@ -1,16 +1,16 @@
 # Multi-stage production build for Raghu NSS Platform backend
-FROM gradle:8.14-jdk21-alpine AS build
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
 
 # Copy build configuration and gradle wrapper
-COPY build.gradle settings.gradle ./
-COPY gradle ./gradle
 COPY gradlew ./
-COPY gradlew.bat ./
+COPY gradle ./gradle
+COPY build.gradle settings.gradle ./
+RUN chmod +x ./gradlew
 
 # Copy source and build production artifact
 COPY src ./src
-RUN gradle bootJar -x test --no-daemon
+RUN ./gradlew bootJar -x test --no-daemon
 
 # Minimal, secure production runtime
 FROM eclipse-temurin:21-jre-alpine
@@ -23,9 +23,9 @@ COPY --from=build --chown=nssuser:nssgroup /workspace/build/libs/*.jar app.jar
 
 USER nssuser
 
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
-ENV PORT=8080
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom -XX:TieredStopAtLevel=1"
 
-EXPOSE 8080
+EXPOSE 10000 8080
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -Dserver.port=${PORT:-10000} -jar /app/app.jar"]
+
