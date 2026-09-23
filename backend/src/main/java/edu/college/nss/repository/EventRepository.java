@@ -28,7 +28,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
         select e from Event e
         where (:unitId is null or e.unit.unitId = :unitId)
           and e.status in ('PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED')
+          and (:status is null or e.status = :status)
         order by e.startAt asc
         """)
-    Page<Event> searchPublic(@Param("unitId") Long unitId, Pageable pageable);
+    Page<Event> searchPublic(@Param("unitId") Long unitId, @Param("status") String status, Pageable pageable);
 }
