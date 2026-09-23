@@ -31,8 +31,10 @@ public class ServiceHourService {
 
     @Transactional(readOnly = true)
     public VolunteerServiceHoursSummary getMyServiceHours(UserDetails principal) {
-        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
-            .orElseThrow(() -> new AccessDeniedException("Only enrolled volunteers have personal service hour records."));
+        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername()).orElse(null);
+        if (volunteer == null) {
+            return null;
+        }
 
         BigDecimal total = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
         List<ServiceHourEntry> list = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
@@ -46,7 +48,7 @@ public class ServiceHourService {
             volunteer.getVolunteerId(),
             volunteer.getUser().getName(),
             volunteer.getCollegeId(),
-            total,
+            total != null ? total : BigDecimal.ZERO,
             approvedCount,
             pendingCount,
             dtos

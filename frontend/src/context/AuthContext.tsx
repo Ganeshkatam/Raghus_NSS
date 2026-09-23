@@ -29,9 +29,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem("nss_token"));
-  const [loading, setLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem("nss_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState<boolean>(!token ? false : !user);
 
   useEffect(() => {
     async function loadUser() {
@@ -41,9 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       try {
         const profile = await apiRequest<User>("/auth/me");
+        localStorage.setItem("nss_user", JSON.stringify(profile));
         setUser(profile);
       } catch {
         localStorage.removeItem("nss_token");
+        localStorage.removeItem("nss_user");
         setToken(null);
         setUser(null);
       } finally {
@@ -60,12 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     localStorage.setItem("nss_token", data.accessToken);
+    localStorage.setItem("nss_user", JSON.stringify(data.user));
     setToken(data.accessToken);
     setUser(data.user);
   };
 
   const logout = () => {
     localStorage.removeItem("nss_token");
+    localStorage.removeItem("nss_user");
     setToken(null);
     setUser(null);
   };

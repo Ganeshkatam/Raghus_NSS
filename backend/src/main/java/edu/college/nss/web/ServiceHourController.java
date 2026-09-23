@@ -23,7 +23,7 @@ public class ServiceHourController {
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasRole('VOLUNTEER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VolunteerServiceHoursSummary> getMyServiceHours(@AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.getMyServiceHours(principal));
     }

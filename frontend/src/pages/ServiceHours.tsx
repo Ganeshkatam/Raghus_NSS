@@ -27,10 +27,10 @@ interface PersonalSummary {
 }
 
 export const ServiceHours: React.FC = () => {
-  const { user } = useAuth();
-  const isOfficerOrAdmin = user?.roles.some((r) =>
+  const { user, isCoordinatorOrOfficer } = useAuth();
+  const isOfficerOrAdmin = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
     ["ADMIN", "ROLE_ADMIN", "FACULTY_COORDINATOR", "ROLE_FACULTY_COORDINATOR", "PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER"].includes(r)
-  );
+  ));
 
   const [activeTab, setActiveTab] = useState<"my" | "pending">(isOfficerOrAdmin ? "pending" : "my");
   const [personalSummary, setPersonalSummary] = useState<PersonalSummary | null>(null);
@@ -38,6 +38,13 @@ export const ServiceHours: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Sync tab if officer or admin role resolves
+  useEffect(() => {
+    if (isOfficerOrAdmin && !personalSummary) {
+      setActiveTab("pending");
+    }
+  }, [isOfficerOrAdmin]);
 
   // Claim modal state
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -56,10 +63,15 @@ export const ServiceHours: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiRequest<PersonalSummary>("/service-hours/my");
+      const data = await apiRequest<PersonalSummary | null>("/service-hours/my");
       setPersonalSummary(data);
     } catch (err: any) {
-      if (err.message && !err.message.includes("Only enrolled volunteers")) {
+      const isExpectedNonVolunteer =
+        err?.message?.includes("Only enrolled volunteers") ||
+        err?.message?.includes("Access is denied") ||
+        err?.message?.includes("FORBIDDEN") ||
+        err?.code === "FORBIDDEN";
+      if (!isExpectedNonVolunteer) {
         setError(err.message || "Failed to load personal service hours.");
       }
     } finally {
@@ -189,7 +201,7 @@ export const ServiceHours: React.FC = () => {
 
         {/* Action button */}
         <div style={{ display: "flex", gap: "0.75rem" }}>
-          {user?.roles.some((r) => ["VOLUNTEER", "ROLE_VOLUNTEER"].includes(r)) && (
+          {user?.roles?.some((r) => ["VOLUNTEER", "ROLE_VOLUNTEER"].includes(r)) && (
             <button
               onClick={() => setShowClaimModal(true)}
               style={{
