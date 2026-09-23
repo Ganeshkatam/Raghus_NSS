@@ -11,6 +11,7 @@ import { UnitDetail } from "./pages/UnitDetail";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
 import { Attendance } from "./pages/Attendance";
+import { ServiceHours } from "./pages/ServiceHours";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -131,17 +132,7 @@ export const AppContent: React.FC = () => {
         path="/service-hours"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Service Hours Ledger"
-              category="Participation"
-              description="Institutional verified service-hour ledger, academic-year aggregates, and approval tracking."
-              phase="Phase 6 — Service Hours Ledger"
-              features={[
-                "Immutable institutional ledger entries derived from verified attendance",
-                "Academic-year volunteer service hour accumulation and progress towards 120/240hr milestones",
-                "Programme Officer adjustment approvals with full audit attribution"
-              ]}
-            />
+            <ServiceHours />
           </ProtectedRoute>
         }
       />

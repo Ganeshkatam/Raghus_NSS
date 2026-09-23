@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -15,4 +16,8 @@ public interface ServiceHourEntryRepository extends JpaRepository<ServiceHourEnt
 
     @Query("SELECT COALESCE(SUM(s.hours), 0) FROM ServiceHourEntry s WHERE s.volunteer.volunteerId = :volunteerId AND s.status = 'APPROVED'")
     BigDecimal sumApprovedHoursForVolunteer(@Param("volunteerId") Long volunteerId);
+
+    List<ServiceHourEntry> findByVolunteer_VolunteerIdOrderByCreatedAtDesc(Long volunteerId);
+
+    List<ServiceHourEntry> findByStatusOrderByCreatedAtDesc(String status);
 }
