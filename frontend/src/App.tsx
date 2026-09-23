@@ -13,6 +13,7 @@ import { EventDetail } from "./pages/EventDetail";
 import { Attendance } from "./pages/Attendance";
 import { ServiceHours } from "./pages/ServiceHours";
 import { Announcements } from "./pages/Announcements";
+import { Reports } from "./pages/Reports";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -237,17 +238,7 @@ export const AppContent: React.FC = () => {
         path="/reports"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Institutional Analytics & Exports"
-              category="Reports"
-              description="Statistical summaries, volunteer distribution, attendance rates, and university report exports."
-              phase="Phase 10 — Institutional Reporting"
-              features={[
-                "Academic-year volunteer enrollment and demographic distribution",
-                "NSS unit activity heatmaps and hours-completed compliance summaries",
-                "Spreadsheet-compatible CSV and formal PDF report downloads"
-              ]}
-            />
+            <Reports />
           </ProtectedRoute>
         }
       />

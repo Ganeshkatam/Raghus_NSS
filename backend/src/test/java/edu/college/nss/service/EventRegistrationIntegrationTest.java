@@ -34,6 +34,8 @@ class EventRegistrationIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired VolunteerRepository volunteerRepository;
     @Autowired UnitMembershipRepository membershipRepository;
+    @Autowired NotificationRepository notificationRepository;
+    @Autowired AnnouncementRepository announcementRepository;
 
     private User admin;
     private NssUnit unit;
@@ -41,6 +43,8 @@ class EventRegistrationIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
+        announcementRepository.deleteAll();
         serviceHourRepository.deleteAll();
         correctionRepository.deleteAll();
         recordRepository.deleteAll();

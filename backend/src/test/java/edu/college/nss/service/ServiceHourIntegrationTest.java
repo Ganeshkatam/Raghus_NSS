@@ -33,6 +33,8 @@ class ServiceHourIntegrationTest {
     @Autowired VolunteerRepository volunteerRepository;
     @Autowired NssUnitRepository unitRepository;
     @Autowired UserRepository userRepository;
+    @Autowired NotificationRepository notificationRepository;
+    @Autowired AnnouncementRepository announcementRepository;
 
     private User admin;
     private UserDetails adminPrincipal;
@@ -42,6 +44,8 @@ class ServiceHourIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
+        announcementRepository.deleteAll();
         serviceHourRepository.deleteAll();
         correctionRepository.deleteAll();
         recordRepository.deleteAll();

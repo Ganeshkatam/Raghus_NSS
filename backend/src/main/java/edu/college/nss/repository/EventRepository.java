@@ -16,6 +16,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("select e from Event e where e.eventId = :eventId")
     Optional<Event> findByIdWithLock(@Param("eventId") Long eventId);
 
+    long countByStatus(String status);
+    long countByUnit_UnitId(Long unitId);
+
     @Query("""
         select e from Event e
         where (:unitId is null or e.unit.unitId = :unitId)

@@ -33,6 +33,8 @@ class AttendanceIntegrationTest {
     @Autowired NssUnitRepository unitRepository;
     @Autowired UserRepository userRepository;
     @Autowired UnitMembershipRepository membershipRepository;
+    @Autowired NotificationRepository notificationRepository;
+    @Autowired AnnouncementRepository announcementRepository;
 
     private User admin;
     private NssUnit unit;
@@ -43,6 +45,8 @@ class AttendanceIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
+        announcementRepository.deleteAll();
         serviceHourRepository.deleteAll();
         correctionRepository.deleteAll();
         recordRepository.deleteAll();
