@@ -30,7 +30,7 @@ app:
     refresh-expiration-ms: 604800000 # 7 days
 
 server:
-  port: 8080
+  port: ${PORT:8080}
   shutdown: graceful
 
 management:
