@@ -38,8 +38,10 @@ export const Login: React.FC = () => {
       <div className="login-card">
         <div className="login-header">
           <div className="logo-badge">NSS</div>
+          <div className="college-name">Raghu Engineering College</div>
           <h2>National Service Scheme</h2>
-          <p className="subtitle">Sign in to manage NSS college operations</p>
+          <p className="subtitle">Sign in to your NSS institutional account</p>
+          <div className="motto-pill">Not Me But You</div>
         </div>
 
         {error && (

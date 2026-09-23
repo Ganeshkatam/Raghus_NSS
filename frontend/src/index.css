@@ -1279,9 +1279,36 @@ button:disabled {
 }
 
 .login-header h2 {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--nss-navy);
+  margin: 0.25rem 0 0.35rem 0;
+}
+
+.login-header .college-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--nss-navy);
+  letter-spacing: 0.2px;
+}
+
+.login-header .subtitle {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.login-header .motto-pill {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--nss-crimson);
+  background-color: var(--status-danger-bg);
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  border: 1px solid var(--status-danger-border);
 }
 
 .demo-credentials {
