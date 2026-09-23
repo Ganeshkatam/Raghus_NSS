@@ -81,6 +81,13 @@ public class EventController {
         return service.registrations(id, principal);
     }
 
+    @GetMapping("/{id}/registrations/me")
+    @PreAuthorize("isAuthenticated()")
+    public EventRegistrationResponse myRegistration(@PathVariable Long id,
+                                                    @AuthenticationPrincipal UserDetails principal) {
+        return service.myRegistration(id, principal);
+    }
+
     @DeleteMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> cancelRegistration(@PathVariable Long id,
