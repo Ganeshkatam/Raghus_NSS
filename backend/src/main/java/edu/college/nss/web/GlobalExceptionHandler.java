@@ -1,5 +1,6 @@
 package edu.college.nss.web;
 
+import edu.college.nss.exception.AppException;
 import edu.college.nss.web.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,11 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ErrorResponse> handleAppException(AppException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
@@ -63,6 +69,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse("CONFLICT", ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
