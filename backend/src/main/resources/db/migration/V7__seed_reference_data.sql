@@ -32,7 +32,7 @@ ON CONFLICT DO NOTHING;
 -- Email: admin@raghunss.edu
 -- Password: Admin@Password123 (BCrypt hash)
 INSERT INTO users (user_id, name, email, password_hash, phone, status) VALUES
-(1, 'System Administrator', 'admin@raghunss.edu', '$2a$12$Z0H37mC.V4y6lR6o6d4sveb194q82BvP9sM4W93L0Z2y3pQ2P9sMO', '9876543210', 'ACTIVE')
+(1, 'System Administrator', 'admin@raghunss.edu', '$2a$12$UtbYOLduwv0yY.jmXIW1a.cUcRGQCyYwQOzMxgOn73TFNYDefz3DW', '9876543210', 'ACTIVE')
 ON CONFLICT (email) DO NOTHING;
 
 -- Assign Admin Role

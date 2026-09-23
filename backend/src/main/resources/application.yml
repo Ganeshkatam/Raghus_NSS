@@ -20,12 +20,8 @@ spring:
     locations: classpath:db/migration
   data:
     redis:
-      url: ${SPRING_DATA_REDIS_URL:}
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
-      ssl:
-        enabled: ${SPRING_DATA_REDIS_SSL_ENABLED:false}
 
 app:
   jwt:
