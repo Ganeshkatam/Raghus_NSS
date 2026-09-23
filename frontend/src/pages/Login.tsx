@@ -28,11 +28,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const setDemoCredentials = () => {
-    setEmail("admin@raghunss.edu");
-    setPassword("Admin@Password123");
-  };
-
   return (
     <div className="login-wrapper">
       <div className="login-card">
@@ -79,17 +74,6 @@ export const Login: React.FC = () => {
             {loading ? "Authenticating..." : "Sign In"}
           </button>
         </form>
-
-        <div className="demo-credentials">
-          <p className="demo-hint">Development Credentials:</p>
-          <button
-            type="button"
-            onClick={setDemoCredentials}
-            className="btn-secondary-sm"
-          >
-            Fill Admin Credentials (admin@raghunss.edu)
-          </button>
-        </div>
       </div>
     </div>
   );

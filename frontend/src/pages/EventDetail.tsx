@@ -73,14 +73,14 @@ export const EventDetail:React.FC = () => {
   };
 
   if(loading)return <div className="page-container"><p className="loading-state">Loading event details...</p></div>;
-  if(error && !event)return <div className="page-container"><div className="alert alert-error"><strong>Error:</strong> {error}</div><Link className="btn-secondary" to="/events">&larr; Events</Link></div>;
+  if(error && !event)return <div className="page-container"><div className="alert alert-error"><strong>Error:</strong> {error}</div><Link className="btn-secondary" to="/events">Back to Events</Link></div>;
   if(!event)return null;
 
   const actions=transitions[event.status] || [];
   const volunteerIsEligible=!!volunteer && volunteer.status==="ACTIVE" && volunteer.activeUnitId===event.unitId;
 
   return <div className="page-container">
-    <Link to="/events" className="back-link">&larr; Events</Link>
+    <Link to="/events" className="back-link">Back to Events</Link>
     <div className="page-header">
       <div><div className="event-card-top"><span className="badge badge-primary">{event.eventType}</span><span className="badge badge-muted">{event.status}</span></div>
         <h1>{event.title}</h1><p className="subtitle">{event.unitName} &bull; {event.venue}</p>

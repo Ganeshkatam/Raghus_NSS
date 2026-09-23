@@ -72,7 +72,7 @@ export const VolunteerDetail: React.FC = () => {
           <strong>Error:</strong> {error || "Volunteer not found."}
         </div>
         <Link to="/volunteers" className="btn-secondary">
-          &larr; Back to Volunteers
+          Back to Volunteers
         </Link>
       </div>
     );
@@ -83,7 +83,7 @@ export const VolunteerDetail: React.FC = () => {
       <div className="page-header">
         <div>
           <Link to="/volunteers" className="back-link">
-            &larr; Volunteers Registry
+            Volunteers Registry
           </Link>
           <h1>{volunteer.name}</h1>
           <p className="subtitle">
@@ -139,7 +139,7 @@ export const VolunteerDetail: React.FC = () => {
                 Volunteer is an active participant in this operational unit.
               </p>
               <Link to={`/units/${volunteer.activeUnitId}`} className="btn-secondary-sm">
-                View Unit Roster &rarr;
+                View Unit Roster
               </Link>
             </div>
           ) : (

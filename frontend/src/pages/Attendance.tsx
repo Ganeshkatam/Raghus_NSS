@@ -307,7 +307,7 @@ export const Attendance: React.FC = () => {
                 <p className="subtitle">Verified records accumulating towards your 240-hour certificate.</p>
               </div>
               <Link to="/service-hours" className="btn-secondary-sm">
-                View Full Ledger &rarr;
+                View Full Ledger
               </Link>
             </div>
 

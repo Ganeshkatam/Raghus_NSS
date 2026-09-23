@@ -66,6 +66,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Global Link & Anchor Resets */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+
 /* -------------------------------------------------------------
    Application Shell & Global Layout
 ------------------------------------------------------------- */
@@ -620,7 +631,7 @@ body {
 
 .back-link {
   color: var(--nss-navy-light);
-  text-decoration: none;
+  text-decoration: none !important;
   font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
@@ -630,7 +641,7 @@ body {
 }
 
 .back-link:hover {
-  text-decoration: underline;
+  text-decoration: none !important;
   color: var(--nss-navy);
 }
 
@@ -639,7 +650,7 @@ body {
 ------------------------------------------------------------- */
 .btn-primary {
   background-color: var(--nss-navy);
-  color: #ffffff;
+  color: #ffffff !important;
   border: 1px solid var(--nss-navy);
   border-radius: 6px;
   padding: 0.55rem 1.15rem;
@@ -647,57 +658,127 @@ body {
   font-size: 0.88rem;
   cursor: pointer;
   transition: all 0.15s;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn-primary:hover:not(:disabled) {
   background-color: var(--nss-navy-light);
   border-color: var(--nss-navy-light);
+  color: #ffffff !important;
+  text-decoration: none !important;
 }
 
 .btn-primary-sm {
   background-color: var(--nss-navy);
-  color: #ffffff;
+  color: #ffffff !important;
   border: 1px solid var(--nss-navy);
   border-radius: 5px;
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn-primary-sm:hover:not(:disabled) {
   background-color: var(--nss-navy-light);
+  color: #ffffff !important;
+  text-decoration: none !important;
 }
 
 .btn-secondary {
   background-color: #ffffff;
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 0.55rem 1.15rem;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--bg-muted);
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+}
+
+.btn-secondary-sm {
+  background-color: #ffffff;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-secondary-sm:hover:not(:disabled) {
+  background-color: var(--bg-muted);
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
 }
 
 .btn-danger-sm {
   background-color: #ffffff;
-  color: var(--nss-crimson);
+  color: var(--nss-crimson) !important;
   border: 1px solid var(--nss-crimson);
   border-radius: 5px;
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn-danger-sm:hover:not(:disabled) {
   background-color: var(--status-danger-bg);
+  text-decoration: none !important;
+}
+
+.table-action-link {
+  color: var(--nss-navy) !important;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.15s;
+}
+
+.table-action-link:hover {
+  background-color: var(--border-subtle);
+  color: var(--nss-navy-dark) !important;
+  text-decoration: none !important;
 }
 
 button:disabled {
@@ -1328,19 +1409,6 @@ button:disabled {
   padding: 0.2rem 0.65rem;
   border-radius: 20px;
   border: 1px solid var(--status-danger-border);
-}
-
-.demo-credentials {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
-  text-align: center;
-}
-
-.demo-hint {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-bottom: 0.5rem;
 }
 
 /* -------------------------------------------------------------

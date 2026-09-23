@@ -436,7 +436,7 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
               <Link to="/service-hours" className="btn-secondary-sm">
-                Review Claims Queue &rarr;
+                Review Claims Queue
               </Link>
             </div>
           )}
@@ -624,26 +624,21 @@ export const Dashboard: React.FC = () => {
                   <h2>Operational Actions</h2>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <Link to="/volunteers" className="btn-secondary" style={{ justifyContent: "space-between" }}>
-                    <span>Browse &amp; Manage Volunteers</span>
-                    <span>&rarr;</span>
+                  <Link to="/volunteers" className="btn-secondary">
+                    Browse and Manage Volunteers
                   </Link>
-                  <Link to="/attendance" className="btn-secondary" style={{ justifyContent: "space-between" }}>
-                    <span>Open Live Attendance Session</span>
-                    <span>&rarr;</span>
+                  <Link to="/attendance" className="btn-secondary">
+                    Open Live Attendance Session
                   </Link>
-                  <Link to="/service-hours" className="btn-secondary" style={{ justifyContent: "space-between" }}>
-                    <span>Review Pending Service Claims</span>
-                    <span>({pendingClaimsCount}) &rarr;</span>
+                  <Link to="/service-hours" className="btn-secondary">
+                    Review Pending Service Claims ({pendingClaimsCount})
                   </Link>
-                  <Link to="/reports" className="btn-secondary" style={{ justifyContent: "space-between" }}>
-                    <span>Generate Institutional Reports</span>
-                    <span>&rarr;</span>
+                  <Link to="/reports" className="btn-secondary">
+                    Generate Institutional Reports
                   </Link>
                   {isAdmin && (
-                    <Link to="/admin" className="btn-primary" style={{ justifyContent: "space-between" }}>
-                      <span>Institutional System Admin</span>
-                      <span>&rarr;</span>
+                    <Link to="/admin" className="btn-primary">
+                      Institutional System Admin
                     </Link>
                   )}
                 </div>

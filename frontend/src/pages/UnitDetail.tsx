@@ -143,7 +143,7 @@ export const UnitDetail: React.FC = () => {
           <strong>Error:</strong> {error || "Unit not found."}
         </div>
         <Link to="/units" className="btn-secondary">
-          &larr; Back to Units
+          Back to Units
         </Link>
       </div>
     );
@@ -154,7 +154,7 @@ export const UnitDetail: React.FC = () => {
       <div className="page-header">
         <div>
           <Link to="/units" className="back-link">
-            &larr; NSS Units
+            NSS Units
           </Link>
           <h1>
             {unit.unitName}{" "}

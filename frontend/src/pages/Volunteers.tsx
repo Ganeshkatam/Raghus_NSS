@@ -254,7 +254,7 @@ export const Volunteers: React.FC = () => {
                             to={`/volunteers/${vol.volunteerId}`}
                             className="table-action-link"
                           >
-                            Profile &rarr;
+                            View Profile
                           </Link>
                         </td>
                       </tr>

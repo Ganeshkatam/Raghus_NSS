@@ -151,7 +151,7 @@ export const Units: React.FC = () => {
                         to={`/units/${unit.unitId}`}
                         className="table-action-link"
                       >
-                        Manage &rarr;
+                        Manage Unit
                       </Link>
                     </td>
                   </tr>
