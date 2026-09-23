@@ -22,6 +22,7 @@ export const EventDetail:React.FC = () => {
   const [event,setEvent]=useState<EventItem|null>(null);
   const [registrations,setRegistrations]=useState<Registration[]>([]);
   const [volunteer,setVolunteer]=useState<Volunteer|null>(null);
+  const [myRegistration,setMyRegistration]=useState<Registration|null>(null);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState<string|null>(null);
@@ -35,7 +36,10 @@ export const EventDetail:React.FC = () => {
       if(isCoordinatorOrOfficer){
         try { setRegistrations(await apiRequest<Registration[]>("/events/"+id+"/registrations")); } catch {}
       } else {
-        try { setVolunteer(await apiRequest<Volunteer>("/volunteers/me")); } catch {}
+        try {
+          setVolunteer(await apiRequest<Volunteer>("/volunteers/me"));
+          try { setMyRegistration(await apiRequest<Registration>("/events/"+id+"/registrations/me")); } catch { setMyRegistration(null); }
+        } catch {}
       }
     } catch(e) {
       const err=e as ApiError; setError(err.message || "Failed to load event.");
@@ -104,6 +108,10 @@ export const EventDetail:React.FC = () => {
       {!isCoordinatorOrOfficer && <section className="section-card">
         <h3>Your Registration</h3>
         {!volunteer ? <p>Loading your volunteer profile...</p> :
+          myRegistration && myRegistration.status==="REGISTERED" ? <div className="card-actions">
+            <span className="badge badge-success">REGISTERED</span>
+            {event.status==="OPEN" && <button className="btn-danger-sm" disabled={busy} onClick={cancelRegistration}>Cancel Registration</button>}
+          </div> :
           volunteerIsEligible ? event.status==="OPEN" && event.remainingCapacity>0 ?
             <button className="btn-primary" disabled={busy} onClick={register}>Register for Event</button> :
             <p>{event.status==="OPEN"?"Registration is currently full.":"Registration is not currently open."}</p>
