@@ -50,7 +50,13 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public Page<EventResponse> search(Long unitId, String status, Pageable pageable) {
+    public Page<EventResponse> search(Long unitId, String status, Pageable pageable, UserDetails principal) {
+        if (!isManager(principal)) {
+            if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+                return Page.empty(pageable);
+            }
+            return eventRepository.searchPublic(unitId, pageable).map(this::toResponse);
+        }
         return eventRepository.search(unitId, status, pageable).map(this::toResponse);
     }
 
@@ -197,6 +203,12 @@ public class EventService {
             if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
         }
         throw new AccessDeniedException("You do not have permission to manage events for this NSS unit.");
+    }
+
+    private boolean isManager(UserDetails principal) {
+        return hasRole(principal, "ROLE_ADMIN")
+            || hasRole(principal, "ROLE_FACULTY_COORDINATOR")
+            || hasRole(principal, "ROLE_PROGRAMME_OFFICER");
     }
 
     private boolean hasRole(UserDetails principal, String role) {
