@@ -8,6 +8,8 @@ import { Volunteers } from "./pages/Volunteers";
 import { VolunteerDetail } from "./pages/VolunteerDetail";
 import { Units } from "./pages/Units";
 import { UnitDetail } from "./pages/UnitDetail";
+import { Events } from "./pages/Events";
+import { EventDetail } from "./pages/EventDetail";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -71,6 +73,22 @@ export const AppContent: React.FC = () => {
             element={
               <ProtectedRoute>
                 <UnitDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events"
+            element={
+              <ProtectedRoute>
+                <Events />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:id"
+            element={
+              <ProtectedRoute>
+                <EventDetail />
               </ProtectedRoute>
             }
           />
