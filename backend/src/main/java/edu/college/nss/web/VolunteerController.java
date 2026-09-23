@@ -49,6 +49,14 @@ public class VolunteerController {
         return ResponseEntity.ok(results);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<VolunteerResponse> getCurrentVolunteer(
+        @AuthenticationPrincipal UserDetails principal
+    ) {
+        return ResponseEntity.ok(volunteerService.getCurrentVolunteer(principal));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VolunteerResponse> getVolunteer(

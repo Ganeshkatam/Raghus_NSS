@@ -42,6 +42,12 @@ export const Navbar: React.FC = () => {
             >
               NSS Units
             </Link>
+            <Link
+              to="/events"
+              className={`nav-link ${location.pathname.startsWith("/events") ? "active" : ""}`}
+            >
+              Events
+            </Link>
           </nav>
         )}
 

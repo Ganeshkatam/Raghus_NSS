@@ -149,6 +149,16 @@ public class VolunteerService {
     }
 
     @Transactional(readOnly = true)
+    public VolunteerResponse getCurrentVolunteer(UserDetails principal) {
+        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
+            .orElseThrow(() -> new IllegalArgumentException("Authenticated user is not registered as a volunteer."));
+        UnitMembership active = membershipRepository
+            .findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+            .orElse(null);
+        return VolunteerResponse.fromEntity(volunteer, active);
+    }
+
+    @Transactional(readOnly = true)
     public List<MembershipResponse> getVolunteerMemberships(Long volunteerId, UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
