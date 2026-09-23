@@ -12,6 +12,7 @@ import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
 import { Attendance } from "./pages/Attendance";
 import { ServiceHours } from "./pages/ServiceHours";
+import { Announcements } from "./pages/Announcements";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -180,17 +181,7 @@ export const AppContent: React.FC = () => {
         path="/announcements"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Official Announcements"
-              category="Communication"
-              description="Institutional broadcasts, circulars, event guidelines, and emergency notices."
-              phase="Phase 8 — Operations & Announcements"
-              features={[
-                "Targeted announcements by unit, academic year, or college-wide audience",
-                "Circular attachment repository and urgent broadcast flags",
-                "Volunteer read receipts and push notification integration"
-              ]}
-            />
+            <Announcements />
           </ProtectedRoute>
         }
       />
@@ -198,17 +189,7 @@ export const AppContent: React.FC = () => {
         path="/notifications"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Notification Center"
-              category="Communication"
-              description="Actionable alerts, registration reminders, and verification notifications."
-              phase="Phase 8 — Notification Engine"
-              features={[
-                "Event registration and cancellation receipts",
-                "Registration deadline reminders and capacity alerts",
-                "Attendance check-in confirmations and service-hour audit notifications"
-              ]}
-            />
+            <Announcements />
           </ProtectedRoute>
         }
       />
