@@ -2,12 +2,13 @@ package edu.college.nss.web.dto;
 
 import edu.college.nss.domain.Event;
 import java.time.Instant;
+import java.util.UUID;
 
 public record EventResponse(
     Long eventId,
     Long unitId,
     String unitName,
-    Long createdBy,
+    UUID createdBy,
     String createdByName,
     String title,
     String description,

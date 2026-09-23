@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -73,7 +74,7 @@ public class VolunteerAndUnitIntegrationTest {
     @WithMockUser(username = "admin@raghunss.edu", roles = {"ADMIN"})
     public void createVolunteer_asAdmin_shouldReturnCreated() throws Exception {
         VolunteerResponse response = new VolunteerResponse(
-            1L, 2L, "Jane Doe", "jane@raghunss.edu", "9123456780",
+            1L, UUID.randomUUID(), "Jane Doe", "jane@raghunss.edu", "9123456780",
             "2026CS001", "Computer Science", 2, LocalDate.now(), "ACTIVE",
             null, null, Instant.now()
         );

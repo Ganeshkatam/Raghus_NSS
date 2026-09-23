@@ -4,15 +4,16 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long userId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_id", updatable = false, nullable = false)
+    private UUID userId;
 
     @Column(name = "name", nullable = false, length = 150)
     private String name;
@@ -58,11 +59,11 @@ public class User {
         this.updatedAt = Instant.now();
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(UUID userId) {
         this.userId = userId;
     }
 

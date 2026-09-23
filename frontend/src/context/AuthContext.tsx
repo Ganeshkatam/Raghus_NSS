@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiRequest } from "../api/client";
 
 export interface User {
-  userId: number;
+  userId: string;
   name: string;
   email: string;
   phone?: string;

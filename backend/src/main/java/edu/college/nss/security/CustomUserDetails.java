@@ -8,10 +8,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 public class CustomUserDetails implements UserDetails {
 
-    private final Long userId;
+    private final UUID userId;
     private final String name;
     private final String email;
     private final String password;
@@ -39,7 +40,7 @@ public class CustomUserDetails implements UserDetails {
         this.authorities = auths;
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 

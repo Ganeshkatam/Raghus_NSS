@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -58,7 +59,7 @@ public class AuthControllerTest {
 
     @Test
     public void login_withValidCredentials_shouldReturnAuthResponse() throws Exception {
-        UserDto userDto = new UserDto(1L, "Admin User", "admin@raghunss.edu", "1234567890", "ACTIVE", Set.of("ROLE_ADMIN"));
+        UserDto userDto = new UserDto(UUID.randomUUID(), "Admin User", "admin@raghunss.edu", "1234567890", "ACTIVE", Set.of("ROLE_ADMIN"));
         AuthResponse authResponse = new AuthResponse("mock-access-token", "mock-refresh-token", 900000L, userDto);
 
         when(authService.login(any(LoginRequest.class))).thenReturn(authResponse);

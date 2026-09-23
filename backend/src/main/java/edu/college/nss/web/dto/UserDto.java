@@ -2,10 +2,11 @@ package edu.college.nss.web.dto;
 
 import edu.college.nss.domain.User;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public record UserDto(
-    Long userId,
+    UUID userId,
     String name,
     String email,
     String phone,

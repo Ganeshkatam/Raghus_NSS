@@ -5,7 +5,7 @@ import { apiRequest, ApiError } from "../api/client";
 
 interface VolunteerItem {
   volunteerId: number;
-  userId: number;
+  userId: string;
   name: string;
   email: string;
   phone: string;

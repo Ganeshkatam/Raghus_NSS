@@ -5,10 +5,11 @@ import edu.college.nss.domain.Volunteer;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 
 public record VolunteerResponse(
     Long volunteerId,
-    Long userId,
+    UUID userId,
     String name,
     String email,
     String phone,

@@ -4,7 +4,7 @@ import { apiRequest, ApiError } from "../api/client";
 
 interface VolunteerData {
   volunteerId: number;
-  userId: number;
+  userId: string;
   name: string;
   email: string;
   phone: string;

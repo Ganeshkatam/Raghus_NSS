@@ -7,7 +7,7 @@ interface UnitData {
   unitId: number;
   unitName: string;
   unitNumber: string;
-  officerId: number | null;
+  officerId: string | null;
   officerName: string | null;
   officerEmail: string | null;
   activeMemberCount: number;

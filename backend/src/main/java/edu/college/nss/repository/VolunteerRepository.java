@@ -10,14 +10,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface VolunteerRepository extends JpaRepository<Volunteer, Long>, JpaSpecificationExecutor<Volunteer> {
     Optional<Volunteer> findByCollegeId(String collegeId);
-    Optional<Volunteer> findByUser_UserId(Long userId);
+    Optional<Volunteer> findByUser_UserId(UUID userId);
     Optional<Volunteer> findByUser_Email(String email);
     boolean existsByCollegeId(String collegeId);
-    boolean existsByUser_UserId(Long userId);
+    boolean existsByUser_UserId(UUID userId);
     long countByStatus(String status);
 
     @Query("SELECT v FROM Volunteer v WHERE " +

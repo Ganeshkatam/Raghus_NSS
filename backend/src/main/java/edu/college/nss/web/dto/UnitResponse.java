@@ -2,12 +2,13 @@ package edu.college.nss.web.dto;
 
 import edu.college.nss.domain.NssUnit;
 import java.time.Instant;
+import java.util.UUID;
 
 public record UnitResponse(
     Long unitId,
     String unitName,
     String unitNumber,
-    Long officerId,
+    UUID officerId,
     String officerName,
     String officerEmail,
     long activeMemberCount,
