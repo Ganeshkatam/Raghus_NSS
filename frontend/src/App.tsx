@@ -34,6 +34,42 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <AppShell>{children}</AppShell>;
 };
 
+const OfficerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isCoordinatorOrOfficer, isStudentLeader, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <p className="loading-state">Checking session authorization...</p>
+      </div>
+    );
+  }
+
+  if (!isCoordinatorOrOfficer && !isStudentLeader) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAdmin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <p className="loading-state">Checking session authorization...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const AppContent: React.FC = () => {
   return (
     <Routes>
@@ -49,12 +85,14 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      {/* People */}
+      {/* People (Restricted to Officers, Coordinators, Leaders, Admins) */}
       <Route
         path="/volunteers"
         element={
           <ProtectedRoute>
-            <Volunteers />
+            <OfficerRoute>
+              <Volunteers />
+            </OfficerRoute>
           </ProtectedRoute>
         }
       />
@@ -62,17 +100,21 @@ export const AppContent: React.FC = () => {
         path="/volunteers/:id"
         element={
           <ProtectedRoute>
-            <VolunteerDetail />
+            <OfficerRoute>
+              <VolunteerDetail />
+            </OfficerRoute>
           </ProtectedRoute>
         }
       />
 
-      {/* Organisation */}
+      {/* Organisation (Restricted to Officers, Coordinators, Admins) */}
       <Route
         path="/units"
         element={
           <ProtectedRoute>
-            <Units />
+            <OfficerRoute>
+              <Units />
+            </OfficerRoute>
           </ProtectedRoute>
         }
       />
@@ -80,7 +122,9 @@ export const AppContent: React.FC = () => {
         path="/units/:id"
         element={
           <ProtectedRoute>
-            <UnitDetail />
+            <OfficerRoute>
+              <UnitDetail />
+            </OfficerRoute>
           </ProtectedRoute>
         }
       />
@@ -233,32 +277,36 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      {/* Reports & Analytics */}
+      {/* Reports & Analytics (Restricted to Officers, Coordinators, Admins) */}
       <Route
         path="/reports"
         element={
           <ProtectedRoute>
-            <Reports />
+            <OfficerRoute>
+              <Reports />
+            </OfficerRoute>
           </ProtectedRoute>
         }
       />
 
-      {/* Administration */}
+      {/* Administration (Restricted to Admins) */}
       <Route
         path="/admin"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Institutional Administration"
-              category="Administration"
-              description="User access control, role assignments, system status, and immutable audit logs."
-              phase="Future Scope"
-              features={[
-                "Staff and student leader role assignment and permission tuning",
-                "System health diagnostics, database migration status, and cache controls",
-                "Comprehensive audit event log query tool"
-              ]}
-            />
+            <AdminRoute>
+              <ModulePlaceholder
+                title="Institutional Administration"
+                category="Administration"
+                description="User access control, role assignments, system status, and immutable audit logs."
+                phase="Future Scope"
+                features={[
+                  "Staff and student leader role assignment and permission tuning",
+                  "System health diagnostics, database migration status, and cache controls",
+                  "Comprehensive audit event log query tool"
+                ]}
+              />
+            </AdminRoute>
           </ProtectedRoute>
         }
       />

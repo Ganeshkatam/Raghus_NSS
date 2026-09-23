@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 
@@ -28,11 +29,21 @@ interface RosterItem {
   attendanceId: number | null;
 }
 
+interface VolunteerAttendanceRecord {
+  entryId: number;
+  hours: number;
+  status: string;
+  eventTitle: string | null;
+  description: string;
+  approvedByName: string | null;
+  createdAt: string;
+}
+
 export const Attendance: React.FC = () => {
-  const { user } = useAuth();
-  const isManager = user?.roles.some((r) =>
+  const { user, isCoordinatorOrOfficer } = useAuth();
+  const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
     ["ADMIN", "ROLE_ADMIN", "FACULTY_COORDINATOR", "ROLE_FACULTY_COORDINATOR", "PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER"].includes(r)
-  );
+  ));
 
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
@@ -42,9 +53,11 @@ export const Attendance: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Volunteer scanner state
+  // Volunteer check-in state
   const [manualTokenInput, setManualTokenInput] = useState("");
   const [checkingIn, setCheckingIn] = useState(false);
+  const [volunteerHistory, setVolunteerHistory] = useState<VolunteerAttendanceRecord[]>([]);
+  const [checkInResult, setCheckInResult] = useState<any | null>(null);
 
   // Audited correction modal state
   const [correctingRecord, setCorrectingRecord] = useState<RosterItem | null>(null);
@@ -64,6 +77,17 @@ export const Attendance: React.FC = () => {
     }
   }, [selectedEventId]);
 
+  const loadVolunteerHistory = useCallback(async () => {
+    try {
+      const summary = await apiRequest<any>("/service-hours/my").catch(() => null);
+      if (summary && summary.entries) {
+        setVolunteerHistory(summary.entries);
+      }
+    } catch {
+      // Optional history fetch
+    }
+  }, []);
+
   const loadSessionAndRoster = useCallback(async (eventId: number) => {
     setLoading(true);
     setError(null);
@@ -81,8 +105,12 @@ export const Attendance: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    if (isManager) {
+      loadEvents();
+    } else {
+      loadVolunteerHistory();
+    }
+  }, [isManager, loadEvents, loadVolunteerHistory]);
 
   useEffect(() => {
     if (selectedEventId && isManager) {
@@ -129,15 +157,18 @@ export const Attendance: React.FC = () => {
     setCheckingIn(true);
     setError(null);
     setSuccess(null);
+    setCheckInResult(null);
     try {
       const res = await apiRequest<any>("/attendance/check-in", {
         method: "POST",
         body: JSON.stringify({ token: manualTokenInput.trim() }),
       });
-      setSuccess(res.message || "Attendance recorded successfully!");
+      setCheckInResult(res);
+      setSuccess(res?.message || "Attendance recorded successfully! Verified check-in confirmed.");
       setManualTokenInput("");
+      loadVolunteerHistory();
     } catch (err: any) {
-      setError(err.message || "Check-in failed. Ensure QR token is valid and not expired.");
+      setError(err.message || "Check-in failed. Ensure session token is valid and not expired.");
     } finally {
       setCheckingIn(false);
     }
@@ -172,11 +203,14 @@ export const Attendance: React.FC = () => {
 
   return (
     <div className="page-container">
+      {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1>Attendance & QR Verification</h1>
+          <h1>{isManager ? "Attendance & QR Verification Operations" : "Volunteer Attendance Check-In"}</h1>
           <p className="subtitle">
-            Manage live check-in sessions, dynamic QR verification, and volunteer attendance rosters.
+            {isManager
+              ? "Manage live check-in sessions, dynamic QR verification, and volunteer attendance rosters."
+              : "Verify your participation in ongoing NSS activities using the session code displayed at the venue."}
           </p>
         </div>
       </div>
@@ -192,44 +226,155 @@ export const Attendance: React.FC = () => {
         </div>
       )}
 
+      {/* ----------------- 1. VOLUNTEER VIEW ----------------- */}
       {!isManager ? (
-        <div className="section-card" style={{ maxWidth: "620px", margin: "1.5rem auto" }}>
-          <div className="section-header">
-            <div>
-              <h2>Event QR Check-In</h2>
-              <p className="subtitle">
-                Scan the live QR code or enter the check-in token provided by your Programme Officer.
-              </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+          {/* Check-In Card */}
+          <div className="section-card" style={{ maxWidth: "680px", margin: "0 auto", width: "100%" }}>
+            <div className="section-header">
+              <div>
+                <h2>Live Event Check-In</h2>
+                <p className="subtitle">
+                  Enter the 6-character session token displayed on screen by your Programme Officer:
+                </p>
+              </div>
             </div>
+
+            <form onSubmit={handleVolunteerCheckIn} className="form-stack" style={{ padding: 0 }}>
+              <div className="form-group">
+                <label htmlFor="tokenInput">Attendance Session Token *</label>
+                <input
+                  id="tokenInput"
+                  type="text"
+                  placeholder="e.g. 8A3F9D"
+                  value={manualTokenInput}
+                  onChange={(e) => setManualTokenInput(e.target.value.toUpperCase())}
+                  required
+                  style={{
+                    fontSize: "1.5rem",
+                    letterSpacing: "0.25rem",
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontFamily: "monospace",
+                    padding: "0.75rem",
+                    textTransform: "uppercase",
+                  }}
+                />
+                <span className="cell-sub" style={{ textAlign: "center", display: "block", marginTop: "0.25rem" }}>
+                  Tokens expire 45 minutes after the session is opened.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ width: "100%", justifyContent: "center", padding: "0.75rem", fontSize: "1rem" }}
+                disabled={checkingIn || !manualTokenInput.trim()}
+              >
+                {checkingIn ? "Verifying Attendance..." : "Confirm & Record Attendance"}
+              </button>
+            </form>
+
+            {/* Check-in receipt card */}
+            {checkInResult && (
+              <div
+                style={{
+                  marginTop: "1.5rem",
+                  padding: "1rem 1.25rem",
+                  backgroundColor: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: "0.5rem",
+                }}
+              >
+                <div style={{ fontWeight: 700, color: "#166534", marginBottom: "0.25rem" }}>
+                  Verified Attendance Confirmed
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "#15803d" }}>
+                  Volunteer: <strong>{checkInResult.volunteerName}</strong> ({checkInResult.rollNumber})
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "#15803d" }}>
+                  Method: <strong>{checkInResult.checkInMethod || "QR / Token"}</strong> &bull; Status: <strong>{checkInResult.status}</strong>
+                </div>
+              </div>
+            )}
           </div>
-          <form onSubmit={handleVolunteerCheckIn} className="form-stack" style={{ padding: 0 }}>
-            <div className="form-group">
-              <label htmlFor="tokenInput">Check-In Token *</label>
-              <textarea
-                id="tokenInput"
-                rows={3}
-                placeholder="Paste or enter QR check-in string..."
-                value={manualTokenInput}
-                onChange={(e) => setManualTokenInput(e.target.value)}
-                required
-              />
+
+          {/* My Attendance History Card */}
+          <div className="section-card">
+            <div className="section-header">
+              <div>
+                <h2>My Event Attendance &amp; Service Records</h2>
+                <p className="subtitle">Verified records accumulating towards your 240-hour certificate.</p>
+              </div>
+              <Link to="/service-hours" className="btn-secondary-sm">
+                View Full Ledger &rarr;
+              </Link>
             </div>
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ width: "100%", justifyContent: "center" }}
-              disabled={checkingIn || !manualTokenInput.trim()}
-            >
-              {checkingIn ? "Verifying Token..." : "Submit Attendance"}
-            </button>
-          </form>
+
+            {volunteerHistory.length === 0 ? (
+              <div className="empty-state">
+                <h3>No Attendance Records Found</h3>
+                <p>When you check in to NSS programmes, verified records will appear here with earned hours.</p>
+                <Link to="/events" className="btn-primary-sm" style={{ marginTop: "0.5rem" }}>
+                  Browse Upcoming Events
+                </Link>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Event / Programme</th>
+                      <th>Hours Earned</th>
+                      <th>Attendance Status</th>
+                      <th>Verification Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {volunteerHistory.map((item) => (
+                      <tr key={item.entryId}>
+                        <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          <strong>{item.eventTitle || item.description}</strong>
+                          {item.eventTitle && item.description && item.description !== item.eventTitle && (
+                            <div className="cell-sub">{item.description}</div>
+                          )}
+                        </td>
+                        <td>
+                          <strong style={{ color: "#1e3a8a" }}>+{item.hours} hrs</strong>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              item.status === "APPROVED"
+                                ? "badge-success"
+                                : item.status === "PENDING"
+                                ? "badge-warning"
+                                : "badge-muted"
+                            }`}
+                          >
+                            {item.status === "APPROVED" ? "PRESENT (VERIFIED)" : item.status}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="cell-sub">{item.approvedByName || "Audited by NSS Cell"}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
+        /* ----------------- 2. OFFICER / ADMIN OPERATIONS VIEW ----------------- */
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div className="section-card">
             <div className="section-header" style={{ marginBottom: "1rem" }}>
               <div>
-                <h2>Session Control & Event Selector</h2>
+                <h2>Session Control &amp; Event Selector</h2>
                 <p className="subtitle">Choose an event to manage its live attendance session and roster.</p>
               </div>
             </div>
@@ -245,7 +390,7 @@ export const Attendance: React.FC = () => {
                   {events.length === 0 && <option value="">No active events found</option>}
                   {events.map((ev) => (
                     <option key={ev.eventId} value={ev.eventId}>
-                      {ev.title} {ev.unitName ? `(${ev.unitName})` : ""} — {ev.status}
+                      {ev.title} {ev.unitName ? `(${ev.unitName})` : ""} &mdash; {ev.status}
                     </option>
                   ))}
                 </select>
@@ -253,11 +398,12 @@ export const Attendance: React.FC = () => {
 
               <div className="attendance-action-group">
                 {activeSession ? (
-                  <button onClick={handleCloseSession} className="btn-danger">
-                    Close Live Session
+                  <button type="button" onClick={handleCloseSession} className="btn-danger">
+                    Close Attendance Session
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleOpenSession}
                     className="btn-primary"
                     disabled={!selectedEventId}
@@ -273,32 +419,35 @@ export const Attendance: React.FC = () => {
             <div className="active-session-banner">
               <div className="session-banner-header">
                 <div className="session-banner-info">
-                  <span className="badge badge-success session-pulse">LIVE SESSION OPEN</span>
-                  <h2>{activeSession.eventTitle}</h2>
-                  <p>
-                    Opened by <strong>{activeSession.openedByName}</strong> • Expires at {new Date(activeSession.expiresAt).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div className="session-banner-stats">
-                  <div className="session-stat-number">
-                    {activeSession.presentCount} <span className="session-stat-divider">/</span> {activeSession.totalRegistered}
+                  <span className="session-pulse" />
+                  <div>
+                    <h3>Active Attendance Session: {activeSession.eventTitle}</h3>
+                    <p>
+                      Opened by <strong>{activeSession.openedByName}</strong> &bull; Valid until:{" "}
+                      <strong>{new Date(activeSession.expiresAt).toLocaleTimeString()}</strong>
+                    </p>
                   </div>
-                  <div className="session-stat-label">Verified Present</div>
+                </div>
+
+                <div className="session-banner-stats">
+                  <div>
+                    <span className="session-stat-number">{activeSession.presentCount}</span>
+                    <span className="session-stat-divider">/</span>
+                    <span>{activeSession.totalRegistered}</span>
+                    <span className="session-stat-label">Present</span>
+                  </div>
                 </div>
               </div>
 
               {activeSession.qrToken && (
                 <div className="session-token-wrapper">
-                  <div className="token-label">Live Check-In Token (Project or Share with Volunteers)</div>
+                  <span className="token-label">Live Attendance Session Token (Project on screen for volunteers):</span>
                   <div className="token-code-row">
-                    <code className="token-code">{activeSession.qrToken}</code>
+                    <span className="token-code">{activeSession.qrToken}</span>
                     <button
                       type="button"
                       className="btn-secondary-sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(activeSession.qrToken || "");
-                        setSuccess("Check-in token copied to clipboard.");
-                      }}
+                      onClick={() => navigator.clipboard.writeText(activeSession.qrToken || "")}
                     >
                       Copy Token
                     </button>
@@ -311,24 +460,25 @@ export const Attendance: React.FC = () => {
           <div className="section-card">
             <div className="section-header">
               <div>
-                <h2>Event Roster & Verification State</h2>
+                <h2>Event Roster &amp; Verification State</h2>
                 <p className="subtitle">
-                  Real-time verification log for student volunteers enrolled in this event.
+                  {roster.length} Total Enrolled &bull; Filtered by registration
                 </p>
               </div>
-              <span className="badge badge-muted">
-                {roster.length} {roster.length === 1 ? "Volunteer" : "Volunteers"} Enrolled
-              </span>
+              <button
+                type="button"
+                className="btn-secondary-sm"
+                onClick={() => selectedEventId && loadSessionAndRoster(selectedEventId)}
+              >
+                Refresh Roster
+              </button>
             </div>
 
             {loading ? (
-              <div className="loading-state">
-                <p>Loading roster verification data...</p>
-              </div>
+              <p className="loading-state">Loading roster records...</p>
             ) : roster.length === 0 ? (
               <div className="empty-state">
-                <h3>No Volunteers Enrolled</h3>
-                <p>No student volunteers are currently registered for this event roster.</p>
+                <p>No volunteers registered for this event.</p>
               </div>
             ) : (
               <div className="table-wrapper">
@@ -337,7 +487,7 @@ export const Attendance: React.FC = () => {
                     <tr>
                       <th>Volunteer</th>
                       <th>College ID</th>
-                      <th>Dept & Unit</th>
+                      <th>Dept &amp; Unit</th>
                       <th>Registration</th>
                       <th>Attendance State</th>
                       <th>Check-in Method</th>
@@ -376,11 +526,11 @@ export const Attendance: React.FC = () => {
                           </span>
                         </td>
                         <td>
-                          <span className="cell-sub">{row.checkInMethod || "—"}</span>
+                          <span className="cell-sub">{row.checkInMethod || "\u2014"}</span>
                         </td>
                         <td>
                           <span className="cell-sub">
-                            {row.checkedInAt ? new Date(row.checkedInAt).toLocaleTimeString() : "—"}
+                            {row.checkedInAt ? new Date(row.checkedInAt).toLocaleTimeString() : "\u2014"}
                           </span>
                         </td>
                         <td>
@@ -478,4 +628,3 @@ export const Attendance: React.FC = () => {
     </div>
   );
 };
-
