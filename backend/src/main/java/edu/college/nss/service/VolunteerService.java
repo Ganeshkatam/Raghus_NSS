@@ -12,8 +12,12 @@ import edu.college.nss.web.dto.MembershipResponse;
 import edu.college.nss.web.dto.VolunteerRequest;
 import edu.college.nss.web.dto.VolunteerResponse;
 import edu.college.nss.web.dto.VolunteerUpdateRequest;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -98,7 +103,25 @@ public class VolunteerService {
     public Page<VolunteerResponse> searchVolunteers(
         String search, String status, String department, Pageable pageable
     ) {
-        return volunteerRepository.searchVolunteers(search, status, department, pageable)
+        Specification<Volunteer> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+                Join<Volunteer, User> userJoin = root.join("user", JoinType.LEFT);
+                Predicate nameMatch = cb.like(cb.lower(userJoin.get("name")), pattern);
+                Predicate collegeIdMatch = cb.like(cb.lower(root.get("collegeId")), pattern);
+                predicates.add(cb.or(nameMatch, collegeIdMatch));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status.trim()));
+            }
+            if (department != null && !department.isBlank()) {
+                predicates.add(cb.equal(root.get("department"), department.trim()));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return volunteerRepository.findAll(spec, pageable)
             .map(v -> {
                 UnitMembership active = membershipRepository
                     .findByVolunteer_VolunteerIdAndIsActiveTrue(v.getVolunteerId())

@@ -22,9 +22,9 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long>, Jpa
     long countByStatus(String status);
 
     @Query("SELECT v FROM Volunteer v WHERE " +
-           "(:search IS NULL OR LOWER(v.user.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(v.collegeId) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-           "(:status IS NULL OR v.status = :status) AND " +
-           "(:department IS NULL OR v.department = :department)")
+           "(cast(:search as string) IS NULL OR LOWER(v.user.name) LIKE LOWER(CONCAT('%', cast(:search as string), '%')) OR LOWER(v.collegeId) LIKE LOWER(CONCAT('%', cast(:search as string), '%'))) AND " +
+           "(cast(:status as string) IS NULL OR v.status = :status) AND " +
+           "(cast(:department as string) IS NULL OR v.department = :department)")
     Page<Volunteer> searchVolunteers(
         @Param("search") String search,
         @Param("status") String status,
