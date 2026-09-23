@@ -1,39 +1,39 @@
 # Render Blueprint Specification for Raghu NSS Platform
-# Reference: https://render.com/docs/blueprint-spec
 
 databases:
-  - name: rec-nss-postgres
+  - name: nss-postgres
     databaseName: nss
-    user: nss
+    user: nss_postgres_2bsb_user
     plan: free
 
 services:
-  - type: redis
-    name: rec-nss-redis
+  - type: keyvalue
+    name: nss-redis
     plan: free
-    ipAllowList: []
+    region: singapore
 
   - type: web
-    name: rec-nss-backend
+    name: api_nss
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
+    region: singapore
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: rec-nss-postgres
+          name: nss-postgres
           property: connectionString
       - key: SPRING_DATA_REDIS_HOST
         fromService:
-          type: redis
-          name: rec-nss-redis
+          type: keyvalue
+          name: nss-redis
           property: host
       - key: SPRING_DATA_REDIS_PORT
         fromService:
-          type: redis
-          name: rec-nss-redis
+          type: keyvalue
+          name: nss-redis
           property: port
       - key: JWT_SECRET
         generateValue: true
