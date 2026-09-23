@@ -55,7 +55,7 @@ public class EventService {
             if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
                 return Page.empty(pageable);
             }
-            return eventRepository.searchPublic(unitId, pageable).map(this::toResponse);
+            return eventRepository.searchPublic(unitId, status, pageable).map(this::toResponse);
         }
         return eventRepository.search(unitId, status, pageable).map(this::toResponse);
     }
