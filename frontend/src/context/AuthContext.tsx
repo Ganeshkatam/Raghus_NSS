@@ -15,7 +15,12 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCoordinator: boolean;
+  isOfficer: boolean;
   isCoordinatorOrOfficer: boolean;
+  isStudentLeader: boolean;
+  isVolunteer: boolean;
+  roleDisplayName: string;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -67,9 +72,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const roles = user?.roles || [];
   const isAdmin = roles.includes("ROLE_ADMIN");
-  const isCoordinatorOrOfficer = isAdmin ||
-    roles.includes("ROLE_FACULTY_COORDINATOR") ||
-    roles.includes("ROLE_PROGRAMME_OFFICER");
+  const isCoordinator = roles.includes("ROLE_FACULTY_COORDINATOR");
+  const isOfficer = roles.includes("ROLE_PROGRAMME_OFFICER");
+  const isCoordinatorOrOfficer = isAdmin || isCoordinator || isOfficer;
+  const isStudentLeader = roles.includes("ROLE_STUDENT_LEADER");
+  const isVolunteer = roles.includes("ROLE_VOLUNTEER") || (!isAdmin && !isCoordinator && !isOfficer);
+
+  const roleDisplayName = isAdmin
+    ? "System Administrator"
+    : isCoordinator
+    ? "Faculty Coordinator"
+    : isOfficer
+    ? "Programme Officer"
+    : isStudentLeader
+    ? "Student Leader"
+    : "NSS Volunteer";
 
   return (
     <AuthContext.Provider
@@ -78,7 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user,
         isAdmin,
+        isCoordinator,
+        isOfficer,
         isCoordinatorOrOfficer,
+        isStudentLeader,
+        isVolunteer,
+        roleDisplayName,
         login,
         logout,
         loading,
@@ -96,3 +118,4 @@ export const useAuth = () => {
   }
   return context;
 };
+
