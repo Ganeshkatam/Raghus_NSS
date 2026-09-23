@@ -1,14 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-function App() {
-  return (
-    <main>
-      <h1>NSS College Application</h1>
-      <p>Project foundation is ready.</p>
-    </main>
-  );
-}
+import { App } from "./App";
+import "./index.css";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -18,5 +11,5 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 );
