@@ -169,6 +169,16 @@ public class EventService {
             .stream().map(EventRegistrationResponse::fromEntity).toList();
     }
 
+    @Transactional(readOnly = true)
+    public EventRegistrationResponse myRegistration(Long eventId, UserDetails principal) {
+        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
+            .orElseThrow(() -> new AccessDeniedException("Authenticated user is not registered as a volunteer."));
+        EventRegistration registration = registrationRepository
+            .findByEvent_EventIdAndVolunteer_VolunteerId(eventId, volunteer.getVolunteerId())
+            .orElseThrow(() -> new IllegalArgumentException("Registration not found."));
+        return EventRegistrationResponse.fromEntity(registration);
+    }
+
     @Transactional
     public void cancelRegistration(Long eventId, UserDetails principal) {
         Event event = getEntity(eventId);
