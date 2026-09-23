@@ -110,7 +110,7 @@ export const AppContent: React.FC = () => {
               title="Special Camps"
               category="Programmes"
               description="7-day rural immersion camps, village adoption activities, and special residential initiatives."
-              phase="Phase 7 — Camps & Special Operations"
+              phase="Future Scope"
               features={[
                 "Rural village camp allocation and student leadership rosters",
                 "Daily camp schedule and multi-session service hours logging",
@@ -148,7 +148,7 @@ export const AppContent: React.FC = () => {
               title="Achievements & Recognition"
               category="Recognition"
               description="Best volunteer awards, leadership citations, and institutional honors."
-              phase="Phase 9 — Recognition & Awards"
+              phase="Future Scope"
               features={[
                 "Annual Best Volunteer and Special Contribution awards",
                 "Institutional honors review and nomination workflows",
@@ -166,7 +166,7 @@ export const AppContent: React.FC = () => {
               title="Institutional Certificates"
               category="Recognition"
               description="Digitally verified completion certificates, activity credentials, and verifiable downloads."
-              phase="Phase 9 — Certificates & Credentials"
+              phase="Future Scope"
               features={[
                 "Official NSS Participation and Special Camp completion certificates",
                 "Cryptographic verification codes and PDF credential generation",
@@ -204,7 +204,7 @@ export const AppContent: React.FC = () => {
               title="Activity Reports"
               category="Documents"
               description="Standardized post-programme documentation, photos, and compliance submissions."
-              phase="Phase 8 — Activity Reports"
+              phase="Future Scope"
               features={[
                 "Structured activity reports linking directly to event and attendance records",
                 "Photo gallery and geo-tagged community service documentation",
@@ -222,7 +222,7 @@ export const AppContent: React.FC = () => {
               title="Document Repository"
               category="Documents"
               description="Government circulars, NSS operational manuals, and institutional forms."
-              phase="Phase 8 — Document Management"
+              phase="Future Scope"
               features={[
                 "Categorized repository for Ministry of Youth Affairs circulars and guidelines",
                 "Enrollment forms, medical fitness templates, and parent consent forms",
@@ -252,7 +252,7 @@ export const AppContent: React.FC = () => {
               title="Institutional Administration"
               category="Administration"
               description="User access control, role assignments, system status, and immutable audit logs."
-              phase="Phase 11 — Advanced Administration"
+              phase="Future Scope"
               features={[
                 "Staff and student leader role assignment and permission tuning",
                 "System health diagnostics, database migration status, and cache controls",

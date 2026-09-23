@@ -1,53 +1,57 @@
 # Feature-Wise Specification
 
-## Authentication and authorization
+## Core Production Features (Active & Verified)
 
-Secure login/session handling, role assignment, account status, least-privilege permissions and audit of privileged changes.
+### 1. Authentication and Authorization
+Secure login and session handling via stateless JWT tokens with Redis-backed token revocation, role assignment (Admin, Programme Officer, Volunteer), account status validation, and server-side method authorization (`@PreAuthorize`).
 
-## Volunteer management
+### 2. Volunteer Management
+Volunteer profiles, enrollment status, college ID mapping, unit assignment, historical membership ledger, and leadership tracking.
 
-Volunteer onboarding, approval, profile, status, academic mapping, unit assignment and historical membership.
+### 3. NSS Units
+Unit creation, unit numbering, programme officer assignment, volunteer membership management, and scope-aware access queries.
 
-## NSS units
+### 4. Events & Activities
+Event lifecycle (Draft, Published, Open, In Progress, Completed, Cancelled), scheduling, venue, category, capacity, and transactional registration window handling.
 
-Unit creation, coordinator assignment, membership management and scope-aware access.
+### 5. Registration
+Volunteer self-registration with automatic duplicate rejection, capacity limit validation, deadline enforcement, and status auditing.
 
-## Events
+### 6. Attendance & QR Verification
+Authorized attendance sessions with rolling cryptographic QR verification tokens, authenticated volunteer self-check-in, programme officer manual check-in, duplicate prevention, and auditable supervisor corrections.
 
-Draft, published, open, closed, completed, cancelled and archived states; date/time, venue, category, eligibility, capacity and registration window.
+### 7. Service Hours & Milestone Progress
+Append-oriented service hour claim submission, event-linked verification, programme officer approval queue, auditable adjustment records, and 120-hour milestone progress tracking.
 
-## Registration
+### 8. Announcements & Notifications
+Audience-scoped institutional bulletins (college-wide or unit-specific), importance ranking, in-app notification inbox, and per-user read/unread tracking.
 
-Eligible volunteers register for events. Duplicate registration is rejected. Capacity and deadline rules are enforced transactionally.
+### 9. Reports & Analytics
+Executive institutional metrics, per-unit participation matrix, and 1-click CSV exports for Volunteers, Events, and Service Hours.
 
-## Attendance
+### 10. Operational Dashboards
+Role-tailored dashboards providing immediate KPI summaries, pending administrative reviews, recent activities, and milestone progress.
 
-Authorized attendance session creation, short-lived QR credentials, authenticated check-in, coordinator marking, duplicate prevention and controlled corrections.
+---
 
-## Service hours
+## Future Roadmap Features (Future Scope)
 
-Verified attendance produces auditable service-hour entries. Manual changes require authorization and audit history.
+The following modules are catalogued for future institutional expansion:
 
-## Announcements and notifications
+### 1. Special Camps (Future)
+7-day rural immersion camps, village adoption activities, camp allocation, student leadership rosters, multi-session camp service hours, and community impact assessments.
 
-Audience-scoped announcements and notifications for operational events such as publication, registration and attendance.
+### 2. Achievements & Honors (Future)
+Annual Best Volunteer awards, special contribution awards, institutional honors review, nomination workflows, and public recognition portfolio.
 
-## Reports
+### 3. Institutional Certificates & Credentials (Future)
+Digitally verified NSS completion certificates, cryptographic verification codes, automated PDF credential generation, and university academic transcript integration.
 
-Attendance, participation, service-hour, unit and date-range reports. Large exports may run asynchronously and use expiring download access.
+### 4. Activity Reports (Future)
+Standardized post-programme documentation, photo galleries, geo-tagged community service documentation, and University NSS Cell compliance submissions.
 
-## Achievements and certificates
+### 5. Document Repository (Future)
+Categorized repository for Ministry of Youth Affairs circulars, operational guidelines, enrollment forms, medical fitness templates, and version-controlled institutional archives.
 
-Track awards, leadership, recognitions and approved certificates. Certificate changes are controlled and auditable.
-
-## Documents
-
-Metadata, secure object-storage keys, type/size validation and permission-aware access. Private documents must not be publicly exposed.
-
-## Audit
-
-Record actor, action, resource, timestamp and safe metadata. Never log passwords, access tokens or unnecessary sensitive payloads.
-
-## Dashboards
-
-Role-specific operational statistics, pending actions, participation and service-hour summaries.
+### 6. Advanced Institutional Administration (Future)
+Fine-grained staff permission tuning, database maintenance console, live Redis cache controls, and comprehensive immutable audit query tooling.

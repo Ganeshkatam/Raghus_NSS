@@ -30,15 +30,15 @@ export const ModulePlaceholder: React.FC<ModulePlaceholderProps> = ({
           <h1>{title}</h1>
           <p className="subtitle">{description}</p>
         </div>
-        <span className="badge badge-primary">{phase}</span>
+        <span className="badge badge-secondary">{phase || "Future Scope"}</span>
       </div>
 
       <div className="section-card">
         <div className="section-header">
-          <h2>Planned Module Specifications</h2>
+          <h2>Future Roadmap Specifications</h2>
         </div>
         <p className="cell-sub" style={{ marginBottom: "1rem" }}>
-          This workflow is specified in the College NSS UI/UX Implementation Specification and connects to the authoritative transactional backend.
+          This capability is designated for future release. The primary operational modules (Volunteers, Units, Events, Attendance, Service Hours, Announcements, and Reports) are fully operational.
         </p>
         <ul style={{ paddingLeft: "1.25rem", color: "var(--text-secondary)", lineHeight: "1.8" }}>
           {features.map((f, i) => (

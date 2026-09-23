@@ -1,86 +1,77 @@
-# Implementation Plan
+# Implementation Plan & Roadmap Status
 
-## Phase 0 — Baseline
+## Completed & Production-Hardened (Current Scope)
 
-Freeze requirements, roles, workflows, API conventions, error model and data model.
+### Phase 0 — Baseline (Completed)
+- Requirements, roles, workflows, API conventions, and data model frozen and documented.
 
-## Phase 1 — Foundation
+### Phase 1 — Foundation (Completed)
+- Multi-tier architecture: Spring Boot 3 backend, React 19 + TypeScript frontend, PostgreSQL 17, Redis 8.
+- Multi-stage Dockerfiles and container orchestration via Docker Compose.
+- Flyway database migration pipeline.
+- Production environment configurations and health/readiness endpoints.
 
-- Repository structure
-- Docker Compose (PostgreSQL, Redis, backend, frontend, analytics)
-- PostgreSQL & Redis configuration
-- Flyway database migration foundation
-- Spring Boot application
-- React application shell
-- Python analytics service
-- CI pipeline
-- Environment configuration
-- Health/readiness endpoints
+### Phase 2 — Identity & RBAC (Completed)
+- Stateless JWT authentication with Redis token revocation.
+- BCrypt password hashing.
+- Role-based access control with `@PreAuthorize` across Admin, Programme Officer, and Volunteer tiers.
+- `/api/v1/auth/login`, `/api/v1/auth/refresh`, and `/api/v1/auth/me` endpoints.
 
-## Phase 2 — Identity and RBAC
+### Phase 3 — Volunteers & Units (Completed)
+- NSS units, volunteer profiles, unit memberships, membership history, and scope-aware queries.
 
-- Spring Security integration (stateless JWT authentication with Redis token revocation)
-- Password hashing (BCrypt / Argon2)
-- Database migrations: users, roles, permissions, user_roles
-- Account activation/deactivation and server-side RBAC authorization (@PreAuthorize)
-- Authentication API endpoints (/api/v1/auth/login, /api/v1/auth/refresh, /api/v1/auth/me)
+### Phase 4 — Events & Registration (Completed)
+- Event lifecycle management (Draft, Published, Open, In Progress, Completed, Cancelled).
+- Capacity management, registration deadlines, and duplicate prevention.
 
-## Phase 3 — Volunteers and units
+### Phase 5 — Attendance & QR Verification (Completed)
+- Attendance sessions with rolling cryptographic QR verification tokens.
+- Self check-in via mobile scan and supervisor manual check-in.
+- Supervisor corrections with mandatory change rationale.
 
-NSS units, volunteer profiles, unit memberships, membership history and scope-aware queries.
+### Phase 6 — Service Hours (Completed)
+- Append-oriented service hour ledger linked to verified participation.
+- Volunteer claim submission, supervisor review queue, and milestone progress tracking.
 
-## Phase 4 — Events and registration
+### Phase 7 — Communication Engine (Completed)
+- Audience-scoped announcements (college-wide or unit-specific).
+- Notification engine with per-user unread tracking.
 
-Event lifecycle, registration windows, eligibility, capacity, duplicate-registration constraint and transactional last-seat handling.
+### Phase 8 — Reporting & Institutional Analytics (Completed)
+- Executive metrics, unit engagement matrix, and 1-click CSV exports for Volunteers, Events, and Service Hours.
 
-## Phase 5 — Attendance
+### Phase 10 — Production Hardening (Completed)
+- Hikari connection pooling, Flyway safety controls, and graceful shutdown.
+- Strict CORS configuration and JWT secret length validation.
+- Non-root container security (`nssuser:nssgroup`) and JVM container ergonomics.
+- Nginx reverse proxy with security headers, Gzip compression, and asset caching.
+- Render.yaml blueprint configured for Supabase PostgreSQL and Upstash Redis.
 
-Attendance sessions, short-lived QR credentials, check-in validation, duplicate prevention, corrections and audit records.
+---
 
-## Phase 6 — Service hours
+## Future Roadmap (Marked as Future Scope)
 
-Use an append-oriented ledger linked to verified participation. Avoid relying on a mutable total as the source of truth.
+The following modules are catalogued as future enhancements beyond the current core production baseline:
 
-## Phase 7 — Communication
+### Phase 9A — Special Camps (Future)
+- 7-day rural immersion camp management and allocation.
+- Village adoption tracking and multi-session camp service hour logging.
 
-Announcements, in-app notifications and optional asynchronous delivery.
+### Phase 9B — Achievements & Recognition (Future)
+- Annual awards, leadership citations, and nomination workflows.
+- Public recognition showcase.
 
-## Phase 8 — Reporting
+### Phase 9C — Digital Certificates (Future)
+- Cryptographically verifiable participation and camp completion certificates.
+- Automated PDF credential generation and university transcript integration.
 
-Attendance, participation, service-hour and unit reports with permission-aware filters and secure exports.
+### Phase 9D — Activity Reports (Future)
+- Structured post-programme documentation and geo-tagged photo uploads.
+- University NSS Cell compliance reporting.
 
-## Phase 9 — Achievements and certificates
+### Phase 9E — Document Repository (Future)
+- Cloud storage integration for Ministry circulars, operational guidelines, and enrollment forms.
 
-Achievement records, eligibility rules, certificate records and controlled document generation.
-
-## Phase 10 — Hardening
-
-Security tests, authorization tests, rate limits, dependency scanning, observability, backup/restore testing and deployment smoke tests.
-
-## Database migration order
-
-1. users
-2. roles
-3. permissions
-4. user_roles
-5. nss_units
-6. volunteers
-7. unit_memberships
-8. events
-9. event_registrations
-10. attendance_sessions
-11. attendance_records
-12. attendance_corrections
-13. service_hour_entries
-14. announcements
-15. notifications
-16. achievements
-17. documents
-18. certificates
-19. activity_reports
-20. reports
-21. audit_logs
-
-## MVP
-
-Authentication → Volunteers → Units → Events → Registration → QR Attendance → Service Hours → Dashboard.
+### Phase 11 — Advanced Administration (Future)
+- Detailed administrative audit log query console.
+- In-depth system health diagnostics and runtime cache management.

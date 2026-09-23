@@ -419,6 +419,25 @@ body {
   flex-shrink: 0;
 }
 
+.sidebar-badge-future {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background-color: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.sidebar-link.active .sidebar-badge-future {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 .nav-group-admin {
   margin-top: 1rem;
   padding-top: 1rem;
