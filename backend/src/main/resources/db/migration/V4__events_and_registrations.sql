@@ -10,13 +10,19 @@ CREATE TABLE IF NOT EXISTS events (
     event_type VARCHAR(50) NOT NULL,
     start_at TIMESTAMP WITH TIME ZONE NOT NULL,
     end_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    registration_deadline TIMESTAMP WITH TIME ZONE,
+    registration_open_at TIMESTAMP WITH TIME ZONE,
+    registration_close_at TIMESTAMP WITH TIME ZONE,
     venue VARCHAR(255) NOT NULL,
     capacity INT NOT NULL CHECK (capacity > 0),
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED', 'CANCELLED')),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_event_times CHECK (end_at > start_at)
+    CONSTRAINT chk_event_times CHECK (end_at > start_at),
+    CONSTRAINT chk_registration_window CHECK (
+        registration_close_at IS NULL
+        OR registration_open_at IS NULL
+        OR registration_close_at >= registration_open_at
+    )
 );
 
 CREATE INDEX idx_events_unit ON events(unit_id);
