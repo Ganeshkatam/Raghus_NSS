@@ -24,6 +24,9 @@ public class JwtTokenProvider {
         @Value("${app.jwt.expiration-ms:900000}") long expirationMs,
         @Value("${app.jwt.refresh-expiration-ms:604800000}") long refreshExpirationMs
     ) {
+        if (secret == null || secret.trim().length() < 32) {
+            throw new IllegalArgumentException("JWT secret key must be configured and at least 32 characters (256 bits) long.");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
         this.refreshExpirationMs = refreshExpirationMs;

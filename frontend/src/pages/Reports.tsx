@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { apiRequest } from "../api/client";
+import { apiRequest, API_BASE_URL } from "../api/client";
 
 interface UnitPerformance {
   unitId: number;
@@ -47,7 +47,7 @@ export const Reports: React.FC = () => {
     try {
       setDownloading(filename);
       const token = localStorage.getItem("nss_token");
-      const res = await fetch(`/api/v1/reports/export/${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}/reports/export/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
