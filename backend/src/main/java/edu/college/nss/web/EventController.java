@@ -33,9 +33,10 @@ public class EventController {
     public Page<EventResponse> search(@RequestParam(required = false) Long unitId,
                                       @RequestParam(required = false) String status,
                                       @RequestParam(defaultValue = "0") int page,
-                                      @RequestParam(defaultValue = "12") int size) {
+                                      @RequestParam(defaultValue = "12") int size,
+                                      @AuthenticationPrincipal UserDetails principal) {
         int safeSize = Math.min(Math.max(size, 1), 50);
-        return service.search(unitId, status, PageRequest.of(page, safeSize, Sort.by("startAt").ascending()));
+        return service.search(unitId, status, PageRequest.of(page, safeSize, Sort.by("startAt").ascending()), principal);
     }
 
     @GetMapping("/{id}")
