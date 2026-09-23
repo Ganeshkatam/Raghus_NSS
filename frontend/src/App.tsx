@@ -10,6 +10,7 @@ import { Units } from "./pages/Units";
 import { UnitDetail } from "./pages/UnitDetail";
 import { Events } from "./pages/Events";
 import { EventDetail } from "./pages/EventDetail";
+import { Attendance } from "./pages/Attendance";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -122,18 +123,7 @@ export const AppContent: React.FC = () => {
         path="/attendance"
         element={
           <ProtectedRoute>
-            <ModulePlaceholder
-              title="Attendance Operations"
-              category="Participation"
-              description="QR attendance check-ins, live session monitoring, and audited attendance correction workflows."
-              phase="Phase 5 — Attendance & QR Workflow"
-              features={[
-                "Real-time event attendance sessions with server-authoritative timestamps",
-                "Mobile-first volunteer QR code verification scanner",
-                "Programme Officer attendance roster with verified attendance counts",
-                "Audited correction requests with reason logging and ledger adjustments"
-              ]}
-            />
+            <Attendance />
           </ProtectedRoute>
         }
       />

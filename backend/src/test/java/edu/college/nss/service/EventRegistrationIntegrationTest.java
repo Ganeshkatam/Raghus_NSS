@@ -26,6 +26,10 @@ class EventRegistrationIntegrationTest {
     @Autowired EventService eventService;
     @Autowired EventRepository eventRepository;
     @Autowired EventRegistrationRepository registrationRepository;
+    @Autowired AttendanceSessionRepository sessionRepository;
+    @Autowired AttendanceRecordRepository recordRepository;
+    @Autowired AttendanceCorrectionRepository correctionRepository;
+    @Autowired ServiceHourEntryRepository serviceHourRepository;
     @Autowired NssUnitRepository unitRepository;
     @Autowired UserRepository userRepository;
     @Autowired VolunteerRepository volunteerRepository;
@@ -37,6 +41,10 @@ class EventRegistrationIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        serviceHourRepository.deleteAll();
+        correctionRepository.deleteAll();
+        recordRepository.deleteAll();
+        sessionRepository.deleteAll();
         registrationRepository.deleteAll();
         eventRepository.deleteAll();
         membershipRepository.deleteAll();
@@ -103,14 +111,14 @@ class EventRegistrationIntegrationTest {
             now.plusSeconds(3600), now.plusSeconds(7200), now.minusSeconds(60), now.plusSeconds(1800),
             "Lab", 5);
         event.setStatus("OPEN");
-        event = eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
 
         UserDetails principal = org.springframework.security.core.userdetails.User
             .withUsername(volunteer.getUser().getEmail()).password("x").roles("VOLUNTEER").build();
 
-        eventService.register(event.getEventId(), new RegistrationRequest(volunteer.getVolunteerId()), principal);
+        eventService.register(savedEvent.getEventId(), new RegistrationRequest(volunteer.getVolunteerId()), principal);
         assertThrows(edu.college.nss.exception.DuplicateRegistrationException.class,
-            () -> eventService.register(event.getEventId(), new RegistrationRequest(volunteer.getVolunteerId()), principal));
+            () -> eventService.register(savedEvent.getEventId(), new RegistrationRequest(volunteer.getVolunteerId()), principal));
     }
 
     @Test
