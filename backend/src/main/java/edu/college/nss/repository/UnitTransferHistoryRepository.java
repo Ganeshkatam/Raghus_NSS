@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface UnitTransferHistoryRepository extends JpaRepository<UnitTransferHistory, UUID> {
     List<UnitTransferHistory> findByVolunteer_VolunteerIdOrderByTransferredAtDesc(UUID volunteerId);
+    List<UnitTransferHistory> findTop25ByOrderByTransferredAtDesc();
 }

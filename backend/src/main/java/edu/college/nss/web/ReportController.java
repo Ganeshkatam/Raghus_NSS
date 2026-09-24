@@ -27,8 +27,11 @@ public class ReportController {
     }
 
     @GetMapping("/export/volunteers")
-    public ResponseEntity<byte[]> exportVolunteers() {
-        byte[] csv = service.exportVolunteersCsv();
+    public ResponseEntity<byte[]> exportVolunteers(
+        @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String status
+    ) {
+        byte[] csv = service.exportVolunteersCsv(unitId, status);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_volunteers_roster.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
@@ -36,8 +39,13 @@ public class ReportController {
     }
 
     @GetMapping("/export/events")
-    public ResponseEntity<byte[]> exportEvents() {
-        byte[] csv = service.exportEventsCsv();
+    public ResponseEntity<byte[]> exportEvents(
+        @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate
+    ) {
+        byte[] csv = service.exportEventsCsv(unitId, status, startDate, endDate);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_events_roster.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
@@ -45,8 +53,12 @@ public class ReportController {
     }
 
     @GetMapping("/export/service-hours")
-    public ResponseEntity<byte[]> exportServiceHours() {
-        byte[] csv = service.exportServiceHoursCsv();
+    public ResponseEntity<byte[]> exportServiceHours(
+        @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate
+    ) {
+        byte[] csv = service.exportServiceHoursCsv(unitId, startDate, endDate);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_service_hours_accreditation.csv")
             .contentType(MediaType.parseMediaType("text/csv"))

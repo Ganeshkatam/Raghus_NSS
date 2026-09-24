@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { apiRequest, API_BASE_URL } from "../api/client";
+import { apiRequest, API_BASE_URL, ApiError } from "../api/client";
 
 interface UnitPerformance {
   unitId: string;
@@ -21,81 +21,462 @@ interface InstitutionalMetrics {
   unitPerformance: UnitPerformance[];
 }
 
+interface Unit {
+  unitId: string;
+  unitName: string;
+  unitNumber: string;
+}
+
+interface VolunteerPreviewItem {
+  volunteerId: string;
+  name: string;
+  collegeId: string;
+  department: string;
+  yearOfStudy: number;
+  status: string;
+  unitName?: string | null;
+}
+
+interface EventPreviewItem {
+  eventId: string;
+  title: string;
+  eventType: string;
+  unitName: string;
+  startAt: string;
+  endAt: string;
+  venue: string;
+  capacity: number;
+  registeredCount: number;
+  status: string;
+}
+
+type ReportTab = "overview" | "volunteers" | "events" | "serviceHours";
+
 export const Reports: React.FC = () => {
   const [metrics, setMetrics] = useState<InstitutionalMetrics | null>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [activeTab, setActiveTab] = useState<ReportTab>("overview");
+  const [unitId, setUnitId] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Preview Data
+  const [volunteerPreviews, setVolunteerPreviews] = useState<VolunteerPreviewItem[]>([]);
+  const [eventPreviews, setEventPreviews] = useState<EventPreviewItem[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Export State
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  const fetchMetricsAndUnits = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [metricsData, unitsData] = await Promise.all([
+        apiRequest<InstitutionalMetrics>("/reports/metrics"),
+        apiRequest<Unit[]>("/units"),
+      ]);
+      setMetrics(metricsData);
+      setUnits(unitsData || []);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setError(apiErr.message || "Failed to load institutional analytics.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await apiRequest<InstitutionalMetrics>("/reports/metrics");
-        setMetrics(data);
-      } catch (err: any) {
-        setError(err.message || "Failed to load institutional analytics.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMetrics();
+    fetchMetricsAndUnits();
   }, []);
 
-  const handleDownloadCsv = async (endpoint: string, filename: string) => {
-    try {
-      setDownloading(filename);
-      const token = localStorage.getItem("nss_token");
-      const res = await fetch(`${API_BASE_URL}/reports/export/${endpoint}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+  // Fetch previews when tab changes
+  useEffect(() => {
+    const fetchPreviews = async () => {
+      if (activeTab === "volunteers") {
+        setPreviewLoading(true);
+        try {
+          let url = "/volunteers?size=50";
+          if (unitId) url += "&unitId=" + encodeURIComponent(unitId);
+          if (statusFilter) url += "&status=" + encodeURIComponent(statusFilter);
+          const page = await apiRequest<{ content: VolunteerPreviewItem[] }>(url);
+          setVolunteerPreviews(page.content || []);
+        } catch {
+          setVolunteerPreviews([]);
+        } finally {
+          setPreviewLoading(false);
         }
-      });
-      if (!res.ok) {
-        throw new Error(`Export failed with status ${res.status}`);
+      } else if (activeTab === "events") {
+        setPreviewLoading(true);
+        try {
+          let url = "/events?size=50";
+          if (unitId) url += "&unitId=" + encodeURIComponent(unitId);
+          if (statusFilter) url += "&status=" + encodeURIComponent(statusFilter);
+          const page = await apiRequest<{ content: EventPreviewItem[] }>(url);
+          setEventPreviews(page.content || []);
+        } catch {
+          setEventPreviews([]);
+        } finally {
+          setPreviewLoading(false);
+        }
       }
+    };
+
+    fetchPreviews();
+  }, [activeTab, unitId, statusFilter]);
+
+  const applyPreset = (preset: "ALL_TIME" | "AY_2025" | "LAST_90" | "LAST_30") => {
+    const now = new Date();
+    if (preset === "ALL_TIME") {
+      setFromDate("");
+      setToDate("");
+    } else if (preset === "AY_2025") {
+      setFromDate("2025-06-01");
+      setToDate("2026-05-31");
+    } else if (preset === "LAST_90") {
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
+      setFromDate(d.toISOString().split("T")[0]);
+      setToDate(now.toISOString().split("T")[0]);
+    } else if (preset === "LAST_30") {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      setFromDate(d.toISOString().split("T")[0]);
+      setToDate(now.toISOString().split("T")[0]);
+    }
+  };
+
+  const handleDownloadCsv = async (endpoint: string, baseFilename: string) => {
+    try {
+      setDownloading(baseFilename);
+      setExportNotice(null);
+
+      const params = new URLSearchParams();
+      if (unitId) params.append("unitId", unitId);
+      if (statusFilter) params.append("status", statusFilter);
+      if (fromDate) params.append("startDate", new Date(fromDate).toISOString());
+      if (toDate) params.append("endDate", new Date(toDate).toISOString());
+
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const token = localStorage.getItem("nss_token");
+
+      const res = await fetch(`${API_BASE_URL}/reports/export/${endpoint}${queryString}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Export request failed with HTTP ${res.status}`);
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = baseFilename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
-      alert("Failed to export report: " + err.message);
+
+      setExportNotice(`Export generated successfully: ${baseFilename}`);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      alert("Failed to export report: " + (apiErr.message || "Network error"));
     } finally {
       setDownloading(null);
     }
   };
 
+  // Client search filtering on previews
+  const filteredVolunteers = volunteerPreviews.filter((v) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(q) ||
+      v.collegeId.toLowerCase().includes(q) ||
+      v.department.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredEvents = eventPreviews.filter((e) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      e.title.toLowerCase().includes(q) ||
+      e.venue.toLowerCase().includes(q) ||
+      e.unitName.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
       {/* Page Header */}
-      <div style={{ marginBottom: "2rem" }}>
+      <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 700, color: "var(--text-main, #0f172a)" }}>
-          Reports & Institutional Analytics
+          Reports &amp; Institutional Analytics
         </h1>
         <p style={{ margin: "0.25rem 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.95rem" }}>
-          Accreditation performance metrics, NSS unit comparisons, and institutional CSV data exports
+          Accreditation compliance rosters, NSS unit comparative matrices, and filtered audit exports.
         </p>
       </div>
 
       {error && (
-        <div style={{ padding: "1rem", backgroundColor: "#fef2f2", color: "#991b1b", borderRadius: "0.5rem", marginBottom: "1.5rem", border: "1px solid #fecaca" }}>
+        <div
+          style={{
+            padding: "1rem",
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            borderRadius: "0.5rem",
+            marginBottom: "1.5rem",
+            border: "1px solid #fecaca",
+          }}
+        >
           {error}
         </div>
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: "4rem", color: "#64748b" }}>
-          Compiling institutional metrics and accreditation rosters...
+      {exportNotice && (
+        <div
+          style={{
+            padding: "0.75rem 1rem",
+            backgroundColor: "#f0fdf4",
+            color: "#166534",
+            borderRadius: "0.5rem",
+            marginBottom: "1.5rem",
+            border: "1px solid #bbf7d0",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          {exportNotice}
         </div>
       )}
 
-      {!loading && metrics && (
+      {/* Filter Bar */}
+      <div className="section-card" style={{ marginBottom: "1.5rem", padding: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+          <strong style={{ fontSize: "0.95rem", color: "#1e293b" }}>Report Scope &amp; Date Range Filters</strong>
+          {/* Preset Buttons */}
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => applyPreset("ALL_TIME")}
+              className="btn-secondary-sm"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+            >
+              All Time
+            </button>
+            <button
+              type="button"
+              onClick={() => applyPreset("AY_2025")}
+              className="btn-secondary-sm"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+            >
+              AY 2025-26
+            </button>
+            <button
+              type="button"
+              onClick={() => applyPreset("LAST_90")}
+              className="btn-secondary-sm"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+            >
+              Past 90 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => applyPreset("LAST_30")}
+              className="btn-secondary-sm"
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+            >
+              Past 30 Days
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>NSS Operational Unit</label>
+            <select value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+              <option value="">All Institutional Units</option>
+              {units.map((u) => (
+                <option key={u.unitId} value={u.unitId}>
+                  {u.unitNumber} - {u.unitName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>From Date</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>To Date</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>Status Filter</label>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="OPEN">OPEN</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Export Action Cards */}
+      <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
+              Accreditation Data Export Center
+            </h3>
+            <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+              Generates audit-ready CSV datasets applying active unit and date filters.
+            </p>
+          </div>
+          {downloading && (
+            <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
+              Generating and streaming CSV download...
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Volunteers Directory</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Enrollment, department &amp; status</div>
+            </div>
+            <button
+              onClick={() => handleDownloadCsv("volunteers", "nss_volunteers_roster.csv")}
+              disabled={downloading === "nss_volunteers_roster.csv"}
+              className="btn-primary-sm"
+            >
+              {downloading === "nss_volunteers_roster.csv" ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
+
+          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Events &amp; Turnout</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Schedule, capacity &amp; registered counts</div>
+            </div>
+            <button
+              onClick={() => handleDownloadCsv("events", "nss_events_roster.csv")}
+              disabled={downloading === "nss_events_roster.csv"}
+              className="btn-primary-sm"
+            >
+              {downloading === "nss_events_roster.csv" ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
+
+          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Ledger</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Verified 120-hour accreditation credit</div>
+            </div>
+            <button
+              onClick={() => handleDownloadCsv("service-hours", "nss_service_hours_accreditation.csv")}
+              disabled={downloading === "nss_service_hours_accreditation.csv"}
+              className="btn-primary-sm"
+            >
+              {downloading === "nss_service_hours_accreditation.csv" ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Preview Section Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          borderBottom: "1px solid #e2e8f0",
+          marginBottom: "1.5rem",
+          overflowX: "auto",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          style={{
+            padding: "0.75rem 1.25rem",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "overview" ? "2px solid #1e40af" : "2px solid transparent",
+            color: activeTab === "overview" ? "#1e40af" : "#64748b",
+            fontWeight: activeTab === "overview" ? 700 : 500,
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Institutional Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("volunteers")}
+          style={{
+            padding: "0.75rem 1.25rem",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "volunteers" ? "2px solid #1e40af" : "2px solid transparent",
+            color: activeTab === "volunteers" ? "#1e40af" : "#64748b",
+            fontWeight: activeTab === "volunteers" ? 700 : 500,
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Volunteers Roster Preview
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("events")}
+          style={{
+            padding: "0.75rem 1.25rem",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "events" ? "2px solid #1e40af" : "2px solid transparent",
+            color: activeTab === "events" ? "#1e40af" : "#64748b",
+            fontWeight: activeTab === "events" ? 700 : 500,
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Events Registry Preview
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
+          Compiling institutional metrics...
+        </div>
+      ) : activeTab === "overview" && metrics ? (
         <div>
           {/* Institutional KPI Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
@@ -136,87 +517,6 @@ export const Reports: React.FC = () => {
               </div>
               <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
                 Institutional accreditation verified
-              </div>
-            </div>
-          </div>
-
-          {/* Export Center Cards */}
-          <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", marginBottom: "2.5rem" }}>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
-              Accreditation Data Export Center
-            </h3>
-            <p style={{ margin: "0 0 1.25rem", fontSize: "0.875rem", color: "#64748b" }}>
-              Download complete, timestamped CSV rosters for university audits, NAAC/NIRF reporting, and compliance documentation.
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
-              <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Volunteers Directory</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Full student enrollment & unit roster</div>
-                </div>
-                <button
-                  onClick={() => handleDownloadCsv("volunteers", "nss_volunteers_roster.csv")}
-                  disabled={downloading === "nss_volunteers_roster.csv"}
-                  style={{
-                    backgroundColor: "#1e40af",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "0.375rem",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.8125rem",
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
-                  {downloading === "nss_volunteers_roster.csv" ? "Exporting..." : "Download CSV"}
-                </button>
-              </div>
-
-              <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Events & Attendance</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Event schedule & registrations report</div>
-                </div>
-                <button
-                  onClick={() => handleDownloadCsv("events", "nss_events_roster.csv")}
-                  disabled={downloading === "nss_events_roster.csv"}
-                  style={{
-                    backgroundColor: "#1e40af",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "0.375rem",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.8125rem",
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
-                  {downloading === "nss_events_roster.csv" ? "Exporting..." : "Download CSV"}
-                </button>
-              </div>
-
-              <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Ledger</div>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Verified accreditation hours records</div>
-                </div>
-                <button
-                  onClick={() => handleDownloadCsv("service-hours", "nss_service_hours_accreditation.csv")}
-                  disabled={downloading === "nss_service_hours_accreditation.csv"}
-                  style={{
-                    backgroundColor: "#1e40af",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "0.375rem",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.8125rem",
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
-                  {downloading === "nss_service_hours_accreditation.csv" ? "Exporting..." : "Download CSV"}
-                </button>
               </div>
             </div>
           </div>
@@ -268,7 +568,133 @@ export const Reports: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ) : activeTab === "volunteers" ? (
+        <div className="section-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Volunteers Roster Preview</h3>
+              <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+                Showing up to 50 records matching current filter scope.
+              </p>
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name, college ID, department..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ maxWidth: "300px" }}
+            />
+          </div>
+
+          {previewLoading ? (
+            <p className="loading-state">Loading volunteers preview...</p>
+          ) : filteredVolunteers.length === 0 ? (
+            <div className="empty-state">
+              <p>No volunteers match the selected filter criteria.</p>
+            </div>
+          ) : (
+            <div className="units-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>College ID</th>
+                    <th>Full Name</th>
+                    <th>Department</th>
+                    <th>Year</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVolunteers.map((v) => (
+                    <tr key={v.volunteerId}>
+                      <td style={{ fontWeight: 700 }}>{v.collegeId}</td>
+                      <td>{v.name}</td>
+                      <td>{v.department}</td>
+                      <td>Year {v.yearOfStudy}</td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            v.status === "ACTIVE"
+                              ? "badge-success"
+                              : v.status === "PENDING_APPROVAL"
+                              ? "badge-warning"
+                              : "badge-muted"
+                          }`}
+                        >
+                          {v.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : activeTab === "events" ? (
+        <div className="section-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Events Registry Preview</h3>
+              <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+                Showing scheduled and completed activities matching current filter scope.
+              </p>
+            </div>
+            <input
+              type="text"
+              placeholder="Search by title, venue, unit..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ maxWidth: "300px" }}
+            />
+          </div>
+
+          {previewLoading ? (
+            <p className="loading-state">Loading events preview...</p>
+          ) : filteredEvents.length === 0 ? (
+            <div className="empty-state">
+              <p>No events match the selected filter criteria.</p>
+            </div>
+          ) : (
+            <div className="units-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Unit</th>
+                    <th>Date &amp; Time</th>
+                    <th>Venue</th>
+                    <th>Registrations</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEvents.map((e) => (
+                    <tr key={e.eventId}>
+                      <td>
+                        <strong>{e.title}</strong>
+                      </td>
+                      <td>
+                        <span className="badge badge-primary">{e.eventType}</span>
+                      </td>
+                      <td>{e.unitName}</td>
+                      <td>{new Date(e.startAt).toLocaleDateString()}</td>
+                      <td>{e.venue}</td>
+                      <td>
+                        {e.registeredCount} / {e.capacity}
+                      </td>
+                      <td>
+                        <span className="badge badge-muted">{e.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 };

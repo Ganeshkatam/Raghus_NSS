@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface VolunteerStatusHistoryRepository extends JpaRepository<VolunteerStatusHistory, UUID> {
     List<VolunteerStatusHistory> findByVolunteer_VolunteerIdOrderByCreatedAtDesc(UUID volunteerId);
+    List<VolunteerStatusHistory> findTop25ByOrderByCreatedAtDesc();
 }

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ReportService {
@@ -76,7 +77,22 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportVolunteersCsv() {
+        return exportVolunteersCsv(null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportVolunteersCsv(UUID unitId, String status) {
         List<Volunteer> list = volunteerRepository.findAll();
+        if (status != null && !status.isBlank()) {
+            list = list.stream().filter(v -> status.equalsIgnoreCase(v.getStatus())).toList();
+        }
+        if (unitId != null) {
+            list = list.stream().filter(v -> {
+                UnitMembership m = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(v.getVolunteerId()).orElse(null);
+                return m != null && m.getUnit() != null && unitId.equals(m.getUnit().getUnitId());
+            }).toList();
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("Volunteer ID,Full Name,College ID,Department,Year of Study,Status,Enrollment Unit,Email\n");
 
@@ -99,7 +115,31 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportEventsCsv() {
+        return exportEventsCsv(null, null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportEventsCsv(UUID unitId, String status, String startDate, String endDate) {
         List<Event> list = eventRepository.findAll();
+        if (unitId != null) {
+            list = list.stream().filter(e -> unitId.equals(e.getUnit().getUnitId())).toList();
+        }
+        if (status != null && !status.isBlank()) {
+            list = list.stream().filter(e -> status.equalsIgnoreCase(e.getStatus())).toList();
+        }
+        if (startDate != null && !startDate.isBlank()) {
+            try {
+                java.time.Instant start = java.time.Instant.parse(startDate);
+                list = list.stream().filter(e -> !e.getStartAt().isBefore(start)).toList();
+            } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try {
+                java.time.Instant end = java.time.Instant.parse(endDate);
+                list = list.stream().filter(e -> !e.getEndAt().isAfter(end)).toList();
+            } catch (Exception ignored) {}
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("Event ID,Title,Event Type,NSS Unit,Start Time,End Time,Venue,Capacity,Status,Registered Count\n");
 
@@ -122,7 +162,31 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportServiceHoursCsv() {
+        return exportServiceHoursCsv(null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportServiceHoursCsv(UUID unitId, String startDate, String endDate) {
         List<ServiceHourEntry> list = serviceHourRepository.findByStatusOrderByCreatedAtDesc("APPROVED");
+        if (unitId != null) {
+            list = list.stream().filter(s -> {
+                UnitMembership m = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(s.getVolunteer().getVolunteerId()).orElse(null);
+                return m != null && m.getUnit() != null && unitId.equals(m.getUnit().getUnitId());
+            }).toList();
+        }
+        if (startDate != null && !startDate.isBlank()) {
+            try {
+                java.time.Instant start = java.time.Instant.parse(startDate);
+                list = list.stream().filter(s -> !s.getCreatedAt().isBefore(start)).toList();
+            } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try {
+                java.time.Instant end = java.time.Instant.parse(endDate);
+                list = list.stream().filter(s -> !s.getCreatedAt().isAfter(end)).toList();
+            } catch (Exception ignored) {}
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("Entry ID,Volunteer Name,College ID,Activity / Event,Hours,Status,Approved By,Created At\n");
 
