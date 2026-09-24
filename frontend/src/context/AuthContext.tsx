@@ -8,6 +8,7 @@ export interface User {
   phone?: string;
   status: string;
   roles: string[];
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -21,6 +22,9 @@ interface AuthContextType {
   isStudentLeader: boolean;
   isVolunteer: boolean;
   roleDisplayName: string;
+  permissions: string[];
+  hasCapability: (permission: string) => boolean;
+  can: (permission: string) => boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -115,6 +119,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ? "Student Leader"
     : "NSS Volunteer";
 
+  const permissions = user?.permissions || [];
+  const hasCapability = (permission: string): boolean => {
+    if (isAdmin) return true;
+    return permissions.includes(permission);
+  };
+  const can = hasCapability;
+
   return (
     <AuthContext.Provider
       value={{
@@ -128,6 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isStudentLeader,
         isVolunteer,
         roleDisplayName,
+        permissions,
+        hasCapability,
+        can,
         login,
         logout,
         loading,

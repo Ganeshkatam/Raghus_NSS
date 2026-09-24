@@ -26,7 +26,7 @@ public class NssUnitController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<UnitResponse> createUnit(@Valid @RequestBody UnitRequest request) {
         UnitResponse response = unitService.createUnit(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -47,7 +47,7 @@ public class NssUnitController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<UnitResponse> updateUnit(
         @PathVariable UUID id,
         @Valid @RequestBody UnitUpdateRequest request

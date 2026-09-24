@@ -30,14 +30,14 @@ public class VolunteerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<VolunteerResponse> createVolunteer(@Valid @RequestBody VolunteerRequest request) {
         VolunteerResponse response = volunteerService.createVolunteer(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_VIEW') or hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<Page<VolunteerResponse>> listVolunteers(
         @RequestParam(required = false) String search,
         @RequestParam(required = false) String status,

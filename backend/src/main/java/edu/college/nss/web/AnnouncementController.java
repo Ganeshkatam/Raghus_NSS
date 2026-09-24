@@ -24,7 +24,7 @@ public class AnnouncementController {
     }
 
     @PostMapping("/announcements")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('ANNOUNCEMENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public ResponseEntity<AnnouncementResponse> createAnnouncement(@Valid @RequestBody CreateAnnouncementRequest request,
                                                                    @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createAnnouncement(request, principal));
@@ -36,7 +36,7 @@ public class AnnouncementController {
     }
 
     @DeleteMapping("/announcements/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('ANNOUNCEMENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public ResponseEntity<Void> deleteAnnouncement(@PathVariable UUID id,
                                                    @AuthenticationPrincipal UserDetails principal) {
         service.deleteAnnouncement(id, principal);

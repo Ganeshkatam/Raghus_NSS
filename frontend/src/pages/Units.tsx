@@ -15,7 +15,8 @@ interface UnitItem {
 }
 
 export const Units: React.FC = () => {
-  const { isCoordinatorOrOfficer } = useAuth();
+  const { isAdmin, isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const canManageUnits = isAdmin || isCoordinatorOrOfficer || hasCapability("UNITS_MANAGE");
 
   const [units, setUnits] = useState<UnitItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +50,23 @@ export const Units: React.FC = () => {
   const handleCreateUnit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
+
+    const cleanName = unitName.trim();
+    const cleanNumber = unitNumber.trim();
+
+    if (!cleanName || !cleanNumber) {
+      setModalError("Please provide both Unit Number and Unit Name.");
+      return;
+    }
+
     setCreating(true);
 
     try {
       await apiRequest<UnitItem>("/units", {
         method: "POST",
         body: JSON.stringify({
-          unitName,
-          unitNumber,
+          unitName: cleanName,
+          unitNumber: cleanNumber,
         }),
       });
 
@@ -82,7 +92,7 @@ export const Units: React.FC = () => {
           </p>
         </div>
 
-        {isCoordinatorOrOfficer && (
+        {canManageUnits && (
           <button onClick={() => setShowModal(true)} className="btn-primary">
             + Create NSS Unit
           </button>
@@ -101,7 +111,7 @@ export const Units: React.FC = () => {
         ) : units.length === 0 ? (
           <div className="empty-state">
             <p>No units currently exist in this institution.</p>
-            {isCoordinatorOrOfficer && (
+            {canManageUnits && (
               <button
                 onClick={() => setShowModal(true)}
                 className="btn-primary-sm"

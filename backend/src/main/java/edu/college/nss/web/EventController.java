@@ -23,7 +23,7 @@ public class EventController {
     public EventController(EventService service) { this.service = service; }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public ResponseEntity<EventResponse> create(@Valid @RequestBody EventCreateRequest request,
                                                   @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request, principal));
@@ -45,26 +45,26 @@ public class EventController {
     public EventResponse get(@PathVariable UUID id) { return service.get(id); }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse update(@PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request,
                                 @AuthenticationPrincipal UserDetails principal) {
         return service.update(id, request, principal);
     }
 
     @PostMapping("/{id}/publish")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse publish(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "publish", p); }
     @PostMapping("/{id}/open")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse open(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "open", p); }
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse close(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "close", p); }
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse cancel(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "cancel", p); }
     @PostMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse complete(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "complete", p); }
 
     @PostMapping("/{id}/registrations")
@@ -76,7 +76,7 @@ public class EventController {
     }
 
     @GetMapping("/{id}/registrations")
-    @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public List<EventRegistrationResponse> registrations(@PathVariable UUID id,
                                                          @AuthenticationPrincipal UserDetails principal) {
         return service.registrations(id, principal);
