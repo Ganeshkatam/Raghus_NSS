@@ -29,6 +29,19 @@ public class AttendanceCorrection {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String reason;
 
+    @Column(length = 20, nullable = false)
+    private String status = "APPROVED";
+
+    @Column(name = "review_remarks", length = 255)
+    private String reviewRemarks;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by_id")
+    private User reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+
     @Column(name = "corrected_at", nullable = false, updatable = false)
     private Instant correctedAt = Instant.now();
 
@@ -49,5 +62,13 @@ public class AttendanceCorrection {
     public String getPreviousStatus() { return previousStatus; }
     public String getNewStatus() { return newStatus; }
     public String getReason() { return reason; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getReviewRemarks() { return reviewRemarks; }
+    public void setReviewRemarks(String reviewRemarks) { this.reviewRemarks = reviewRemarks; }
+    public User getReviewedBy() { return reviewedBy; }
+    public void setReviewedBy(User reviewedBy) { this.reviewedBy = reviewedBy; }
+    public Instant getReviewedAt() { return reviewedAt; }
+    public void setReviewedAt(Instant reviewedAt) { this.reviewedAt = reviewedAt; }
     public Instant getCorrectedAt() { return correctedAt; }
 }

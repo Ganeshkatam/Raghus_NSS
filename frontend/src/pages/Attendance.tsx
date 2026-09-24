@@ -39,6 +39,24 @@ interface VolunteerAttendanceRecord {
   createdAt: string;
 }
 
+interface PendingCorrection {
+  correctionId: string;
+  attendanceId: string;
+  volunteerId?: string;
+  volunteerName?: string;
+  rollNumber?: string;
+  requestedStatus?: string;
+  newStatus?: string;
+  previousStatus?: string;
+  eventTitle?: string;
+  reason: string;
+  status: string;
+  requestedByName?: string;
+  correctedByName?: string;
+  createdAt?: string;
+  correctedAt?: string;
+}
+
 export const Attendance: React.FC = () => {
   const { user, isCoordinatorOrOfficer } = useAuth();
   const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
@@ -64,6 +82,14 @@ export const Attendance: React.FC = () => {
   const [correctionStatus, setCorrectionStatus] = useState("PRESENT");
   const [correctionReason, setCorrectionReason] = useState("");
   const [submittingCorrection, setSubmittingCorrection] = useState(false);
+
+  // Pending Corrections review state
+  const [pendingCorrections, setPendingCorrections] = useState<PendingCorrection[]>([]);
+  const [attendanceSubTab, setAttendanceSubTab] = useState<"roster" | "corrections">("roster");
+  const [reviewModalCorrection, setReviewModalCorrection] = useState<PendingCorrection | null>(null);
+  const [reviewAction, setReviewAction] = useState<"APPROVE" | "REJECT">("APPROVE");
+  const [reviewRemarks, setReviewRemarks] = useState("");
+  const [reviewing, setReviewing] = useState(false);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -198,6 +224,46 @@ export const Attendance: React.FC = () => {
       setError(err.message || "Attendance correction failed.");
     } finally {
       setSubmittingCorrection(false);
+    }
+  };
+
+  const loadPendingCorrections = useCallback(async () => {
+    if (!isManager) return;
+    try {
+      const list = await apiRequest<PendingCorrection[]>("/attendance/corrections/pending");
+      setPendingCorrections(list || []);
+    } catch {
+      // Handled silently
+    }
+  }, [isManager]);
+
+  useEffect(() => {
+    if (isManager) {
+      loadPendingCorrections();
+    }
+  }, [isManager, loadPendingCorrections]);
+
+  const handleReviewCorrection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewModalCorrection) return;
+    setReviewing(true);
+    try {
+      await apiRequest(`/attendance/corrections/${reviewModalCorrection.correctionId}/review`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: reviewAction,
+          remarks: reviewRemarks.trim() || undefined
+        })
+      });
+      setSuccess(`Correction request ${reviewAction.toLowerCase()}d successfully.`);
+      setReviewModalCorrection(null);
+      setReviewRemarks("");
+      loadPendingCorrections();
+      if (selectedEventId) loadSessionAndRoster(selectedEventId);
+    } catch (err: any) {
+      setError(err.message || `Failed to ${reviewAction.toLowerCase()} correction.`);
+    } finally {
+      setReviewing(false);
     }
   };
 
@@ -371,7 +437,123 @@ export const Attendance: React.FC = () => {
       ) : (
         /* ----------------- 2. OFFICER / ADMIN OPERATIONS VIEW ----------------- */
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div className="section-card">
+          <div style={{ display: "flex", gap: "1rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", paddingBottom: "0.5rem" }}>
+            <button
+              type="button"
+              onClick={() => setAttendanceSubTab("roster")}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: attendanceSubTab === "roster" ? "3px solid #1e40af" : "3px solid transparent",
+                padding: "0.5rem 1rem",
+                fontWeight: attendanceSubTab === "roster" ? 700 : 500,
+                color: attendanceSubTab === "roster" ? "#1e40af" : "#64748b",
+                cursor: "pointer"
+              }}
+            >
+              Live Session &amp; Event Roster
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAttendanceSubTab("corrections"); loadPendingCorrections(); }}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: attendanceSubTab === "corrections" ? "3px solid #1e40af" : "3px solid transparent",
+                padding: "0.5rem 1rem",
+                fontWeight: attendanceSubTab === "corrections" ? 700 : 500,
+                color: attendanceSubTab === "corrections" ? "#1e40af" : "#64748b",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem"
+              }}
+            >
+              Pending Corrections Review
+              {pendingCorrections.length > 0 && (
+                <span style={{ backgroundColor: "#ef4444", color: "#ffffff", borderRadius: "9999px", padding: "0.1rem 0.45rem", fontSize: "0.75rem", fontWeight: 700 }}>
+                  {pendingCorrections.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {attendanceSubTab === "corrections" ? (
+            <div className="section-card">
+              <div className="section-header">
+                <div>
+                  <h2>Pending Attendance Corrections Queue</h2>
+                  <p className="subtitle">Audit and review requested attendance adjustments from event coordinators.</p>
+                </div>
+                <button type="button" onClick={loadPendingCorrections} className="btn-secondary-sm">
+                  Refresh Queue
+                </button>
+              </div>
+
+              {pendingCorrections.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No Pending Corrections</h3>
+                  <p>All attendance corrections have been reviewed and audited.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Volunteer</th>
+                        <th>College ID</th>
+                        <th>Event</th>
+                        <th>Requested State</th>
+                        <th>Justification</th>
+                        <th>Submitted</th>
+                        <th>Decision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingCorrections.map((pc) => (
+                        <tr key={pc.correctionId}>
+                          <td><strong>{pc.volunteerName || pc.correctedByName || "Volunteer Record"}</strong></td>
+                          <td><span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{pc.rollNumber || pc.attendanceId.substring(0, 8)}</span></td>
+                          <td>{pc.eventTitle || "Session Record"}</td>
+                          <td><span className="badge badge-primary">{pc.requestedStatus || pc.newStatus}</span></td>
+                          <td><span className="cell-sub">{pc.reason}</span></td>
+                          <td><span className="cell-sub">{new Date(pc.correctedAt || pc.createdAt || Date.now()).toLocaleString()}</span></td>
+                          <td>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewModalCorrection(pc);
+                                  setReviewAction("APPROVE");
+                                  setReviewRemarks("");
+                                }}
+                                className="btn-primary-sm"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewModalCorrection(pc);
+                                  setReviewAction("REJECT");
+                                  setReviewRemarks("");
+                                }}
+                                className="btn-danger-sm"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="section-card">
             <div className="section-header" style={{ marginBottom: "1rem" }}>
               <div>
                 <h2>Session Control &amp; Event Selector</h2>
@@ -519,6 +701,8 @@ export const Attendance: React.FC = () => {
                                 ? "badge-success"
                                 : row.attendanceStatus === "EXCUSED"
                                 ? "badge-primary"
+                                : row.attendanceStatus === "ABSENT"
+                                ? "badge-danger"
                                 : "badge-warning"
                             }`}
                           >
@@ -623,8 +807,65 @@ export const Attendance: React.FC = () => {
               </div>
             </div>
           )}
+          </>
+          )}
+
+          {reviewModalCorrection && (
+            <div className="modal-backdrop">
+              <div className="modal-card">
+                <div className="modal-header">
+                  <h2>Review Correction Request</h2>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setReviewModalCorrection(null)}
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <p className="subtitle" style={{ marginBottom: "1rem" }}>
+                    Action: <strong>{reviewAction}</strong> correction for <strong>{reviewModalCorrection.volunteerName || reviewModalCorrection.correctedByName || "Volunteer"}</strong> ({reviewModalCorrection.rollNumber || reviewModalCorrection.attendanceId.substring(0, 8)}) to <strong>{reviewModalCorrection.requestedStatus || reviewModalCorrection.newStatus}</strong>.
+                  </p>
+                  <div style={{ backgroundColor: "#f8fafc", padding: "0.75rem", borderRadius: "0.375rem", marginBottom: "1rem", fontSize: "0.875rem" }}>
+                    <strong>Applicant Reason:</strong> {reviewModalCorrection.reason}
+                  </div>
+                  <form onSubmit={handleReviewCorrection} className="form-stack" style={{ padding: 0 }}>
+                    <div className="form-group">
+                      <label htmlFor="reviewRemarksInput">Review Remarks (Optional)</label>
+                      <textarea
+                        id="reviewRemarksInput"
+                        rows={3}
+                        placeholder="e.g. Verified with session attendance sheet."
+                        value={reviewRemarks}
+                        onChange={(e) => setReviewRemarks(e.target.value)}
+                      />
+                    </div>
+                    <div className="modal-actions">
+                      <button
+                        type="button"
+                        onClick={() => setReviewModalCorrection(null)}
+                        className="btn-secondary"
+                        disabled={reviewing}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className={reviewAction === "APPROVE" ? "btn-primary" : "btn-danger"}
+                        disabled={reviewing}
+                      >
+                        {reviewing ? "Processing..." : `Confirm ${reviewAction}`}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
+

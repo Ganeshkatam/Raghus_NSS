@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,15 +20,18 @@ public class ServiceHourService {
     private final VolunteerRepository volunteerRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public ServiceHourService(ServiceHourEntryRepository serviceHourRepository,
                               VolunteerRepository volunteerRepository,
                               EventRepository eventRepository,
-                              UserRepository userRepository) {
+                              UserRepository userRepository,
+                              NotificationService notificationService) {
         this.serviceHourRepository = serviceHourRepository;
         this.volunteerRepository = volunteerRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -38,6 +42,20 @@ public class ServiceHourService {
         }
 
         BigDecimal total = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        BigDecimal totalApproved = total != null ? total : BigDecimal.ZERO;
+
+        BigDecimal regular = serviceHourRepository.sumApprovedHoursForVolunteerAndCategory(volunteer.getVolunteerId(), "REGULAR_ACTIVITY");
+        BigDecimal community = serviceHourRepository.sumApprovedHoursForVolunteerAndCategory(volunteer.getVolunteerId(), "COMMUNITY_OUTREACH");
+        BigDecimal blood = serviceHourRepository.sumApprovedHoursForVolunteerAndCategory(volunteer.getVolunteerId(), "BLOOD_DONATION");
+        BigDecimal special = serviceHourRepository.sumApprovedHoursForVolunteerAndCategory(volunteer.getVolunteerId(), "SPECIAL_PROJECT");
+
+        double regularHours = regular != null ? regular.doubleValue() : 0.0;
+        double communityHours = community != null ? community.doubleValue() : 0.0;
+        double otherHours = (blood != null ? blood.doubleValue() : 0.0) + (special != null ? special.doubleValue() : 0.0);
+
+        double progressPercentage = Math.min(100.0, (totalApproved.doubleValue() / 120.0) * 100.0);
+        progressPercentage = BigDecimal.valueOf(progressPercentage).setScale(1, RoundingMode.HALF_UP).doubleValue();
+
         List<ServiceHourEntry> list = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
 
         long approvedCount = list.stream().filter(e -> "APPROVED".equals(e.getStatus())).count();
@@ -49,7 +67,11 @@ public class ServiceHourService {
             volunteer.getVolunteerId(),
             volunteer.getUser().getName(),
             volunteer.getCollegeId(),
-            total != null ? total : BigDecimal.ZERO,
+            totalApproved,
+            progressPercentage,
+            regularHours,
+            communityHours,
+            otherHours,
             approvedCount,
             pendingCount,
             dtos
@@ -71,6 +93,8 @@ public class ServiceHourService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + req.eventId()));
         }
 
+        String cat = (req.category() != null && !req.category().isBlank()) ? req.category().trim().toUpperCase() : "REGULAR_ACTIVITY";
+
         ServiceHourEntry entry = new ServiceHourEntry(
             volunteer,
             event,
@@ -78,7 +102,10 @@ public class ServiceHourService {
             req.hours(),
             "PENDING",
             null,
-            req.description()
+            req.description(),
+            cat,
+            req.evidenceNote(),
+            req.activityDate()
         );
 
         ServiceHourEntry saved = serviceHourRepository.save(entry);
@@ -114,12 +141,26 @@ public class ServiceHourService {
 
         if ("APPROVE".equals(action)) {
             entry.setStatus("APPROVED");
+            notificationService.sendNotification(
+                entry.getVolunteer().getUser(),
+                "Service Hour Claim Approved",
+                "Your claim for " + entry.getHours() + " hours (" + entry.getCategory() + ") was approved by " + reviewer.getName() + ".",
+                "SERVICE_HOURS",
+                "/service-hours"
+            );
         } else {
             entry.setStatus("REJECTED");
             if (req.reason() != null && !req.reason().trim().isBlank()) {
                 String existing = entry.getDescription() != null ? entry.getDescription() + " " : "";
                 entry.setDescription(existing + "[Reason: " + req.reason().trim() + "]");
             }
+            notificationService.sendNotification(
+                entry.getVolunteer().getUser(),
+                "Service Hour Claim Rejected",
+                "Your claim for " + entry.getHours() + " hours was rejected. " + (req.reason() != null ? "Reason: " + req.reason().trim() : ""),
+                "SERVICE_HOURS",
+                "/service-hours"
+            );
         }
 
         ServiceHourEntry saved = serviceHourRepository.save(entry);
@@ -154,6 +195,9 @@ public class ServiceHourService {
             e.getStatus(),
             e.getApprovedBy() != null ? e.getApprovedBy().getName() : null,
             e.getDescription(),
+            e.getCategory(),
+            e.getEvidenceNote(),
+            e.getActivityDate(),
             e.getCreatedAt()
         );
     }

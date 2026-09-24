@@ -82,4 +82,27 @@ public class NssUnitController {
         MembershipResponse response = unitService.deactivateMembership(id, membershipId);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{id}/transfer")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    public ResponseEntity<MembershipResponse> transferVolunteer(
+        @PathVariable UUID id,
+        @Valid @RequestBody edu.college.nss.web.dto.UnitTransferRequest request,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
+    ) {
+        MembershipResponse response = unitService.transferVolunteer(id, request, principal);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/stats")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<edu.college.nss.web.dto.UnitStatsResponse> getUnitStats(@PathVariable UUID id) {
+        return ResponseEntity.ok(unitService.getUnitStats(id));
+    }
+
+    @GetMapping("/volunteers/{volunteerId}/transfers")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<edu.college.nss.web.dto.UnitTransferHistoryResponse>> getVolunteerTransferHistory(@PathVariable UUID volunteerId) {
+        return ResponseEntity.ok(unitService.getVolunteerTransferHistory(volunteerId));
+    }
 }

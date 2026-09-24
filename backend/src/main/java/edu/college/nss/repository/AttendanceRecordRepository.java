@@ -23,6 +23,9 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     long countBySession_SessionIdAndStatus(UUID sessionId, String status);
 
+    @Query("SELECT COUNT(r) FROM AttendanceRecord r WHERE r.session.event.eventId = :eventId AND r.status = :status")
+    long countByEventIdAndStatus(@Param("eventId") UUID eventId, @Param("status") String status);
+
     @Query("SELECT COUNT(r) FROM AttendanceRecord r WHERE r.volunteer.volunteerId = :volunteerId AND r.status = 'PRESENT'")
     long countAttendedByVolunteerId(@Param("volunteerId") UUID volunteerId);
 }

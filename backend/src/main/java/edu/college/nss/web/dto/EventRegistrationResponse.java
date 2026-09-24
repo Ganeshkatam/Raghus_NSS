@@ -11,6 +11,8 @@ public record EventRegistrationResponse(
     String volunteerName,
     String collegeId,
     String status,
+    Integer waitlistPosition,
+    String cancellationReason,
     Instant registeredAt
 ) {
     public static EventRegistrationResponse fromEntity(EventRegistration r) {
@@ -18,9 +20,11 @@ public record EventRegistrationResponse(
             r.getRegistrationId(),
             r.getEvent().getEventId(),
             r.getVolunteer().getVolunteerId(),
-            r.getVolunteer().getUser().getName(),
+            r.getVolunteer().getUser() != null ? r.getVolunteer().getUser().getName() : "Unknown",
             r.getVolunteer().getCollegeId(),
             r.getStatus(),
+            r.getWaitlistPosition(),
+            r.getCancellationReason(),
             r.getRegisteredAt()
         );
     }

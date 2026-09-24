@@ -8,6 +8,7 @@ interface Announcement {
   content: string;
   unitId: string | null;
   unitName: string;
+  priority?: string;
   createdByName: string;
   publishedAt: string;
   expiresAt: string | null;
@@ -17,6 +18,8 @@ interface NotificationItem {
   notificationId: string;
   title: string;
   message: string;
+  category?: string;
+  link?: string | null;
   isRead: boolean;
   createdAt: string;
 }
@@ -36,12 +39,14 @@ export const Announcements: React.FC = () => {
 
   // Filter
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>("ALL");
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("ALL");
 
   // Create modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newUnitId, setNewUnitId] = useState("");
+  const [newPriority, setNewPriority] = useState("NORMAL");
   const [newExpiresAt, setNewExpiresAt] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -90,6 +95,7 @@ export const Announcements: React.FC = () => {
           title: newTitle.trim(),
           content: newContent.trim(),
           unitId: newUnitId ? newUnitId : null,
+          priority: newPriority,
           expiresAt: newExpiresAt ? new Date(newExpiresAt).toISOString() : null
         })
       });
@@ -98,6 +104,7 @@ export const Announcements: React.FC = () => {
       setNewTitle("");
       setNewContent("");
       setNewUnitId("");
+      setNewPriority("NORMAL");
       setNewExpiresAt("");
       loadData();
     } catch (err: any) {
@@ -129,12 +136,26 @@ export const Announcements: React.FC = () => {
     }
   };
 
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await apiRequest(`/notifications/read-all`, { method: "POST" });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch {
+      // Ignored
+    }
+  };
+
   const unreadNotifsCount = notifications.filter((n) => !n.isRead).length;
 
   const filteredAnnouncements = announcements.filter((a) => {
-    if (selectedUnitFilter === "ALL") return true;
-    if (selectedUnitFilter === "COLLEGE") return a.unitId === null;
-    return a.unitId === selectedUnitFilter;
+    if (selectedUnitFilter !== "ALL") {
+      if (selectedUnitFilter === "COLLEGE" && a.unitId !== null) return false;
+      if (selectedUnitFilter !== "COLLEGE" && a.unitId !== selectedUnitFilter) return false;
+    }
+    if (selectedPriorityFilter !== "ALL") {
+      if ((a.priority || "NORMAL") !== selectedPriorityFilter) return false;
+    }
+    return true;
   });
 
   return (
@@ -213,13 +234,31 @@ export const Announcements: React.FC = () => {
         <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", padding: "1.5rem", marginBottom: "2rem", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>My Broadcast Notifications</h3>
-            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{unreadNotifsCount} unread</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{unreadNotifsCount} unread</span>
+              {unreadNotifsCount > 0 && (
+                <button
+                  onClick={handleMarkAllNotificationsRead}
+                  style={{
+                    padding: "0.25rem 0.5rem",
+                    backgroundColor: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  Mark all as read
+                </button>
+              )}
+            </div>
           </div>
 
           {notifications.length === 0 ? (
             <div style={{ color: "#64748b", fontSize: "0.875rem" }}>No personal notifications.</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "300px", overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "350px", overflowY: "auto" }}>
               {notifications.map((n) => (
                 <div
                   key={n.notificationId}
@@ -235,10 +274,31 @@ export const Announcements: React.FC = () => {
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1e293b" }}>{n.title}</div>
-                    <div style={{ fontSize: "0.8125rem", color: "#475569", marginTop: "0.2rem" }}>{n.message}</div>
-                    <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.25rem" }}>
-                      {new Date(n.createdAt).toLocaleString()}
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      {n.category && (
+                        <span style={{
+                          backgroundColor: "#dbeafe",
+                          color: "#1e40af",
+                          borderRadius: "4px",
+                          padding: "0.1rem 0.4rem",
+                          fontSize: "0.7rem",
+                          fontWeight: 700
+                        }}>
+                          {n.category}
+                        </span>
+                      )}
+                      <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1e293b" }}>{n.title}</span>
+                    </div>
+                    <div style={{ fontSize: "0.8125rem", color: "#475569", marginTop: "0.25rem" }}>{n.message}</div>
+                    <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "0.35rem" }}>
+                      <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+                      {n.link && (
+                        <a href={n.link} style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>
+                          View Details &rarr;
+                        </a>
+                      )}
                     </div>
                   </div>
                   {!n.isRead && (
@@ -250,7 +310,8 @@ export const Announcements: React.FC = () => {
                         border: "1px solid #cbd5e1",
                         borderRadius: "0.25rem",
                         fontSize: "0.75rem",
-                        cursor: "pointer"
+                        cursor: "pointer",
+                        whiteSpace: "nowrap"
                       }}
                     >
                       Mark read
@@ -346,7 +407,7 @@ export const Announcements: React.FC = () => {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                   <div>
-                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
                       <span
                         style={{
                           backgroundColor: a.unitId ? "#e0e7ff" : "#fef3c7",
@@ -359,6 +420,21 @@ export const Announcements: React.FC = () => {
                       >
                         {a.unitName}
                       </span>
+                      {a.priority && a.priority !== "NORMAL" && (
+                        <span
+                          style={{
+                            backgroundColor: a.priority === "URGENT" ? "#fee2e2" : "#fef3c7",
+                            color: a.priority === "URGENT" ? "#991b1b" : "#92400e",
+                            padding: "0.2rem 0.5rem",
+                            borderRadius: "9999px",
+                            fontSize: "0.75rem",
+                            fontWeight: 800,
+                            letterSpacing: "0.025em"
+                          }}
+                        >
+                          {a.priority}
+                        </span>
+                      )}
                       <span style={{ fontSize: "0.8125rem", color: "#64748b" }}>
                         Posted by {a.createdByName} on {new Date(a.publishedAt).toLocaleDateString()}
                       </span>
@@ -435,6 +511,21 @@ export const Announcements: React.FC = () => {
                       {u.unitName} ({u.unitNumber})
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  Priority Level *
+                </label>
+                <select
+                  value={newPriority}
+                  onChange={(e) => setNewPriority(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
+                >
+                  <option value="NORMAL">Normal Priority</option>
+                  <option value="HIGH">High Priority</option>
+                  <option value="URGENT">Urgent Notice</option>
                 </select>
               </div>
 

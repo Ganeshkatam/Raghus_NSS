@@ -27,17 +27,32 @@ public class NssUnitService {
     private final UserRepository userRepository;
     private final VolunteerRepository volunteerRepository;
     private final UnitMembershipRepository membershipRepository;
+    private final edu.college.nss.repository.UnitTransferHistoryRepository transferHistoryRepository;
+    private final edu.college.nss.security.UnitSecurityService unitSecurity;
+    private final edu.college.nss.repository.EventRepository eventRepository;
+    private final edu.college.nss.repository.ServiceHourEntryRepository serviceHourRepository;
+    private final NotificationService notificationService;
 
     public NssUnitService(
         NssUnitRepository unitRepository,
         UserRepository userRepository,
         VolunteerRepository volunteerRepository,
-        UnitMembershipRepository membershipRepository
+        UnitMembershipRepository membershipRepository,
+        edu.college.nss.repository.UnitTransferHistoryRepository transferHistoryRepository,
+        edu.college.nss.security.UnitSecurityService unitSecurity,
+        edu.college.nss.repository.EventRepository eventRepository,
+        edu.college.nss.repository.ServiceHourEntryRepository serviceHourRepository,
+        NotificationService notificationService
     ) {
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.volunteerRepository = volunteerRepository;
         this.membershipRepository = membershipRepository;
+        this.transferHistoryRepository = transferHistoryRepository;
+        this.unitSecurity = unitSecurity;
+        this.eventRepository = eventRepository;
+        this.serviceHourRepository = serviceHourRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -102,6 +117,11 @@ public class NssUnitService {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
+        long currentCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
+        if (currentCount >= unit.getCapacity()) {
+            throw new IllegalStateException("Unit " + unit.getUnitName() + " has reached maximum capacity of " + unit.getCapacity() + " volunteers.");
+        }
+
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
 
@@ -117,6 +137,83 @@ public class NssUnitService {
         membership = membershipRepository.save(membership);
 
         return MembershipResponse.fromEntity(membership);
+    }
+
+    @Transactional
+    public MembershipResponse transferVolunteer(UUID sourceUnitId, edu.college.nss.web.dto.UnitTransferRequest request, org.springframework.security.core.userdetails.UserDetails principal) {
+        NssUnit sourceUnit = unitRepository.findById(sourceUnitId)
+            .orElseThrow(() -> new IllegalArgumentException("Source NSS Unit not found: " + sourceUnitId));
+        NssUnit targetUnit = unitRepository.findById(request.targetUnitId())
+            .orElseThrow(() -> new IllegalArgumentException("Target NSS Unit not found: " + request.targetUnitId()));
+
+        if (!unitSecurity.canManageUnit(principal, sourceUnitId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to transfer volunteers out of Unit " + sourceUnit.getUnitNumber());
+        }
+
+        long targetActiveCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(request.targetUnitId()).size();
+        if (targetActiveCount >= targetUnit.getCapacity()) {
+            throw new IllegalStateException("Target unit " + targetUnit.getUnitName() + " has reached capacity.");
+        }
+
+        Volunteer volunteer = volunteerRepository.findById(request.volunteerId())
+            .orElseThrow(() -> new IllegalArgumentException("Volunteer not found: " + request.volunteerId()));
+
+        membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+            .ifPresent(active -> {
+                active.setIsActive(false);
+                active.setLeftAt(Instant.now());
+                membershipRepository.save(active);
+            });
+
+        UnitMembership newMembership = new UnitMembership(volunteer, targetUnit);
+        newMembership = membershipRepository.save(newMembership);
+
+        User officer = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        edu.college.nss.domain.UnitTransferHistory transferHistory = new edu.college.nss.domain.UnitTransferHistory(
+            volunteer, sourceUnit, targetUnit, request.reason(), officer
+        );
+        transferHistoryRepository.save(transferHistory);
+
+        if (volunteer.getUser() != null) {
+            notificationService.sendNotification(
+                volunteer.getUser(),
+                "Unit Transfer Completed",
+                "You have been transferred from " + sourceUnit.getUnitName() + " to " + targetUnit.getUnitName() + (request.reason() != null ? ": " + request.reason() : ""),
+                "UNIT",
+                "/units/" + targetUnit.getUnitId()
+            );
+        }
+
+        return MembershipResponse.fromEntity(newMembership);
+    }
+
+    @Transactional(readOnly = true)
+    public edu.college.nss.web.dto.UnitStatsResponse getUnitStats(UUID unitId) {
+        NssUnit unit = unitRepository.findById(unitId)
+            .orElseThrow(() -> new IllegalArgumentException("Unit not found: " + unitId));
+
+        long activeVolunteers = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
+        long totalEvents = eventRepository.countByUnit_UnitId(unitId);
+        java.math.BigDecimal hoursSum = serviceHourRepository.sumApprovedHoursForUnit(unitId);
+        double totalHours = hoursSum != null ? hoursSum.doubleValue() : 0.0;
+
+        return new edu.college.nss.web.dto.UnitStatsResponse(
+            unit.getUnitId(),
+            unit.getUnitName(),
+            unit.getUnitNumber(),
+            unit.getCapacity(),
+            activeVolunteers,
+            totalEvents,
+            totalHours
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<edu.college.nss.web.dto.UnitTransferHistoryResponse> getVolunteerTransferHistory(UUID volunteerId) {
+        return transferHistoryRepository.findByVolunteer_VolunteerIdOrderByTransferredAtDesc(volunteerId)
+            .stream()
+            .map(edu.college.nss.web.dto.UnitTransferHistoryResponse::fromEntity)
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

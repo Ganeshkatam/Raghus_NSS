@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface AttendanceCorrectionRepository extends JpaRepository<AttendanceCorrection, UUID> {
     List<AttendanceCorrection> findByAttendanceRecord_AttendanceIdOrderByCorrectedAtDesc(UUID attendanceId);
+    List<AttendanceCorrection> findByStatusOrderByCorrectedAtDesc(String status);
 }

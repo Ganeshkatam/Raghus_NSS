@@ -25,12 +25,26 @@ public class EventRegistration {
     private Instant registeredAt = Instant.now();
 
     @Column(nullable = false, length = 20)
-    private String status = "REGISTERED";
+    private String status = "CONFIRMED";
+
+    @Column(name = "waitlist_position")
+    private Integer waitlistPosition;
+
+    @Column(name = "cancellation_reason", length = 255)
+    private String cancellationReason;
 
     public EventRegistration() {}
     public EventRegistration(Event event, Volunteer volunteer) {
         this.event = event;
         this.volunteer = volunteer;
+        this.status = "CONFIRMED";
+    }
+
+    public EventRegistration(Event event, Volunteer volunteer, String status, Integer waitlistPosition) {
+        this.event = event;
+        this.volunteer = volunteer;
+        this.status = status;
+        this.waitlistPosition = waitlistPosition;
     }
 
     public UUID getRegistrationId() { return registrationId; }
@@ -38,9 +52,14 @@ public class EventRegistration {
     public Volunteer getVolunteer() { return volunteer; }
     public Instant getRegisteredAt() { return registeredAt; }
     public String getStatus() { return status; }
+    public Integer getWaitlistPosition() { return waitlistPosition; }
+    public String getCancellationReason() { return cancellationReason; }
+
     public void setRegistrationId(UUID id) { this.registrationId = id; }
     public void setEvent(Event event) { this.event = event; }
     public void setVolunteer(Volunteer volunteer) { this.volunteer = volunteer; }
     public void setRegisteredAt(Instant registeredAt) { this.registeredAt = registeredAt; }
     public void setStatus(String status) { this.status = status; }
+    public void setWaitlistPosition(Integer waitlistPosition) { this.waitlistPosition = waitlistPosition; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
 }

@@ -67,12 +67,29 @@ public class EventController {
     @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse complete(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "complete", p); }
 
+    @PostMapping("/{id}/clone")
+    @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    public EventResponse clone(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.cloneEvent(id, p); }
+
+    @GetMapping("/{id}/stats")
+    @PreAuthorize("isAuthenticated()")
+    public edu.college.nss.web.dto.EventStatsResponse stats(@PathVariable UUID id) { return service.getEventStats(id); }
+
     @PostMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EventRegistrationResponse> register(@PathVariable UUID id,
                                                                @Valid @RequestBody RegistrationRequest request,
                                                                @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.register(id, request, principal));
+    }
+
+    @PostMapping("/{id}/waitlist")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EventRegistrationResponse> joinWaitlist(@PathVariable UUID id,
+                                                                   @Valid @RequestBody RegistrationRequest request,
+                                                                   @AuthenticationPrincipal UserDetails principal) {
+        RegistrationRequest waitlistReq = new RegistrationRequest(request.volunteerId(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.register(id, waitlistReq, principal));
     }
 
     @GetMapping("/{id}/registrations")

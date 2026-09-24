@@ -185,7 +185,9 @@ export const Volunteers: React.FC = () => {
                 >
                   <option value="">All Statuses</option>
                   <option value="ACTIVE">ACTIVE</option>
+                  <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
                   <option value="INACTIVE">INACTIVE</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
                   <option value="ALUMNI">ALUMNI</option>
                 </select>
               </div>
@@ -242,7 +244,11 @@ export const Volunteers: React.FC = () => {
                           <span
                             className={`badge ${
                               vol.status === "ACTIVE"
-                                ? "badge-primary"
+                                ? "badge-success"
+                                : vol.status === "PENDING_APPROVAL"
+                                ? "badge-warning"
+                                : vol.status === "SUSPENDED"
+                                ? "badge-danger"
                                 : "badge-muted"
                             }`}
                           >

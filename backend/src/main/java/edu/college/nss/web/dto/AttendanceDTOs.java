@@ -57,6 +57,10 @@ public class AttendanceDTOs {
         String previousStatus,
         String newStatus,
         String reason,
+        String status,
+        String reviewRemarks,
+        String reviewedByName,
+        Instant reviewedAt,
         Instant correctedAt
     ) {}
 

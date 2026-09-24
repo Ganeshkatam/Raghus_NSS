@@ -89,4 +89,25 @@ public class VolunteerController {
         List<MembershipResponse> responses = volunteerService.getVolunteerMemberships(id, principal);
         return ResponseEntity.ok(responses);
     }
+
+    @PostMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    public ResponseEntity<VolunteerResponse> updateVolunteerStatus(
+        @PathVariable UUID id,
+        @Valid @RequestBody edu.college.nss.web.dto.VolunteerStatusUpdateRequest request,
+        @AuthenticationPrincipal UserDetails principal
+    ) {
+        VolunteerResponse response = volunteerService.updateVolunteerStatus(id, request, principal);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/history")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<edu.college.nss.web.dto.VolunteerStatusHistoryResponse>> getVolunteerHistory(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal UserDetails principal
+    ) {
+        List<edu.college.nss.web.dto.VolunteerStatusHistoryResponse> responses = volunteerService.getVolunteerStatusHistory(id, principal);
+        return ResponseEntity.ok(responses);
+    }
 }

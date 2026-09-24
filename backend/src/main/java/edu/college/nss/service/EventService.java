@@ -24,16 +24,21 @@ public class EventService {
     private final UserRepository userRepository;
     private final VolunteerRepository volunteerRepository;
     private final UnitMembershipRepository membershipRepository;
+    private final NotificationService notificationService;
+    private final AttendanceRecordRepository attendanceRecordRepository;
 
     public EventService(EventRepository eventRepository, EventRegistrationRepository registrationRepository,
                         NssUnitRepository unitRepository, UserRepository userRepository,
-                        VolunteerRepository volunteerRepository, UnitMembershipRepository membershipRepository) {
+                        VolunteerRepository volunteerRepository, UnitMembershipRepository membershipRepository,
+                        NotificationService notificationService, AttendanceRecordRepository attendanceRecordRepository) {
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.volunteerRepository = volunteerRepository;
         this.membershipRepository = membershipRepository;
+        this.notificationService = notificationService;
+        this.attendanceRecordRepository = attendanceRecordRepository;
     }
 
     @Transactional
@@ -148,18 +153,51 @@ public class EventService {
 
         long registered = registrationRepository.countRegistered(eventId);
         if (registered >= event.getCapacity()) {
-            throw new EventCapacityReachedException();
+            if (!Boolean.TRUE.equals(req.joinWaitlist())) {
+                throw new EventCapacityReachedException();
+            }
+            long waitlistCount = registrationRepository.countByEvent_EventIdAndStatus(eventId, "WAITLISTED");
+            int position = (int) waitlistCount + 1;
+            EventRegistration waitlisted = existing != null ? existing : new EventRegistration(event, volunteer);
+            waitlisted.setStatus("WAITLISTED");
+            waitlisted.setWaitlistPosition(position);
+            waitlisted.setRegisteredAt(now);
+            waitlisted = registrationRepository.save(waitlisted);
+
+            if (volunteer.getUser() != null) {
+                notificationService.sendNotification(
+                    volunteer.getUser(),
+                    "Joined Event Waitlist",
+                    "Event capacity is full. You are on the waitlist at position #" + position + " for " + event.getTitle(),
+                    "EVENT",
+                    "/events/" + eventId
+                );
+            }
+            return EventRegistrationResponse.fromEntity(waitlisted);
         }
 
         if (existing != null) {
-            existing.setStatus("REGISTERED");
+            existing.setStatus("CONFIRMED");
+            existing.setWaitlistPosition(null);
             existing.setRegisteredAt(now);
-            return EventRegistrationResponse.fromEntity(registrationRepository.save(existing));
+            existing = registrationRepository.save(existing);
+            return EventRegistrationResponse.fromEntity(existing);
         }
 
-        return EventRegistrationResponse.fromEntity(
-            registrationRepository.save(new EventRegistration(event, volunteer))
-        );
+        EventRegistration confirmed = new EventRegistration(event, volunteer, "CONFIRMED", null);
+        confirmed = registrationRepository.save(confirmed);
+
+        if (volunteer.getUser() != null) {
+            notificationService.sendNotification(
+                volunteer.getUser(),
+                "Event Registration Confirmed",
+                "Your registration for " + event.getTitle() + " has been confirmed.",
+                "EVENT",
+                "/events/" + eventId
+            );
+        }
+
+        return EventRegistrationResponse.fromEntity(confirmed);
     }
 
     @Transactional(readOnly = true)
@@ -188,14 +226,97 @@ public class EventService {
         EventRegistration registration = registrationRepository
             .findByEvent_EventIdAndVolunteer_VolunteerId(eventId, volunteer.getVolunteerId())
             .orElseThrow(() -> new IllegalArgumentException("Registration not found."));
-        if (!"REGISTERED".equals(registration.getStatus())) {
+        if (!"REGISTERED".equals(registration.getStatus()) && !"CONFIRMED".equals(registration.getStatus()) && !"WAITLISTED".equals(registration.getStatus())) {
             throw new IllegalArgumentException("Registration is already cancelled.");
         }
         if (!"OPEN".equals(event.getStatus())) {
             throw new RegistrationClosedException("Registration can only be cancelled while registration is open.");
         }
+
+        boolean wasConfirmed = "REGISTERED".equals(registration.getStatus()) || "CONFIRMED".equals(registration.getStatus());
         registration.setStatus("CANCELLED");
+        registration.setCancellationReason("Cancelled by volunteer");
+        registration.setWaitlistPosition(null);
         registrationRepository.save(registration);
+
+        if (wasConfirmed) {
+            // Automatically promote the top waitlisted volunteer
+            registrationRepository.findFirstByEvent_EventIdAndStatusOrderByWaitlistPositionAsc(eventId, "WAITLISTED")
+                .ifPresent(promoted -> {
+                    promoted.setStatus("CONFIRMED");
+                    promoted.setWaitlistPosition(null);
+                    registrationRepository.save(promoted);
+
+                    // Re-index remaining waitlisted volunteers
+                    List<EventRegistration> remainingWaitlist = registrationRepository
+                        .findByEvent_EventIdAndStatusOrderByWaitlistPositionAsc(eventId, "WAITLISTED");
+                    for (int i = 0; i < remainingWaitlist.size(); i++) {
+                        remainingWaitlist.get(i).setWaitlistPosition(i + 1);
+                    }
+                    registrationRepository.saveAll(remainingWaitlist);
+
+                    if (promoted.getVolunteer().getUser() != null) {
+                        notificationService.sendNotification(
+                            promoted.getVolunteer().getUser(),
+                            "Promoted from Waitlist!",
+                            "A spot has opened up for " + event.getTitle() + "! Your registration is now CONFIRMED.",
+                            "EVENT",
+                            "/events/" + eventId
+                        );
+                    }
+                });
+        }
+    }
+
+    @Transactional
+    public EventResponse cloneEvent(UUID eventId, UserDetails principal) {
+        Event source = getEntity(eventId);
+        assertManagerForUnit(principal, source.getUnit());
+        User creator = currentUser(principal);
+
+        Instant newStart = source.getStartAt().plus(7, java.time.temporal.ChronoUnit.DAYS);
+        Instant newEnd = source.getEndAt().plus(7, java.time.temporal.ChronoUnit.DAYS);
+        Instant newOpen = source.getRegistrationOpenAt() != null ? source.getRegistrationOpenAt().plus(7, java.time.temporal.ChronoUnit.DAYS) : null;
+        Instant newClose = source.getRegistrationCloseAt() != null ? source.getRegistrationCloseAt().plus(7, java.time.temporal.ChronoUnit.DAYS) : null;
+
+        Event clone = new Event(
+            source.getUnit(),
+            creator,
+            "Copy of " + source.getTitle(),
+            source.getDescription(),
+            source.getEventType(),
+            newStart,
+            newEnd,
+            newOpen,
+            newClose,
+            source.getVenue(),
+            source.getCapacity()
+        );
+        clone = eventRepository.save(clone);
+        return toResponse(clone);
+    }
+
+    @Transactional(readOnly = true)
+    public EventStatsResponse getEventStats(UUID eventId) {
+        Event event = getEntity(eventId);
+        long registeredCount = registrationRepository.countRegistered(eventId);
+        long waitlistCount = registrationRepository.countByEvent_EventIdAndStatus(eventId, "WAITLISTED");
+        long presentCount = attendanceRecordRepository.countByEventIdAndStatus(eventId, "PRESENT");
+        long absentCount = attendanceRecordRepository.countByEventIdAndStatus(eventId, "ABSENT");
+
+        double totalAttendance = presentCount + absentCount;
+        double rate = totalAttendance > 0 ? (presentCount * 100.0 / totalAttendance) : 0.0;
+
+        return new EventStatsResponse(
+            event.getEventId(),
+            event.getTitle(),
+            event.getCapacity(),
+            registeredCount,
+            waitlistCount,
+            presentCount,
+            absentCount,
+            rate
+        );
     }
 
     private void assertCanRegister(UserDetails principal, Volunteer volunteer) {

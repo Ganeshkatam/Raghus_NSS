@@ -19,6 +19,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AttendanceService {
@@ -30,6 +31,7 @@ public class AttendanceService {
     private final EventRegistrationRepository registrationRepository;
     private final VolunteerRepository volunteerRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
@@ -39,7 +41,8 @@ public class AttendanceService {
                              EventRepository eventRepository,
                              EventRegistrationRepository registrationRepository,
                              VolunteerRepository volunteerRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             NotificationService notificationService) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.correctionRepository = correctionRepository;
@@ -48,6 +51,7 @@ public class AttendanceService {
         this.registrationRepository = registrationRepository;
         this.volunteerRepository = volunteerRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -103,6 +107,31 @@ public class AttendanceService {
 
         session.close();
         AttendanceSession saved = sessionRepository.save(session);
+
+        // Auto-generate ABSENT records for all confirmed registrants who never checked in
+        List<EventRegistration> confirmedRegistrations = registrationRepository
+            .findByEvent_EventIdAndStatus(session.getEvent().getEventId(), "CONFIRMED");
+        if (confirmedRegistrations.isEmpty()) {
+            confirmedRegistrations = registrationRepository
+                .findByEvent_EventIdAndStatus(session.getEvent().getEventId(), "REGISTERED");
+        }
+
+        List<AttendanceRecord> existingRecords = recordRepository.findBySession_SessionId(sessionId);
+        java.util.Set<UUID> checkedInIds = existingRecords.stream()
+            .map(r -> r.getVolunteer().getVolunteerId())
+            .collect(Collectors.toSet());
+
+        List<AttendanceRecord> absentRecords = new java.util.ArrayList<>();
+        for (EventRegistration reg : confirmedRegistrations) {
+            if (!checkedInIds.contains(reg.getVolunteer().getVolunteerId())) {
+                AttendanceRecord absent = new AttendanceRecord(saved, reg.getVolunteer(), "AUTO_ABSENT", "ABSENT");
+                absentRecords.add(absent);
+            }
+        }
+        if (!absentRecords.isEmpty()) {
+            recordRepository.saveAll(absentRecords);
+        }
+
         long presentCount = recordRepository.countBySession_SessionIdAndStatus(saved.getSessionId(), "PRESENT");
         long totalRegistered = registrationRepository.countRegistered(saved.getEvent().getEventId());
 
@@ -136,8 +165,8 @@ public class AttendanceService {
             .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
             .orElseThrow(() -> new AccessDeniedException("You are not registered for this event."));
 
-        if (!"REGISTERED".equals(registration.getStatus())) {
-            throw new AccessDeniedException("Only volunteers with active REGISTERED status may check in.");
+        if (!"REGISTERED".equals(registration.getStatus()) && !"CONFIRMED".equals(registration.getStatus())) {
+            throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may check in.");
         }
 
         if (recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.getSessionId(), volunteer.getVolunteerId())) {
@@ -224,14 +253,67 @@ public class AttendanceService {
 
         syncServiceHoursOnCorrection(record, newStatus, officer);
 
+        return toCorrectionResponse(savedCorrection);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CorrectionResponse> getPendingCorrections(UserDetails principal) {
+        return correctionRepository.findByStatusOrderByCorrectedAtDesc("PENDING")
+            .stream()
+            .map(this::toCorrectionResponse)
+            .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CorrectionResponse reviewCorrection(UUID correctionId, edu.college.nss.web.dto.CorrectionReviewRequest req, UserDetails principal) {
+        AttendanceCorrection correction = correctionRepository.findById(correctionId)
+            .orElseThrow(() -> new IllegalArgumentException("Correction not found: " + correctionId));
+
+        assertManagerForUnit(principal, correction.getAttendanceRecord().getSession().getEvent().getUnit());
+
+        User officer = currentUser(principal);
+        correction.setReviewedBy(officer);
+        correction.setReviewedAt(Instant.now());
+        correction.setReviewRemarks(req.remarks());
+
+        if (Boolean.TRUE.equals(req.approved())) {
+            correction.setStatus("APPROVED");
+            AttendanceRecord record = correction.getAttendanceRecord();
+            record.setStatus(correction.getNewStatus());
+            recordRepository.save(record);
+            syncServiceHoursOnCorrection(record, correction.getNewStatus(), officer);
+        } else {
+            correction.setStatus("REJECTED");
+        }
+
+        correction = correctionRepository.save(correction);
+
+        if (correction.getAttendanceRecord().getVolunteer().getUser() != null) {
+            notificationService.sendNotification(
+                correction.getAttendanceRecord().getVolunteer().getUser(),
+                "Attendance Correction " + correction.getStatus(),
+                "Your attendance correction request has been " + correction.getStatus() + (req.remarks() != null ? ": " + req.remarks() : ""),
+                "ATTENDANCE",
+                "/events/" + correction.getAttendanceRecord().getSession().getEvent().getEventId()
+            );
+        }
+
+        return toCorrectionResponse(correction);
+    }
+
+    private CorrectionResponse toCorrectionResponse(AttendanceCorrection c) {
         return new CorrectionResponse(
-            savedCorrection.getCorrectionId(),
-            record.getAttendanceId(),
-            officer.getName(),
-            prevStatus,
-            newStatus,
-            savedCorrection.getReason(),
-            savedCorrection.getCorrectedAt()
+            c.getCorrectionId(),
+            c.getAttendanceRecord().getAttendanceId(),
+            c.getCorrectedBy().getName(),
+            c.getPreviousStatus(),
+            c.getNewStatus(),
+            c.getReason(),
+            c.getStatus(),
+            c.getReviewRemarks(),
+            c.getReviewedBy() != null ? c.getReviewedBy().getName() : null,
+            c.getReviewedAt(),
+            c.getCorrectedAt()
         );
     }
 

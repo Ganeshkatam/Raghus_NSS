@@ -17,8 +17,14 @@ public class AnnouncementDTOs {
 
         UUID unitId,
 
+        String priority,
+
         Instant expiresAt
-    ) {}
+    ) {
+        public CreateAnnouncementRequest(String title, String content, UUID unitId, Instant expiresAt) {
+            this(title, content, unitId, "NORMAL", expiresAt);
+        }
+    }
 
     public record AnnouncementResponse(
         UUID announcementId,
@@ -26,6 +32,7 @@ public class AnnouncementDTOs {
         String content,
         UUID unitId,
         String unitName,
+        String priority,
         String createdByName,
         Instant publishedAt,
         Instant expiresAt
@@ -35,6 +42,8 @@ public class AnnouncementDTOs {
         UUID notificationId,
         String title,
         String message,
+        String category,
+        String link,
         Boolean isRead,
         Instant createdAt
     ) {}

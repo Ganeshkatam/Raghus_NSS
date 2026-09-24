@@ -31,6 +31,8 @@ class ServiceHourIntegrationTest {
     @Autowired EventRepository eventRepository;
     @Autowired UnitMembershipRepository membershipRepository;
     @Autowired VolunteerRepository volunteerRepository;
+    @Autowired VolunteerStatusHistoryRepository statusHistoryRepository;
+    @Autowired UnitTransferHistoryRepository transferHistoryRepository;
     @Autowired NssUnitRepository unitRepository;
     @Autowired UserRepository userRepository;
     @Autowired NotificationRepository notificationRepository;
@@ -53,6 +55,8 @@ class ServiceHourIntegrationTest {
         registrationRepository.deleteAll();
         eventRepository.deleteAll();
         membershipRepository.deleteAll();
+        statusHistoryRepository.deleteAll();
+        transferHistoryRepository.deleteAll();
         volunteerRepository.deleteAll();
         unitRepository.deleteAll();
         userRepository.deleteAll();

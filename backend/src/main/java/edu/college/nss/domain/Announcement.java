@@ -33,6 +33,9 @@ public class Announcement {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    @Column(nullable = false, length = 20)
+    private String priority = "NORMAL";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -60,5 +63,7 @@ public class Announcement {
     public void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
     public Instant getCreatedAt() { return createdAt; }
 }

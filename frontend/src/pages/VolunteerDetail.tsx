@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface VolunteerData {
@@ -28,34 +29,101 @@ interface MembershipHistoryItem {
   isActive: boolean;
 }
 
+interface StatusHistoryItem {
+  historyId: string;
+  previousStatus: string;
+  newStatus: string;
+  remarks: string | null;
+  changedByName: string;
+  createdAt: string;
+}
+
+interface TransferHistoryItem {
+  transferId: string;
+  fromUnitName: string | null;
+  toUnitName: string;
+  reason: string | null;
+  transferredByName: string;
+  transferredAt: string;
+}
+
 export const VolunteerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user, isCoordinatorOrOfficer } = useAuth();
+  const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
+  ));
+
   const [volunteer, setVolunteer] = useState<VolunteerData | null>(null);
   const [history, setHistory] = useState<MembershipHistoryItem[]>([]);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryItem[]>([]);
+  const [transferHistory, setTransferHistory] = useState<TransferHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Status Change Modal State
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedNewStatus, setSelectedNewStatus] = useState("ACTIVE");
+  const [statusRemarks, setStatusRemarks] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [volData, memData] = await Promise.all([
+        apiRequest<VolunteerData>(`/volunteers/${id}`),
+        apiRequest<MembershipHistoryItem[]>(`/volunteers/${id}/memberships`).catch(() => []),
+      ]);
+      setVolunteer(volData);
+      setSelectedNewStatus(volData.status || "ACTIVE");
+      setHistory(memData || []);
+
+      if (isManager) {
+        const [statHist, transHist] = await Promise.all([
+          apiRequest<StatusHistoryItem[]>(`/volunteers/${id}/history`).catch(() => []),
+          apiRequest<TransferHistoryItem[]>(`/units/volunteers/${id}/transfers`).catch(() => []),
+        ]);
+        setStatusHistory(statHist || []);
+        setTransferHistory(transHist || []);
+      }
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setError(apiErr.message || "Failed to load volunteer profile.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isManager]);
 
   useEffect(() => {
-    async function loadData() {
-      if (!id) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const [volData, memData] = await Promise.all([
-          apiRequest<VolunteerData>(`/volunteers/${id}`),
-          apiRequest<MembershipHistoryItem[]>(`/volunteers/${id}/memberships`),
-        ]);
-        setVolunteer(volData);
-        setHistory(memData);
-      } catch (err: unknown) {
-        const apiErr = err as ApiError;
-        setError(apiErr.message || "Failed to load volunteer profile.");
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
-  }, [id]);
+  }, [loadData]);
+
+  const handleUpdateStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setUpdatingStatus(true);
+    setError(null);
+    try {
+      await apiRequest(`/volunteers/${id}/status`, {
+        method: "POST",
+        body: JSON.stringify({
+          newStatus: selectedNewStatus,
+          remarks: statusRemarks.trim() || undefined,
+        }),
+      });
+      setSuccess(`Volunteer status successfully updated to ${selectedNewStatus}.`);
+      setShowStatusModal(false);
+      setStatusRemarks("");
+      loadData();
+    } catch (err: any) {
+      setError(err.message || "Failed to update volunteer status.");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -65,7 +133,7 @@ export const VolunteerDetail: React.FC = () => {
     );
   }
 
-  if (error || !volunteer) {
+  if (error && !volunteer) {
     return (
       <div className="page-container">
         <div className="alert alert-error">
@@ -77,6 +145,8 @@ export const VolunteerDetail: React.FC = () => {
       </div>
     );
   }
+
+  if (!volunteer) return null;
 
   return (
     <div className="page-container">
@@ -90,19 +160,44 @@ export const VolunteerDetail: React.FC = () => {
             College ID: <strong>{volunteer.collegeId}</strong> &bull; Status:{" "}
             <span
               className={`badge ${
-                volunteer.status === "ACTIVE" ? "badge-primary" : "badge-muted"
+                volunteer.status === "ACTIVE"
+                  ? "badge-success"
+                  : volunteer.status === "PENDING_APPROVAL"
+                  ? "badge-warning"
+                  : "badge-muted"
               }`}
             >
               {volunteer.status}
             </span>
           </p>
         </div>
+
+        {isManager && (
+          <button
+            type="button"
+            onClick={() => setShowStatusModal(true)}
+            className="btn-primary"
+          >
+            Update Volunteer Status
+          </button>
+        )}
       </div>
+
+      {error && (
+        <div className="alert alert-error">
+          <strong>Notice:</strong> {error}
+        </div>
+      )}
+      {success && (
+        <div className="alert alert-success">
+          <strong>Success:</strong> {success}
+        </div>
+      )}
 
       <div className="grid-2-col">
         <div className="section-card">
           <div className="section-header">
-            <h3>Academic & Contact Information</h3>
+            <h3>Academic &amp; Contact Information</h3>
           </div>
           <div className="details-list">
             <div className="details-row">
@@ -139,7 +234,7 @@ export const VolunteerDetail: React.FC = () => {
                 Volunteer is an active participant in this operational unit.
               </p>
               <Link to={`/units/${volunteer.activeUnitId}`} className="btn-secondary-sm">
-                View Unit Roster
+                View Unit Details &amp; Operations
               </Link>
             </div>
           ) : (
@@ -153,6 +248,99 @@ export const VolunteerDetail: React.FC = () => {
         </div>
       </div>
 
+      {/* Status History Audit Trail */}
+      {isManager && (
+        <div className="section-card" style={{ marginTop: "1.5rem" }}>
+          <div className="section-header">
+            <h3>Status Transition &amp; Onboarding Audit Trail</h3>
+          </div>
+          {statusHistory.length === 0 ? (
+            <p className="empty-state">No status transition history recorded for this volunteer.</p>
+          ) : (
+            <div className="units-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Previous Status</th>
+                    <th>New Status</th>
+                    <th>Remarks</th>
+                    <th>Changed By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusHistory.map((s) => (
+                    <tr key={s.historyId}>
+                      <td>{new Date(s.createdAt).toLocaleString()}</td>
+                      <td>
+                        <span className="badge badge-muted">{s.previousStatus || "INIT"}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            s.newStatus === "ACTIVE"
+                              ? "badge-success"
+                              : s.newStatus === "PENDING_APPROVAL"
+                              ? "badge-warning"
+                              : "badge-primary"
+                          }`}
+                        >
+                          {s.newStatus}
+                        </span>
+                      </td>
+                      <td>{s.remarks || "\u2014"}</td>
+                      <td>
+                        <strong>{s.changedByName}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Unit Transfer History */}
+      {isManager && (
+        <div className="section-card" style={{ marginTop: "1.5rem" }}>
+          <div className="section-header">
+            <h3>Unit Transfer Audit Trail</h3>
+          </div>
+          {transferHistory.length === 0 ? (
+            <p className="empty-state">No historical unit transfers recorded.</p>
+          ) : (
+            <div className="units-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>From Unit</th>
+                    <th>To Unit</th>
+                    <th>Transfer Reason</th>
+                    <th>Authorized By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transferHistory.map((t) => (
+                    <tr key={t.transferId}>
+                      <td>{new Date(t.transferredAt).toLocaleString()}</td>
+                      <td>{t.fromUnitName || "Initial Allocation"}</td>
+                      <td>
+                        <strong>{t.toUnitName}</strong>
+                      </td>
+                      <td>{t.reason || "\u2014"}</td>
+                      <td>{t.transferredByName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Historical Membership records */}
       <div className="section-card" style={{ marginTop: "1.5rem" }}>
         <div className="section-header">
           <h3>Unit Membership History</h3>
@@ -199,6 +387,72 @@ export const VolunteerDetail: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Status Update Modal */}
+      {showStatusModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2>Update Volunteer Status</h2>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowStatusModal(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleUpdateStatus} className="form-stack" style={{ padding: 0 }}>
+                <div className="form-group">
+                  <label htmlFor="newStatusSelect">Status Transition *</label>
+                  <select
+                    id="newStatusSelect"
+                    value={selectedNewStatus}
+                    onChange={(e) => setSelectedNewStatus(e.target.value)}
+                  >
+                    <option value="ACTIVE">ACTIVE &mdash; Fully Approved Volunteer</option>
+                    <option value="PENDING_APPROVAL">PENDING_APPROVAL &mdash; Under Verification</option>
+                    <option value="INACTIVE">INACTIVE &mdash; Suspended Participation</option>
+                    <option value="ALUMNI">ALUMNI &mdash; Graduated NSS Member</option>
+                    <option value="SUSPENDED">SUSPENDED &mdash; Disciplinary Hold</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="statusRemarksInput">Audit Remarks / Justification</label>
+                  <textarea
+                    id="statusRemarksInput"
+                    rows={3}
+                    placeholder="e.g. Completed orientation and verified enrollment documents."
+                    value={statusRemarks}
+                    onChange={(e) => setStatusRemarks(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusModal(false)}
+                    className="btn-secondary"
+                    disabled={updatingStatus}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus ? "Recording Update..." : "Confirm Status Change"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

@@ -24,6 +24,9 @@ public interface ServiceHourEntryRepository extends JpaRepository<ServiceHourEnt
     @Query("SELECT COALESCE(SUM(s.hours), 0) FROM ServiceHourEntry s WHERE s.status = 'APPROVED' AND s.event.unit.unitId = :unitId")
     BigDecimal sumApprovedHoursForUnit(@Param("unitId") UUID unitId);
 
+    @Query("SELECT COALESCE(SUM(s.hours), 0) FROM ServiceHourEntry s WHERE s.volunteer.volunteerId = :volunteerId AND s.status = 'APPROVED' AND s.category = :category")
+    BigDecimal sumApprovedHoursForVolunteerAndCategory(@Param("volunteerId") UUID volunteerId, @Param("category") String category);
+
     List<ServiceHourEntry> findByVolunteer_VolunteerIdOrderByCreatedAtDesc(UUID volunteerId);
 
     List<ServiceHourEntry> findByStatusOrderByCreatedAtDesc(String status);

@@ -16,20 +16,20 @@ import java.util.UUID;
 public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
-    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
     private final NssUnitRepository unitRepository;
     private final UserRepository userRepository;
     private final VolunteerRepository volunteerRepository;
     private final UnitMembershipRepository membershipRepository;
 
     public AnnouncementService(AnnouncementRepository announcementRepository,
-                               NotificationRepository notificationRepository,
+                               NotificationService notificationService,
                                NssUnitRepository unitRepository,
                                UserRepository userRepository,
                                VolunteerRepository volunteerRepository,
                                UnitMembershipRepository membershipRepository) {
         this.announcementRepository = announcementRepository;
-        this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.volunteerRepository = volunteerRepository;
@@ -55,27 +55,34 @@ public class AnnouncementService {
             Instant.now(),
             req.expiresAt()
         );
+        if (req.priority() != null && !req.priority().isBlank()) {
+            announcement.setPriority(req.priority().trim().toUpperCase());
+        }
         Announcement saved = announcementRepository.save(announcement);
 
         // Broadcast notifications
         if (unit != null) {
             List<UnitMembership> members = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unit.getUnitId());
             for (UnitMembership m : members) {
-                notificationRepository.save(new Notification(
+                notificationService.sendNotification(
                     m.getVolunteer().getUser(),
                     "[" + unit.getUnitName() + "] " + saved.getTitle(),
-                    saved.getContent()
-                ));
+                    saved.getContent(),
+                    "ANNOUNCEMENT",
+                    "/announcements"
+                );
             }
         } else {
             // College-wide notification
             List<User> allUsers = userRepository.findAll();
             for (User u : allUsers) {
-                notificationRepository.save(new Notification(
+                notificationService.sendNotification(
                     u,
                     "[NSS Notice] " + saved.getTitle(),
-                    saved.getContent()
-                ));
+                    saved.getContent(),
+                    "ANNOUNCEMENT",
+                    "/announcements"
+                );
             }
         }
 
@@ -131,29 +138,22 @@ public class AnnouncementService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications(UserDetails principal) {
-        User user = currentUser(principal);
-        return notificationRepository.findByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
-            .stream().map(n -> new NotificationResponse(
-                n.getNotificationId(),
-                n.getTitle(),
-                n.getMessage(),
-                n.getIsRead(),
-                n.getCreatedAt()
-            )).toList();
+        return notificationService.getMyNotifications(principal);
+    }
+
+    @Transactional(readOnly = true)
+    public long getUnreadCount(UserDetails principal) {
+        return notificationService.getUnreadCount(principal);
     }
 
     @Transactional
     public void markNotificationRead(UUID id, UserDetails principal) {
-        Notification notification = notificationRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
+        notificationService.markAsRead(id, principal);
+    }
 
-        User user = currentUser(principal);
-        if (!notification.getUser().getUserId().equals(user.getUserId())) {
-            throw new AccessDeniedException("Access denied to this notification.");
-        }
-
-        notification.setIsRead(true);
-        notificationRepository.save(notification);
+    @Transactional
+    public void markAllNotificationsRead(UserDetails principal) {
+        notificationService.markAllAsRead(principal);
     }
 
     private void assertCanAnnounce(UserDetails principal) {
@@ -184,6 +184,7 @@ public class AnnouncementService {
             a.getContent(),
             a.getUnit() != null ? a.getUnit().getUnitId() : null,
             a.getUnit() != null ? a.getUnit().getUnitName() : "College-Wide",
+            a.getPriority() != null ? a.getPriority() : "NORMAL",
             a.getCreatedBy().getName(),
             a.getPublishedAt(),
             a.getExpiresAt()

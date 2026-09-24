@@ -4,13 +4,18 @@ import edu.college.nss.domain.Role;
 import edu.college.nss.domain.UnitMembership;
 import edu.college.nss.domain.User;
 import edu.college.nss.domain.Volunteer;
+import edu.college.nss.domain.VolunteerStatusHistory;
 import edu.college.nss.repository.RoleRepository;
 import edu.college.nss.repository.UnitMembershipRepository;
 import edu.college.nss.repository.UserRepository;
 import edu.college.nss.repository.VolunteerRepository;
+import edu.college.nss.repository.VolunteerStatusHistoryRepository;
+import edu.college.nss.security.UnitSecurityService;
 import edu.college.nss.web.dto.MembershipResponse;
 import edu.college.nss.web.dto.VolunteerRequest;
 import edu.college.nss.web.dto.VolunteerResponse;
+import edu.college.nss.web.dto.VolunteerStatusHistoryResponse;
+import edu.college.nss.web.dto.VolunteerStatusUpdateRequest;
 import edu.college.nss.web.dto.VolunteerUpdateRequest;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -40,19 +45,28 @@ public class VolunteerService {
     private final RoleRepository roleRepository;
     private final UnitMembershipRepository membershipRepository;
     private final PasswordEncoder passwordEncoder;
+    private final VolunteerStatusHistoryRepository statusHistoryRepository;
+    private final UnitSecurityService unitSecurity;
+    private final NotificationService notificationService;
 
     public VolunteerService(
         VolunteerRepository volunteerRepository,
         UserRepository userRepository,
         RoleRepository roleRepository,
         UnitMembershipRepository membershipRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        VolunteerStatusHistoryRepository statusHistoryRepository,
+        UnitSecurityService unitSecurity,
+        NotificationService notificationService
     ) {
         this.volunteerRepository = volunteerRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.membershipRepository = membershipRepository;
         this.passwordEncoder = passwordEncoder;
+        this.statusHistoryRepository = statusHistoryRepository;
+        this.unitSecurity = unitSecurity;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -138,9 +152,9 @@ public class VolunteerService {
 
         boolean isSelf = volunteer.getUser() != null &&
             volunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername());
-        boolean isStaffOrAdmin = isStaffOrAdmin(principal);
+        boolean canManage = unitSecurity.isGlobalManager(principal) || unitSecurity.canManageVolunteer(principal, volunteerId);
 
-        if (!isSelf && !isStaffOrAdmin) {
+        if (!isSelf && !canManage) {
             throw new AccessDeniedException("You do not have permission to update this volunteer profile.");
         }
 
@@ -148,7 +162,7 @@ public class VolunteerService {
             volunteer.getUser().setPhone(request.phone());
         }
 
-        if (isStaffOrAdmin) {
+        if (canManage) {
             if (request.name() != null && !request.name().isBlank() && volunteer.getUser() != null) {
                 volunteer.getUser().setName(request.name());
             }
@@ -158,8 +172,8 @@ public class VolunteerService {
             if (request.yearOfStudy() != null) {
                 volunteer.setYearOfStudy(request.yearOfStudy());
             }
-            if (request.status() != null) {
-                volunteer.setStatus(request.status());
+            if (request.status() != null && !request.status().equalsIgnoreCase(volunteer.getStatus())) {
+                updateVolunteerStatus(volunteerId, new VolunteerStatusUpdateRequest(request.status(), "Updated by leadership"), principal);
             }
         }
 
@@ -170,6 +184,66 @@ public class VolunteerService {
             .orElse(null);
 
         return VolunteerResponse.fromEntity(volunteer, active);
+    }
+
+    @Transactional
+    public VolunteerResponse updateVolunteerStatus(UUID volunteerId, VolunteerStatusUpdateRequest request, UserDetails principal) {
+        Volunteer volunteer = volunteerRepository.findById(volunteerId)
+            .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
+
+        boolean canManage = unitSecurity.isGlobalManager(principal) || unitSecurity.canManageVolunteer(principal, volunteerId);
+        if (!canManage) {
+            throw new AccessDeniedException("You do not have permission to change status for this volunteer.");
+        }
+
+        String targetStatus = request.status().toUpperCase().trim();
+        List<String> validStatuses = List.of("PENDING_APPROVAL", "ACTIVE", "INACTIVE", "SUSPENDED", "ALUMNI");
+        if (!validStatuses.contains(targetStatus)) {
+            throw new IllegalArgumentException("Invalid volunteer status: " + request.status());
+        }
+
+        String previousStatus = volunteer.getStatus();
+        volunteer.setStatus(targetStatus);
+        volunteer = volunteerRepository.save(volunteer);
+
+        User officer = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        VolunteerStatusHistory history = new VolunteerStatusHistory(
+            volunteer,
+            previousStatus,
+            targetStatus,
+            request.reason() != null ? request.reason() : "Status updated to " + targetStatus,
+            officer
+        );
+        statusHistoryRepository.save(history);
+
+        if (volunteer.getUser() != null) {
+            notificationService.sendNotification(
+                volunteer.getUser(),
+                "Volunteer Status Update",
+                "Your NSS volunteer membership status is now: " + targetStatus + (request.reason() != null ? " (" + request.reason() + ")" : ""),
+                "VOLUNTEER",
+                "/volunteers/" + volunteer.getVolunteerId()
+            );
+        }
+
+        UnitMembership active = membershipRepository
+            .findByVolunteer_VolunteerIdAndIsActiveTrue(volunteerId)
+            .orElse(null);
+
+        return VolunteerResponse.fromEntity(volunteer, active);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VolunteerStatusHistoryResponse> getVolunteerStatusHistory(UUID volunteerId, UserDetails principal) {
+        Volunteer volunteer = volunteerRepository.findById(volunteerId)
+            .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
+
+        validateViewAccess(volunteer, principal);
+
+        return statusHistoryRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteerId)
+            .stream()
+            .map(VolunteerStatusHistoryResponse::fromEntity)
+            .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -196,22 +270,16 @@ public class VolunteerService {
     }
 
     private void validateViewAccess(Volunteer volunteer, UserDetails principal) {
-        if (isStaffOrAdmin(principal)) {
+        if (unitSecurity.isGlobalManager(principal)) {
             return;
         }
         if (volunteer.getUser() != null &&
             volunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
             return;
         }
+        if (unitSecurity.canManageVolunteer(principal, volunteer.getVolunteerId())) {
+            return;
+        }
         throw new AccessDeniedException("Access is denied to this volunteer profile.");
-    }
-
-    private boolean isStaffOrAdmin(UserDetails principal) {
-        return principal.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch(a -> a.equals("ADMIN") || a.equals("ROLE_ADMIN") ||
-                           a.equals("FACULTY_COORDINATOR") || a.equals("ROLE_FACULTY_COORDINATOR") ||
-                           a.equals("PROGRAMME_OFFICER") || a.equals("ROLE_PROGRAMME_OFFICER") ||
-                           a.equals("VOLUNTEERS_MANAGE"));
     }
 }

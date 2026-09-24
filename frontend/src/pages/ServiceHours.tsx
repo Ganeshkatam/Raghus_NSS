@@ -13,6 +13,9 @@ interface ServiceHourEntry {
   status: "APPROVED" | "PENDING" | "REJECTED";
   approvedByName: string | null;
   description: string;
+  category?: string;
+  evidenceNote?: string | null;
+  activityDate?: string | null;
   createdAt: string;
 }
 
@@ -21,6 +24,10 @@ interface PersonalSummary {
   volunteerName: string;
   rollNumber: string;
   totalApprovedHours: number;
+  progressPercentage: number;
+  regularHours: number;
+  communityHours: number;
+  otherHours: number;
   approvedCount: number;
   pendingCount: number;
   entries: ServiceHourEntry[];
@@ -51,6 +58,9 @@ export const ServiceHours: React.FC = () => {
   const [claimHours, setClaimHours] = useState("");
   const [claimDescription, setClaimDescription] = useState("");
   const [claimEventId, setClaimEventId] = useState("");
+  const [claimCategory, setClaimCategory] = useState("REGULAR_ACTIVITY");
+  const [claimActivityDate, setClaimActivityDate] = useState("");
+  const [claimEvidenceNote, setClaimEvidenceNote] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [submittingClaim, setSubmittingClaim] = useState(false);
 
@@ -131,7 +141,10 @@ export const ServiceHours: React.FC = () => {
         body: JSON.stringify({
           hours: hoursNum,
           description: claimDescription.trim(),
-          eventId: claimEventId ? claimEventId : null
+          eventId: claimEventId ? claimEventId : null,
+          category: claimCategory,
+          activityDate: claimActivityDate ? claimActivityDate : null,
+          evidenceNote: claimEvidenceNote.trim() ? claimEvidenceNote.trim() : null
         })
       });
       setSuccess("Service hour claim submitted successfully. Awaiting coordinator review.");
@@ -139,6 +152,9 @@ export const ServiceHours: React.FC = () => {
       setClaimHours("");
       setClaimDescription("");
       setClaimEventId("");
+      setClaimCategory("REGULAR_ACTIVITY");
+      setClaimActivityDate("");
+      setClaimEvidenceNote("");
       loadMyHours();
     } catch (err: any) {
       setError(err.message || "Failed to submit claim.");
@@ -288,45 +304,55 @@ export const ServiceHours: React.FC = () => {
           {personalSummary ? (
             <>
               {/* Stat Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
                 <div style={{ background: "#ffffff", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                   <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Total Verified Hours</div>
-                  <div style={{ fontSize: "2.25rem", fontWeight: 800, color: "#1e40af", marginTop: "0.25rem" }}>
-                    {personalSummary.totalApprovedHours} <span style={{ fontSize: "1rem", fontWeight: 500, color: "#64748b" }}>/ 240 hrs</span>
+                  <div style={{ fontSize: "2rem", fontWeight: 800, color: "#1e40af", marginTop: "0.25rem" }}>
+                    {personalSummary.totalApprovedHours} <span style={{ fontSize: "1rem", fontWeight: 500, color: "#64748b" }}>/ 120 hrs</span>
                   </div>
-                  {/* Progress bar towards 240 hrs NSS certificate */}
+                  {/* Progress bar towards 120 hrs NSS certificate */}
                   <div style={{ width: "100%", height: "8px", backgroundColor: "#e2e8f0", borderRadius: "4px", marginTop: "0.75rem", overflow: "hidden" }}>
                     <div
                       style={{
                         height: "100%",
-                        width: `${Math.min(100, (personalSummary.totalApprovedHours / 240) * 100)}%`,
+                        width: `${personalSummary.progressPercentage || Math.min(100, (personalSummary.totalApprovedHours / 120) * 100)}%`,
                         backgroundColor: "#1e40af",
                         borderRadius: "4px"
                       }}
                     />
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
-                    {Math.round((personalSummary.totalApprovedHours / 240) * 100)}% of 2-year certification requirement
+                    {personalSummary.progressPercentage}% of 120-hr NSS accreditation requirement
                   </div>
                 </div>
 
                 <div style={{ background: "#ffffff", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                  <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Approved Activities</div>
-                  <div style={{ fontSize: "2.25rem", fontWeight: 800, color: "#166534", marginTop: "0.25rem" }}>
-                    {personalSummary.approvedCount}
+                  <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Regular Activity</div>
+                  <div style={{ fontSize: "2rem", fontWeight: 800, color: "#0284c7", marginTop: "0.25rem" }}>
+                    {personalSummary.regularHours || 0} <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>hrs</span>
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
-                    Verified via QR session & coordinator approval
+                    Campus & institutional drives
                   </div>
                 </div>
 
                 <div style={{ background: "#ffffff", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                  <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Pending Review</div>
-                  <div style={{ fontSize: "2.25rem", fontWeight: 800, color: "#d97706", marginTop: "0.25rem" }}>
-                    {personalSummary.pendingCount}
+                  <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Community Outreach</div>
+                  <div style={{ fontSize: "2rem", fontWeight: 800, color: "#166534", marginTop: "0.25rem" }}>
+                    {personalSummary.communityHours || 0} <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>hrs</span>
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
-                    Manual claims under evaluation by officer
+                    Village immersion & social work
+                  </div>
+                </div>
+
+                <div style={{ background: "#ffffff", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                  <div style={{ fontSize: "0.875rem", color: "var(--text-muted, #64748b)", fontWeight: 600 }}>Blood & Special Projects</div>
+                  <div style={{ fontSize: "2rem", fontWeight: 800, color: "#7c3aed", marginTop: "0.25rem" }}>
+                    {personalSummary.otherHours || 0} <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>hrs</span>
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
+                    {personalSummary.approvedCount} approved, {personalSummary.pendingCount} pending
                   </div>
                 </div>
               </div>
@@ -528,6 +554,34 @@ export const ServiceHours: React.FC = () => {
 
               <div style={{ marginBottom: "1rem" }}>
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  Hour Category *
+                </label>
+                <select
+                  value={claimCategory}
+                  onChange={(e) => setClaimCategory(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
+                >
+                  <option value="REGULAR_ACTIVITY">Regular Activity (Campus & Institutional Drives)</option>
+                  <option value="COMMUNITY_OUTREACH">Community Outreach (Village & Field Work)</option>
+                  <option value="BLOOD_DONATION">Blood Donation Camp</option>
+                  <option value="SPECIAL_PROJECT">Special Project / State Initiative</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  Activity Date
+                </label>
+                <input
+                  type="date"
+                  value={claimActivityDate}
+                  onChange={(e) => setClaimActivityDate(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Associated Event (Optional)
                 </label>
                 <select
@@ -544,7 +598,7 @@ export const ServiceHours: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ marginBottom: "1rem" }}>
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Activity Description & Role *
                 </label>
@@ -554,6 +608,19 @@ export const ServiceHours: React.FC = () => {
                   rows={3}
                   placeholder="Describe your role and activities undertaken during this service..."
                   required
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
+                  Evidence / Verification Note (Optional)
+                </label>
+                <textarea
+                  value={claimEvidenceNote}
+                  onChange={(e) => setClaimEvidenceNote(e.target.value)}
+                  rows={2}
+                  placeholder="Reference contact, certificate ID, or supporting details..."
                   style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
                 />
               </div>

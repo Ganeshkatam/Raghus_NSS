@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,8 +24,19 @@ public class ServiceHourDTOs {
 
         @NotBlank(message = "Activity description is required.")
         @Size(max = 255, message = "Description must not exceed 255 characters.")
-        String description
-    ) {}
+        String description,
+
+        String category,
+
+        @Size(max = 1000, message = "Evidence note must not exceed 1000 characters.")
+        String evidenceNote,
+
+        LocalDate activityDate
+    ) {
+        public ServiceHourClaimRequest(BigDecimal hours, UUID eventId, String description) {
+            this(hours, eventId, description, "REGULAR_ACTIVITY", null, null);
+        }
+    }
 
     public record ServiceHourReviewRequest(
         @NotBlank(message = "Action is required ('APPROVE' or 'REJECT').")
@@ -44,6 +56,9 @@ public class ServiceHourDTOs {
         String status,
         String approvedByName,
         String description,
+        String category,
+        String evidenceNote,
+        LocalDate activityDate,
         Instant createdAt
     ) {}
 
@@ -52,8 +67,13 @@ public class ServiceHourDTOs {
         String volunteerName,
         String rollNumber,
         BigDecimal totalApprovedHours,
+        double progressPercentage,
+        double regularHours,
+        double communityHours,
+        double otherHours,
         long approvedCount,
         long pendingCount,
         List<ServiceHourResponse> entries
     ) {}
 }
+

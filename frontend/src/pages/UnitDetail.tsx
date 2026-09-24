@@ -11,7 +11,17 @@ interface UnitData {
   officerName: string | null;
   officerEmail: string | null;
   activeMemberCount: number;
+  capacity?: number;
   createdAt: string;
+}
+
+interface UnitStats {
+  unitId: string;
+  unitName: string;
+  unitNumber: string;
+  activeMembers: number;
+  totalEvents: number;
+  totalServiceHours: number;
 }
 
 interface MemberItem {
@@ -41,9 +51,11 @@ export const UnitDetail: React.FC = () => {
   const { isCoordinatorOrOfficer } = useAuth();
 
   const [unit, setUnit] = useState<UnitData | null>(null);
+  const [stats, setStats] = useState<UnitStats | null>(null);
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Add Member Modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,17 +64,26 @@ export const UnitDetail: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
+  // Transfer Member Modal
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferVolunteerId, setTransferVolunteerId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
-      const [unitData, membersData] = await Promise.all([
+      const [unitData, membersData, statsData] = await Promise.all([
         apiRequest<UnitData>(`/units/${id}`),
         apiRequest<MemberItem[]>(`/units/${id}/members`),
+        apiRequest<UnitStats>(`/units/${id}/stats`).catch(() => null),
       ]);
       setUnit(unitData);
       setMembers(membersData);
+      setStats(statsData);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       setError(apiErr.message || "Failed to load unit details.");
@@ -89,6 +110,20 @@ export const UnitDetail: React.FC = () => {
     }
   };
 
+  const openTransferModal = async () => {
+    setShowTransferModal(true);
+    setTransferError(null);
+    try {
+      const res = await apiRequest<{ content: AvailableVolunteer[] }>("/volunteers?size=100");
+      setAvailableVolunteers(res.content || []);
+      if (res.content && res.content.length > 0) {
+        setTransferVolunteerId(res.content[0].volunteerId.toString());
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVolunteerId) return;
@@ -104,12 +139,40 @@ export const UnitDetail: React.FC = () => {
       });
 
       setShowAddModal(false);
+      setSuccess("Volunteer assigned to unit.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       setModalError(apiErr.message || "Failed to allocate volunteer to unit.");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleTransferVolunteer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !transferVolunteerId) return;
+    setTransferring(true);
+    setTransferError(null);
+
+    try {
+      await apiRequest(`/units/${id}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({
+          volunteerId: transferVolunteerId,
+          reason: transferReason.trim() || undefined,
+        }),
+      });
+
+      setShowTransferModal(false);
+      setTransferReason("");
+      setSuccess("Volunteer successfully transferred into this unit.");
+      loadData();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setTransferError(apiErr.message || "Failed to transfer volunteer.");
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -121,6 +184,7 @@ export const UnitDetail: React.FC = () => {
       await apiRequest(`/units/${id}/members/${membershipId}`, {
         method: "PATCH",
       });
+      setSuccess("Volunteer removed from active unit roster.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
@@ -163,16 +227,56 @@ export const UnitDetail: React.FC = () => {
           <p className="subtitle">
             Assigned Programme Officer:{" "}
             <strong>{unit.officerName || "Unassigned"}</strong> &bull; Active
-            Roster: <strong>{members.length}</strong> volunteers
+            Roster: <strong>{members.length}</strong> / {unit.capacity || 100} capacity
           </p>
         </div>
 
         {isCoordinatorOrOfficer && (
-          <button onClick={openAddModal} className="btn-primary">
-            + Assign Volunteer to Unit
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button onClick={openTransferModal} className="btn-secondary">
+              Transfer Volunteer In
+            </button>
+            <button onClick={openAddModal} className="btn-primary">
+              + Assign Volunteer
+            </button>
+          </div>
         )}
       </div>
+
+      {error && (
+        <div className="alert alert-error">
+          <strong>Notice:</strong> {error}
+        </div>
+      )}
+      {success && (
+        <div className="alert alert-success">
+          <strong>Success:</strong> {success}
+        </div>
+      )}
+
+      {/* Unit KPI Statistics */}
+      {stats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="section-card" style={{ padding: "1.25rem" }}>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Enrolled Volunteers</div>
+            <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#1e3a8a", marginTop: "0.25rem" }}>
+              {stats.activeMembers} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {unit.capacity || 100}</span>
+            </div>
+          </div>
+          <div className="section-card" style={{ padding: "1.25rem" }}>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Organised Events</div>
+            <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#166534", marginTop: "0.25rem" }}>
+              {stats.totalEvents}
+            </div>
+          </div>
+          <div className="section-card" style={{ padding: "1.25rem" }}>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Accredited Service Hours</div>
+            <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#c2410c", marginTop: "0.25rem" }}>
+              {stats.totalServiceHours} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>hrs</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="section-card">
         <div className="section-header">
@@ -295,6 +399,77 @@ export const UnitDetail: React.FC = () => {
                   disabled={adding || !selectedVolunteerId}
                 >
                   {adding ? "Assigning..." : "Assign to Unit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showTransferModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Transfer Volunteer to {unit.unitName}</h3>
+              <button
+                onClick={() => setShowTransferModal(false)}
+                className="btn-close"
+              >
+                &times;
+              </button>
+            </div>
+
+            {transferError && (
+              <div className="alert alert-error">
+                <strong>Error:</strong> {transferError}
+              </div>
+            )}
+
+            <form onSubmit={handleTransferVolunteer} className="form-stack">
+              <div className="form-group">
+                <label htmlFor="transferVolunteerSelect">Select Volunteer to Transfer *</label>
+                <select
+                  id="transferVolunteerSelect"
+                  value={transferVolunteerId}
+                  onChange={(e) => setTransferVolunteerId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Choose a volunteer --</option>
+                  {availableVolunteers.map((v) => (
+                    <option key={v.volunteerId} value={v.volunteerId}>
+                      {v.name} ({v.collegeId}) - {v.department}{" "}
+                      {v.activeUnitName ? `[From: ${v.activeUnitName}]` : "[Unassigned]"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="transferReasonInput">Transfer Reason / Authorization</label>
+                <textarea
+                  id="transferReasonInput"
+                  rows={3}
+                  placeholder="e.g., Departmental re-alignment or schedule conflict accommodation."
+                  value={transferReason}
+                  onChange={(e) => setTransferReason(e.target.value)}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="btn-secondary"
+                  disabled={transferring}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={transferring || !transferVolunteerId}
+                >
+                  {transferring ? "Processing Transfer..." : "Commit Transfer"}
                 </button>
               </div>
             </form>

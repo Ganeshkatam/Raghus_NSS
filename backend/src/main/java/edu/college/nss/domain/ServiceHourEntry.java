@@ -38,6 +38,15 @@ public class ServiceHourEntry {
     @Column(length = 255)
     private String description;
 
+    @Column(nullable = false, length = 50)
+    private String category = "REGULAR_ACTIVITY";
+
+    @Column(name = "evidence_note", length = 1000)
+    private String evidenceNote;
+
+    @Column(name = "activity_date")
+    private java.time.LocalDate activityDate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -52,6 +61,23 @@ public class ServiceHourEntry {
         this.status = status;
         this.approvedBy = approvedBy;
         this.description = description;
+        this.category = "REGULAR_ACTIVITY";
+        this.createdAt = Instant.now();
+    }
+
+    public ServiceHourEntry(Volunteer volunteer, Event event, AttendanceRecord attendanceRecord,
+                            BigDecimal hours, String status, User approvedBy, String description,
+                            String category, String evidenceNote, java.time.LocalDate activityDate) {
+        this.volunteer = volunteer;
+        this.event = event;
+        this.attendanceRecord = attendanceRecord;
+        this.hours = hours;
+        this.status = status;
+        this.approvedBy = approvedBy;
+        this.description = description;
+        this.category = (category != null && !category.isBlank()) ? category : "REGULAR_ACTIVITY";
+        this.evidenceNote = evidenceNote;
+        this.activityDate = activityDate;
         this.createdAt = Instant.now();
     }
 
@@ -67,5 +93,11 @@ public class ServiceHourEntry {
     public void setApprovedBy(User approvedBy) { this.approvedBy = approvedBy; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+    public String getEvidenceNote() { return evidenceNote; }
+    public void setEvidenceNote(String evidenceNote) { this.evidenceNote = evidenceNote; }
+    public java.time.LocalDate getActivityDate() { return activityDate; }
+    public void setActivityDate(java.time.LocalDate activityDate) { this.activityDate = activityDate; }
     public Instant getCreatedAt() { return createdAt; }
 }

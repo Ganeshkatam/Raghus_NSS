@@ -11,6 +11,7 @@ interface UnitItem {
   officerName: string | null;
   officerEmail: string | null;
   activeMemberCount: number;
+  capacity?: number;
   createdAt: string;
 }
 
@@ -153,7 +154,12 @@ export const Units: React.FC = () => {
                       )}
                     </td>
                     <td>
-                      <strong>{unit.activeMemberCount}</strong> volunteers
+                      <div>
+                        <strong>{unit.activeMemberCount}</strong>
+                        <span className="cell-sub" style={{ marginLeft: "0.25rem" }}>
+                          / {unit.capacity || 100} ({Math.round((unit.activeMemberCount / (unit.capacity || 100)) * 100)}%)
+                        </span>
+                      </div>
                     </td>
                     <td>{new Date(unit.createdAt).toLocaleDateString()}</td>
                     <td>

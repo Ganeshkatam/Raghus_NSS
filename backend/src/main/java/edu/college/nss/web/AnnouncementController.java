@@ -49,11 +49,24 @@ public class AnnouncementController {
         return ResponseEntity.ok(service.getMyNotifications(principal));
     }
 
+    @GetMapping("/notifications/unread-count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<java.util.Map<String, Long>> getUnreadNotificationCount(@AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(java.util.Map.of("unreadCount", service.getUnreadCount(principal)));
+    }
+
     @PostMapping("/notifications/{id}/read")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> markNotificationRead(@PathVariable UUID id,
                                                      @AuthenticationPrincipal UserDetails principal) {
         service.markNotificationRead(id, principal);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/notifications/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> markAllNotificationsRead(@AuthenticationPrincipal UserDetails principal) {
+        service.markAllNotificationsRead(principal);
         return ResponseEntity.ok().build();
     }
 }

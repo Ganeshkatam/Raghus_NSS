@@ -76,4 +76,18 @@ public class AttendanceController {
                                                                 @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.correctAttendance(attendanceId, request, principal));
     }
+
+    @GetMapping("/attendance/corrections/pending")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    public ResponseEntity<List<CorrectionResponse>> getPendingCorrections(@AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(service.getPendingCorrections(principal));
+    }
+
+    @PostMapping("/attendance/corrections/{id}/review")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    public ResponseEntity<CorrectionResponse> reviewCorrection(@PathVariable UUID id,
+                                                                @Valid @RequestBody edu.college.nss.web.dto.CorrectionReviewRequest request,
+                                                                @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(service.reviewCorrection(id, request, principal));
+    }
 }
