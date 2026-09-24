@@ -29,7 +29,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ErrorResponse> handleAppException(AppException ex) {
-        return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+        String safeMessage = sanitizeMessage(ex.getMessage(), "The requested operation could not be completed.");
+        return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getCode(), safeMessage));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -70,6 +71,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
         log.error("Authentication error intercepted: ", ex);
+        if (ex.getCause() instanceof DataAccessException || 
+            ex.getCause() instanceof PersistenceException || 
+            ex.getCause() instanceof SQLException) {
+            ErrorResponse response = new ErrorResponse("SERVICE_UNAVAILABLE", "The NSS service is temporarily reconnecting to the database. Please try again shortly.");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+        }
         String safeMessage = "Invalid email or password.";
         if (ex instanceof DisabledException) {
             safeMessage = "Account is deactivated.";
@@ -143,11 +150,17 @@ public class GlobalExceptionHandler {
             return fallback;
         }
         String lower = message.toLowerCase();
-        if (lower.contains("sql") || lower.contains("jdbc") || lower.contains("resultset") ||
-            lower.contains("column") || lower.contains("table") || lower.contains("hibernate") ||
-            lower.contains("psql") || lower.contains("exception") || lower.contains("bad value for type") ||
-            lower.contains("org.") || lower.contains("constraint") || lower.contains("syntax")) {
-            return fallback;
+        String[] technicalSignatures = {
+            "sql", "jdbc", "resultset", "column", "table", "hibernate", "psql",
+            "postgres", "exception", "bad value for type", "org.", "java.",
+            "constraint", "syntax", "nullpointer", "index", "entity", "connection",
+            "hikari", "timeout", "at edu.", "at org.", "at java.", "driver",
+            "could not extract", "violates foreign key", "duplicate key"
+        };
+        for (String sig : technicalSignatures) {
+            if (lower.contains(sig)) {
+                return fallback;
+            }
         }
         return message;
     }

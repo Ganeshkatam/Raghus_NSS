@@ -1,10 +1,25 @@
-// Centralized API Client with JWT authorization and standardized error handling
+// Centralized API Client with JWT authorization, bulletproof error filtering, and action dispatching
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+
+export type ErrorCategory =
+  | "AUTH_INVALID"
+  | "AUTH_EXPIRED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "VALIDATION"
+  | "SERVER_WARMUP"
+  | "SERVER_ERROR"
+  | "NETWORK_OFFLINE"
+  | "UNKNOWN";
 
 export interface ApiError {
   code: string;
   message: string;
+  status: number;
+  category: ErrorCategory;
+  retryable: boolean;
   details?: Record<string, string>;
 }
 
@@ -18,14 +33,17 @@ export function sanitizeErrorMessage(message: string | undefined, statusCode?: n
   if (statusCode === 404) {
     return "The requested information or record could not be found.";
   }
-  if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
+  if (statusCode === 409) {
+    return "A conflicting record already exists with the provided information.";
+  }
+  if (statusCode === 502 || statusCode === 503 || statusCode === 504 || statusCode === 521 || statusCode === 524) {
     return "The NSS service is currently starting up or temporarily unreachable. Please try again in a moment.";
+  }
+  if (statusCode && statusCode >= 500) {
+    return "The NSS service encountered a temporary error. Please try again shortly.";
   }
 
   if (!message || typeof message !== "string") {
-    if (statusCode && statusCode >= 500) {
-      return "The NSS service is temporarily unavailable. Please try again shortly.";
-    }
     return "An unexpected issue occurred. Please try again.";
   }
 
@@ -63,6 +81,13 @@ export function sanitizeErrorMessage(message: string | undefined, statusCode?: n
     "[object object]",
     "at line",
     "at eval",
+    "eval at",
+    "violates foreign key",
+    "duplicate key value",
+    "relation \"",
+    "column \"",
+    "driver",
+    "org.postgresql",
   ];
 
   const hasTechnicalLeak = technicalSignatures.some((sig) => lower.includes(sig));
@@ -77,52 +102,118 @@ export function sanitizeErrorMessage(message: string | undefined, statusCode?: n
   return message;
 }
 
+export function classifyError(status: number, endpoint?: string): { category: ErrorCategory; retryable: boolean } {
+  if (status === 0 || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    return { category: "NETWORK_OFFLINE", retryable: true };
+  }
+  if (status === 401) {
+    if (endpoint?.includes("/auth/login")) {
+      return { category: "AUTH_INVALID", retryable: false };
+    }
+    return { category: "AUTH_EXPIRED", retryable: false };
+  }
+  if (status === 403) {
+    return { category: "FORBIDDEN", retryable: false };
+  }
+  if (status === 404) {
+    return { category: "NOT_FOUND", retryable: false };
+  }
+  if (status === 409) {
+    return { category: "CONFLICT", retryable: false };
+  }
+  if (status === 400 || status === 422) {
+    return { category: "VALIDATION", retryable: false };
+  }
+  if (status === 502 || status === 503 || status === 504 || status === 521 || status === 524) {
+    return { category: "SERVER_WARMUP", retryable: true };
+  }
+  if (status >= 500) {
+    return { category: "SERVER_ERROR", retryable: true };
+  }
+  return { category: "UNKNOWN", retryable: false };
+}
+
+export interface ApiRequestOptions extends RequestInit {
+  retries?: number;
+  retryDelayMs?: number;
+}
+
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
+  const { retries = 0, retryDelayMs = 1500, ...fetchOptions } = options;
   const token = localStorage.getItem("nss_token");
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...(fetchOptions.headers || {}),
   };
 
   if (token) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-  } catch (_networkErr: unknown) {
-    throw {
-      code: "NETWORK_ERROR",
-      message: "Unable to connect to the NSS server. Please check your internet connection and try again.",
-    } as ApiError;
+  let attempt = 0;
+  while (true) {
+    let response: Response | null = null;
+    let networkError = false;
+
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...fetchOptions,
+        headers,
+      });
+    } catch {
+      networkError = true;
+    }
+
+    if (networkError || (response && (response.status === 502 || response.status === 503 || response.status === 504))) {
+      if (attempt < retries) {
+        attempt++;
+        await new Promise((res) => setTimeout(res, retryDelayMs * attempt));
+        continue;
+      }
+    }
+
+    if (networkError || !response) {
+      const err: ApiError = {
+        code: "NETWORK_ERROR",
+        message: "Unable to connect to the NSS server. Please check your internet connection.",
+        status: 0,
+        category: "NETWORK_OFFLINE",
+        retryable: true,
+      };
+      throw err;
+    }
+
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const rawError = data?.error;
+      const rawMessage = rawError?.message || data?.message || response.statusText || "Request failed";
+      const sanitizedMsg = sanitizeErrorMessage(rawMessage, response.status);
+      const { category, retryable } = classifyError(response.status, endpoint);
+
+      if (category === "AUTH_EXPIRED" && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+      }
+
+      const error: ApiError = {
+        code: rawError?.code || (response.status === 401 ? "AUTHENTICATION_REQUIRED" : "HTTP_ERROR"),
+        message: sanitizedMsg,
+        status: response.status,
+        category,
+        retryable,
+        details: rawError?.details,
+      };
+      throw error;
+    }
+
+    return data as T;
   }
-
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const rawError = data?.error;
-    const rawMessage = rawError?.message || data?.message || response.statusText || "Request failed";
-    const sanitizedMsg = sanitizeErrorMessage(rawMessage, response.status);
-
-    const error: ApiError = {
-      code: rawError?.code || (response.status === 401 ? "AUTHENTICATION_REQUIRED" : "HTTP_ERROR"),
-      message: sanitizedMsg,
-      details: rawError?.details,
-    };
-    throw error;
-  }
-
-  return data as T;
 }

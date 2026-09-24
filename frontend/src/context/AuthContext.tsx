@@ -41,20 +41,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(!token ? false : !user);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem("nss_token");
+      localStorage.removeItem("nss_user");
+      setToken(null);
+      setUser(null);
+    };
+
+    window.addEventListener("nss:auth:expired", handleAuthExpired);
+    return () => window.removeEventListener("nss:auth:expired", handleAuthExpired);
+  }, []);
+
+  useEffect(() => {
     async function loadUser() {
       if (!token) {
         setLoading(false);
         return;
       }
       try {
-        const profile = await apiRequest<User>("/auth/me");
+        const profile = await apiRequest<User>("/auth/me", { retries: 2 });
         localStorage.setItem("nss_user", JSON.stringify(profile));
         setUser(profile);
-      } catch {
-        localStorage.removeItem("nss_token");
-        localStorage.removeItem("nss_user");
-        setToken(null);
-        setUser(null);
+      } catch (err: unknown) {
+        const apiErr = err as { status?: number; category?: string };
+        if (apiErr?.status === 401 || apiErr?.category === "AUTH_EXPIRED" || apiErr?.category === "AUTH_INVALID") {
+          localStorage.removeItem("nss_token");
+          localStorage.removeItem("nss_user");
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -66,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const data = await apiRequest<{ accessToken: string; user: User }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+      retries: 2,
     });
 
     localStorage.setItem("nss_token", data.accessToken);
