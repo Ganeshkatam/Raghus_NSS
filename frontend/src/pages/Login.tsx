@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ApiError } from "../api/client";
+import { ApiError, sanitizeErrorMessage } from "../api/client";
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -22,7 +22,8 @@ export const Login: React.FC = () => {
       navigate("/dashboard");
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Invalid email or password.");
+      const cleanMsg = sanitizeErrorMessage(apiErr?.message, 401);
+      setError(cleanMsg || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
