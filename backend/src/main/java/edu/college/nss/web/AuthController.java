@@ -38,4 +38,13 @@ public class AuthController {
         UserDto userDto = authService.getCurrentUser(userDetails.getUsername());
         return ResponseEntity.ok(userDto);
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+        @AuthenticationPrincipal UserDetails userDetails,
+        @Valid @RequestBody edu.college.nss.web.dto.ChangePasswordRequest request
+    ) {
+        authService.changePassword(userDetails.getUsername(), request);
+        return ResponseEntity.noContent().build();
+    }
 }
