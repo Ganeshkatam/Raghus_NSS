@@ -69,7 +69,6 @@ public class VolunteerService {
                 ? request.password() : "Volunteer@123";
 
             Role volunteerRole = roleRepository.findByName("VOLUNTEER")
-                .or(() -> roleRepository.findByName("ROLE_VOLUNTEER"))
                 .orElseGet(() -> roleRepository.save(new Role("VOLUNTEER", "Registered NSS Volunteer")));
 
             user = new User(request.name(), email, passwordEncoder.encode(rawPassword), request.phone());

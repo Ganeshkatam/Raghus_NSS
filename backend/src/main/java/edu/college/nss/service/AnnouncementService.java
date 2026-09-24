@@ -166,12 +166,10 @@ public class AnnouncementService {
     }
 
     private boolean hasRole(UserDetails principal, String role) {
-        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        String roleWithoutPrefix = role.startsWith("ROLE_") ? role.substring(5) : role;
+        String cleanRole = role.startsWith("ROLE_") ? role.substring(5) : role;
+        String prefixedRole = "ROLE_" + cleanRole;
         return principal.getAuthorities().stream()
-            .anyMatch(a -> a.getAuthority().equals(role) ||
-                           a.getAuthority().equals(roleWithPrefix) ||
-                           a.getAuthority().equals(roleWithoutPrefix));
+            .anyMatch(a -> a.getAuthority().equals(cleanRole) || a.getAuthority().equals(prefixedRole));
     }
 
     private User currentUser(UserDetails principal) {

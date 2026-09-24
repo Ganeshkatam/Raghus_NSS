@@ -60,7 +60,7 @@ class EventRegistrationIntegrationTest {
         admin = userRepository.save(new User("Admin", "admin-test@raghunss.edu", "x", null));
         unit = unitRepository.save(new NssUnit("Test Unit", "TEST-01", admin));
         adminPrincipal = new org.springframework.security.core.userdetails.User(
-            admin.getEmail(), "x", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+            admin.getEmail(), "x", List.of(new SimpleGrantedAuthority("ADMIN")));
     }
 
     @Test

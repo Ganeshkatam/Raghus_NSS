@@ -42,7 +42,7 @@ interface VolunteerAttendanceRecord {
 export const Attendance: React.FC = () => {
   const { user, isCoordinatorOrOfficer } = useAuth();
   const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
-    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   ));
 
   const [events, setEvents] = useState<any[]>([]);

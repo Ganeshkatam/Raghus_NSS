@@ -24,7 +24,7 @@ interface NotificationItem {
 export const Announcements: React.FC = () => {
   const { user } = useAuth();
   const isOfficerOrAdmin = user?.roles.some((r) =>
-    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   );
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);

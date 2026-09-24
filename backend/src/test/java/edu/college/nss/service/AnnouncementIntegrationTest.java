@@ -58,7 +58,7 @@ class AnnouncementIntegrationTest {
 
         admin = userRepository.save(new User("Admin User", "admin@raghunss.edu", "pass", null));
         adminPrincipal = new org.springframework.security.core.userdetails.User(
-            admin.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+            admin.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ADMIN")));
 
         unit = unitRepository.save(new NssUnit("Unit 1", "REC-01", admin));
 

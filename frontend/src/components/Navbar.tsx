@@ -57,7 +57,7 @@ export const Navbar: React.FC = () => {
               <div className="user-details">
                 <span className="user-name">{user.name}</span>
                 <span className="role-badge">
-                  {user.roles[0]?.replace("ROLE_", "") || "USER"}
+                  {user.roles[0] || "USER"}
                 </span>
               </div>
               <button onClick={handleLogout} className="btn-logout">

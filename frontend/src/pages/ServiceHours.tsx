@@ -29,7 +29,7 @@ interface PersonalSummary {
 export const ServiceHours: React.FC = () => {
   const { user, isCoordinatorOrOfficer } = useAuth();
   const isOfficerOrAdmin = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
-    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   ));
 
   const [activeTab, setActiveTab] = useState<"my" | "pending">(isOfficerOrAdmin ? "pending" : "my");
@@ -201,7 +201,7 @@ export const ServiceHours: React.FC = () => {
 
         {/* Action button */}
         <div style={{ display: "flex", gap: "0.75rem" }}>
-          {user?.roles?.some((r) => r.replace(/^ROLE_/, "") === "VOLUNTEER") && (
+          {user?.roles?.includes("VOLUNTEER") && (
             <button
               onClick={() => setShowClaimModal(true)}
               style={{

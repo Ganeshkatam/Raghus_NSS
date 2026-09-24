@@ -59,7 +59,7 @@ class ServiceHourIntegrationTest {
 
         admin = userRepository.save(new User("Admin PO", "po@raghunss.edu", "pass", null));
         adminPrincipal = new org.springframework.security.core.userdetails.User(
-            admin.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ROLE_PROGRAMME_OFFICER")));
+            admin.getEmail(), "pass", List.of(new SimpleGrantedAuthority("PROGRAMME_OFFICER")));
 
         unit = unitRepository.save(new NssUnit("Unit 1", "REC-01", admin));
 
