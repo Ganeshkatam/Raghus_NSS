@@ -57,13 +57,17 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public Page<EventResponse> search(UUID unitId, String status, Pageable pageable, UserDetails principal) {
+        String effectiveStatus = status;
+        if ("ONGOING".equalsIgnoreCase(status)) {
+            effectiveStatus = "OPEN";
+        }
         if (!isManager(principal)) {
             if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
                 return Page.empty(pageable);
             }
-            return eventRepository.searchPublic(unitId, status, pageable).map(this::toResponse);
+            return eventRepository.searchPublic(unitId, effectiveStatus, pageable).map(this::toResponse);
         }
-        return eventRepository.search(unitId, status, pageable).map(this::toResponse);
+        return eventRepository.search(unitId, effectiveStatus, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -218,8 +222,25 @@ public class EventService {
         return EventRegistrationResponse.fromEntity(registration);
     }
 
+    @Transactional(readOnly = true)
+    public List<EventRegistrationResponse> myRegistrations(UserDetails principal) {
+        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername()).orElse(null);
+        if (volunteer == null) {
+            return List.of();
+        }
+        return registrationRepository.findByVolunteer_VolunteerIdOrderByRegisteredAtDesc(volunteer.getVolunteerId())
+            .stream()
+            .map(EventRegistrationResponse::fromEntity)
+            .toList();
+    }
+
     @Transactional
     public void cancelRegistration(UUID eventId, UserDetails principal) {
+        cancelRegistration(eventId, null, principal);
+    }
+
+    @Transactional
+    public void cancelRegistration(UUID eventId, String reason, UserDetails principal) {
         Event event = getEntity(eventId);
         Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
             .orElseThrow(() -> new AccessDeniedException("Only a registered volunteer can cancel their registration."));
@@ -235,9 +256,19 @@ public class EventService {
 
         boolean wasConfirmed = "REGISTERED".equals(registration.getStatus()) || "CONFIRMED".equals(registration.getStatus());
         registration.setStatus("CANCELLED");
-        registration.setCancellationReason("Cancelled by volunteer");
+        registration.setCancellationReason(reason != null && !reason.isBlank() ? reason.trim() : "Cancelled by volunteer");
         registration.setWaitlistPosition(null);
         registrationRepository.save(registration);
+
+        if (volunteer.getUser() != null) {
+            notificationService.sendNotification(
+                volunteer.getUser(),
+                "Registration Cancelled",
+                "Your registration for " + event.getTitle() + " has been cancelled.",
+                "EVENT",
+                "/events/" + eventId
+            );
+        }
 
         if (wasConfirmed) {
             // Automatically promote the top waitlisted volunteer

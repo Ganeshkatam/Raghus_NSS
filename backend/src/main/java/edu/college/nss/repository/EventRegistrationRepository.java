@@ -17,6 +17,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     List<EventRegistration> findByEvent_EventIdAndStatus(UUID eventId, String status);
     Optional<EventRegistration> findFirstByEvent_EventIdAndStatusOrderByWaitlistPositionAsc(UUID eventId, String status);
     List<EventRegistration> findByEvent_EventIdAndStatusOrderByWaitlistPositionAsc(UUID eventId, String status);
+    List<EventRegistration> findByVolunteer_VolunteerIdOrderByRegisteredAtDesc(UUID volunteerId);
 
     @Query("select count(r) from EventRegistration r where r.event.eventId = :eventId and (r.status = 'REGISTERED' or r.status = 'CONFIRMED')")
     long countRegistered(@Param("eventId") UUID eventId);

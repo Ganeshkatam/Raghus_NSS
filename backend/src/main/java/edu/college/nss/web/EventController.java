@@ -92,6 +92,12 @@ public class EventController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.register(id, waitlistReq, principal));
     }
 
+    @GetMapping("/registrations/me")
+    @PreAuthorize("isAuthenticated()")
+    public List<EventRegistrationResponse> myRegistrations(@AuthenticationPrincipal UserDetails principal) {
+        return service.myRegistrations(principal);
+    }
+
     @GetMapping("/{id}/registrations")
     @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public List<EventRegistrationResponse> registrations(@PathVariable UUID id,
@@ -109,8 +115,9 @@ public class EventController {
     @DeleteMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> cancelRegistration(@PathVariable UUID id,
+                                                    @Valid @RequestBody(required = false) CancelRegistrationRequest request,
                                                     @AuthenticationPrincipal UserDetails principal) {
-        service.cancelRegistration(id, principal);
+        service.cancelRegistration(id, request != null ? request.reason() : null, principal);
         return ResponseEntity.noContent().build();
     }
 }
