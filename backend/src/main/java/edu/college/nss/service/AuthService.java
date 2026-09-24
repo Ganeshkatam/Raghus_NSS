@@ -50,6 +50,7 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);
     }
 
@@ -96,6 +97,11 @@ public class AuthService {
 
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
             throw new DisabledException("Account is not active.");
+        }
+
+        java.util.Date issuedAt = tokenProvider.getIssuedAtFromToken(token);
+        if (issuedAt != null && user.getUpdatedAt() != null && issuedAt.toInstant().isBefore(user.getUpdatedAt().minusSeconds(1))) {
+            throw new BadCredentialsException("Session invalidated due to password change. Please re-authenticate.");
         }
 
         String newAccessToken = tokenProvider.generateAccessTokenFromEmail(user.getEmail(), user.getUserId(), user.getName());

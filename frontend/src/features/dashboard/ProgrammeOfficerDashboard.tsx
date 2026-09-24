@@ -40,22 +40,29 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
     async function loadOfficerData() {
       setLoading(true);
       try {
-        const [unitsData, pendingVols, pendingClaims, pendingCorrections, eventsData] = await Promise.all([
-          apiRequest<UnitSummary[]>("/units").catch(() => []),
-          apiRequest<{ totalElements: number }>("/volunteers?status=PENDING_APPROVAL&size=1").catch(() => ({ totalElements: 0 })),
-          apiRequest<any[]>("/service-hours/pending").catch(() => []),
-          apiRequest<any[]>("/attendance/corrections/pending").catch(() => []),
+        const [summaryData, eventsData] = await Promise.all([
+          apiRequest<any>("/dashboard/summary").catch(() => null),
           apiRequest<{ content: EventItem[] }>("/events?size=10").catch(() => ({ content: [] })),
         ]);
 
-        if (Array.isArray(unitsData) && unitsData.length > 0) {
-          const myUnit = unitsData.find((u) => u.officerEmail === user?.email || u.officerId === user?.userId) || unitsData[0];
-          setAssignedUnit(myUnit);
+        if (summaryData?.officerData) {
+          const od = summaryData.officerData;
+          if (od.unitId) {
+            setAssignedUnit({
+              unitId: od.unitId,
+              unitName: od.unitName,
+              unitNumber: od.unitNumber,
+              officerEmail: user?.email || null,
+              officerId: null,
+              activeMemberCount: od.activeMemberCount || 0,
+              capacity: od.capacity || 100,
+            });
+          }
+          setPendingApprovalsCount(od.pendingApprovals || 0);
+          setPendingClaimsCount(od.pendingClaims || 0);
+          setPendingCorrectionsCount(od.pendingCorrections || 0);
         }
 
-        setPendingApprovalsCount(pendingVols?.totalElements || 0);
-        setPendingClaimsCount(pendingClaims?.length || 0);
-        setPendingCorrectionsCount(pendingCorrections?.length || 0);
         setEvents(eventsData.content || []);
       } finally {
         setLoading(false);

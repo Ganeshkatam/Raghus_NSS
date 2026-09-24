@@ -86,8 +86,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
     setPasswordError(null);
     setPasswordSuccess(null);
 
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters.");
+    const passwordComplexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{};':"\\|,.<>/]).{8,}$/;
+    if (!passwordComplexityRegex.test(newPassword)) {
+      setPasswordError("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
       return;
     }
     if (newPassword !== confirmPassword) {

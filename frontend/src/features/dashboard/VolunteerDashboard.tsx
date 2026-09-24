@@ -63,18 +63,32 @@ export const VolunteerDashboard: React.FC = () => {
     async function loadData() {
       setLoading(true);
       try {
-        const [profData, hoursData, eventsData, annData, notifData] = await Promise.all([
-          apiRequest<VolunteerProfile>("/volunteers/me").catch(() => null),
+        const [summaryData, hoursData, eventsData, annData] = await Promise.all([
+          apiRequest<any>("/dashboard/summary").catch(() => null),
           apiRequest<ServiceHourSummary>("/service-hours/my").catch(() => null),
           apiRequest<{ content: EventItem[] }>("/events?size=4").catch(() => ({ content: [] })),
           apiRequest<{ content: AnnouncementItem[] }>("/announcements?size=3").catch(() => ({ content: [] })),
-          apiRequest<{ unreadCount: number }>("/notifications/unread-count").catch(() => ({ unreadCount: 0 })),
         ]);
-        setProfile(profData);
+
+        if (summaryData?.volunteerData) {
+          const vd = summaryData.volunteerData;
+          setProfile({
+            volunteerId: vd.volunteerId,
+            collegeId: vd.collegeId,
+            department: vd.department,
+            yearOfStudy: vd.yearOfStudy,
+            status: vd.status,
+            name: summaryData.userName || "",
+            activeUnitId: vd.activeUnitId || null,
+            activeUnitNumber: vd.activeUnitNumber || null,
+            activeUnitName: vd.activeUnitName || null,
+          });
+          setUnreadNotifications(vd.unreadNotifications || 0);
+        }
+
         setHoursSummary(hoursData);
         setUpcomingEvents(eventsData.content || []);
         setAnnouncements(annData.content || []);
-        setUnreadNotifications(notifData.unreadCount || 0);
       } finally {
         setLoading(false);
       }

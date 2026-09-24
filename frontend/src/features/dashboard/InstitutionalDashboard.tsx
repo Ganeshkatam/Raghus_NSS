@@ -34,16 +34,25 @@ export const InstitutionalDashboard: React.FC = () => {
     async function loadData() {
       setLoading(true);
       try {
-        const [metricsData, unitsData, volsData, claimsData] = await Promise.all([
-          apiRequest<InstitutionalMetrics>("/reports/metrics").catch(() => null),
+        const [summaryData, unitsData] = await Promise.all([
+          apiRequest<any>("/dashboard/summary").catch(() => null),
           apiRequest<UnitSummary[]>("/units").catch(() => []),
-          apiRequest<{ totalElements: number }>("/volunteers?status=PENDING_APPROVAL&size=1").catch(() => ({ totalElements: 0 })),
-          apiRequest<any[]>("/service-hours/pending").catch(() => []),
         ]);
-        setMetrics(metricsData);
+
+        if (summaryData?.institutionalData) {
+          const id = summaryData.institutionalData;
+          setMetrics({
+            totalVolunteers: id.totalVolunteers || 0,
+            activeVolunteers: id.activeVolunteers || 0,
+            totalUnits: id.totalUnits || 0,
+            totalEvents: id.totalEvents || 0,
+            completedEvents: id.completedEvents || 0,
+            totalServiceHours: id.totalServiceHours || 0,
+          });
+          setPendingApprovals(id.pendingApprovals || 0);
+          setPendingClaims(id.pendingClaims || 0);
+        }
         setUnits(unitsData || []);
-        setPendingApprovals(volsData?.totalElements || 0);
-        setPendingClaims(claimsData?.length || 0);
       } finally {
         setLoading(false);
       }

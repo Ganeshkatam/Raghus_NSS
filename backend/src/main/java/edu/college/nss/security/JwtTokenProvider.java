@@ -85,6 +85,16 @@ public class JwtTokenProvider {
         return claims.getSubject();
     }
 
+    public Date getIssuedAtFromToken(String token) {
+        Claims claims = Jwts.parser()
+            .verifyWith(key)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+
+        return claims.getIssuedAt();
+    }
+
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(authToken);
