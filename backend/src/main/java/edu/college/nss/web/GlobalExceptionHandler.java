@@ -100,6 +100,37 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse("CONFLICT", message));
     }
 
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        String name = ex.getName() != null ? ex.getName() : "parameter";
+        ErrorResponse response = new ErrorResponse("INVALID_PARAMETER", "The provided value for '" + name + "' is invalid.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        ErrorResponse response = new ErrorResponse("MALFORMED_REQUEST", "The request payload is malformed or invalid.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        ErrorResponse response = new ErrorResponse("MISSING_PARAMETER", "Required parameter '" + ex.getParameterName() + "' is missing.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        ErrorResponse response = new ErrorResponse("METHOD_NOT_ALLOWED", "This HTTP method is not supported for this endpoint.");
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        ErrorResponse response = new ErrorResponse("NOT_FOUND", "The requested resource could not be found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unhandled internal server exception: ", ex);

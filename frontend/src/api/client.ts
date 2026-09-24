@@ -9,11 +9,24 @@ export interface ApiError {
 }
 
 export function sanitizeErrorMessage(message: string | undefined, statusCode?: number): string {
+  if (statusCode === 401) {
+    return "Invalid email or password. Please verify your credentials.";
+  }
+  if (statusCode === 403) {
+    return "You do not have permission to perform this action.";
+  }
+  if (statusCode === 404) {
+    return "The requested information or record could not be found.";
+  }
+  if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
+    return "The NSS service is currently starting up or temporarily unreachable. Please try again in a moment.";
+  }
+
   if (!message || typeof message !== "string") {
-    if (statusCode === 401) return "Invalid email or password. Please verify your credentials.";
-    if (statusCode === 403) return "You do not have permission to perform this action.";
-    if (statusCode === 404) return "The requested record could not be found.";
-    return "An unexpected error occurred. Please try again.";
+    if (statusCode && statusCode >= 500) {
+      return "The NSS service is temporarily unavailable. Please try again shortly.";
+    }
+    return "An unexpected issue occurred. Please try again.";
   }
 
   const lower = message.toLowerCase();
@@ -38,14 +51,23 @@ export function sanitizeErrorMessage(message: string | undefined, statusCode?: n
     "connection refused",
     "fatal:",
     "stacktrace",
+    "typeerror",
+    "referenceerror",
+    "json.parse",
+    "bad gateway",
+    "gateway timeout",
+    "internal server error",
+    "cannot read properties",
+    "is not a function",
+    "is not defined",
+    "[object object]",
+    "at line",
+    "at eval",
   ];
 
   const hasTechnicalLeak = technicalSignatures.some((sig) => lower.includes(sig));
 
   if (hasTechnicalLeak) {
-    if (statusCode === 401) {
-      return "Invalid email or password. Please verify your credentials.";
-    }
     if (statusCode && statusCode >= 500) {
       return "The NSS service is temporarily unavailable. Please try again shortly.";
     }

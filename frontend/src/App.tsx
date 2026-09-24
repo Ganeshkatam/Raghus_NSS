@@ -16,6 +16,7 @@ import { Announcements } from "./pages/Announcements";
 import { Reports } from "./pages/Reports";
 import { Admin } from "./pages/Admin";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -309,10 +310,12 @@ export const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
