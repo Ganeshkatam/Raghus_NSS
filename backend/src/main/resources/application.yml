@@ -74,4 +74,5 @@ logging:
     root: INFO
     edu.college.nss: INFO
     org.springframework.security: WARN
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
     org.hibernate.SQL: WARN
