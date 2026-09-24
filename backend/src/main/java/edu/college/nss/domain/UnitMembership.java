@@ -2,15 +2,16 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "unit_memberships")
 public class UnitMembership {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "membership_id")
-    private Long membershipId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "membership_id", updatable = false, nullable = false)
+    private UUID membershipId;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "volunteer_id", nullable = false)
@@ -38,11 +39,11 @@ public class UnitMembership {
         this.isActive = true;
     }
 
-    public Long getMembershipId() {
+    public UUID getMembershipId() {
         return membershipId;
     }
 
-    public void setMembershipId(Long membershipId) {
+    public void setMembershipId(UUID membershipId) {
         this.membershipId = membershipId;
     }
 

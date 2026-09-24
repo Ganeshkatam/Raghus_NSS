@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
-interface Unit { unitId:number; unitName:string; unitNumber:string; }
+interface Unit { unitId:string; unitName:string; unitNumber:string; }
 interface EventItem {
-  eventId:number; unitId:number; unitName:string; title:string; description:string|null;
+  eventId:string; unitId:string; unitName:string; title:string; description:string|null;
   eventType:string; startAt:string; endAt:string; registrationOpenAt:string|null;
   registrationCloseAt:string|null; venue:string; capacity:number; registeredCount:number;
   remainingCapacity:number; status:string;
@@ -53,7 +53,7 @@ export const Events: React.FC = () => {
       await apiRequest<EventItem>("/events", {
         method:"POST",
         body:JSON.stringify({
-          unitId:Number(form.unitId), title:form.title, description:form.description || null,
+          unitId:form.unitId, title:form.title, description:form.description || null,
           eventType:form.eventType, startAt:toIso(form.startAt), endAt:toIso(form.endAt),
           registrationOpenAt:toIso(form.registrationOpenAt), registrationCloseAt:toIso(form.registrationCloseAt),
           venue:form.venue, capacity:Number(form.capacity)

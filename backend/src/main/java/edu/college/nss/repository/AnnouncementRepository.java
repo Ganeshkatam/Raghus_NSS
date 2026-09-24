@@ -7,14 +7,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
+public interface AnnouncementRepository extends JpaRepository<Announcement, UUID> {
 
     List<Announcement> findAllByOrderByPublishedAtDesc();
 
     List<Announcement> findByUnitIsNullOrderByPublishedAtDesc();
 
     @Query("SELECT a FROM Announcement a WHERE a.unit.unitId = :unitId OR a.unit IS NULL ORDER BY a.publishedAt DESC")
-    List<Announcement> findVisibleForUnit(@Param("unitId") Long unitId);
+    List<Announcement> findVisibleForUnit(@Param("unitId") UUID unitId);
 }

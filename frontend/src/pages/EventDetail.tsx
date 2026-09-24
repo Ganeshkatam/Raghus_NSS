@@ -4,13 +4,13 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface EventItem {
-  eventId:number; unitId:number; unitName:string; title:string; description:string|null;
+  eventId:string; unitId:string; unitName:string; title:string; description:string|null;
   eventType:string; startAt:string; endAt:string; registrationOpenAt:string|null;
   registrationCloseAt:string|null; venue:string; capacity:number; registeredCount:number;
   remainingCapacity:number; status:string;
 }
-interface Registration { registrationId:number; volunteerId:number; volunteerName:string; collegeId:string; status:string; registeredAt:string; }
-interface Volunteer { volunteerId:number; name:string; status:string; activeUnitId:number|null; }
+interface Registration { registrationId:string; volunteerId:string; volunteerName:string; collegeId:string; status:string; registeredAt:string; }
+interface Volunteer { volunteerId:string; name:string; status:string; activeUnitId:string|null; }
 
 const transitions:Record<string,string[]> = {
   DRAFT:["publish","cancel"], PUBLISHED:["open","cancel"], OPEN:["close","cancel"], CLOSED:["complete","cancel"]

@@ -6,11 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface UnitMembershipRepository extends JpaRepository<UnitMembership, Long> {
-    List<UnitMembership> findByUnit_UnitIdAndIsActiveTrue(Long unitId);
-    List<UnitMembership> findByVolunteer_VolunteerId(Long volunteerId);
-    Optional<UnitMembership> findByVolunteer_VolunteerIdAndIsActiveTrue(Long volunteerId);
-    Optional<UnitMembership> findByVolunteer_VolunteerIdAndUnit_UnitIdAndIsActiveTrue(Long volunteerId, Long unitId);
+public interface UnitMembershipRepository extends JpaRepository<UnitMembership, UUID> {
+    List<UnitMembership> findByUnit_UnitIdAndIsActiveTrue(UUID unitId);
+    List<UnitMembership> findByVolunteer_VolunteerId(UUID volunteerId);
+    Optional<UnitMembership> findByVolunteer_VolunteerIdAndIsActiveTrue(UUID volunteerId);
+    Optional<UnitMembership> findByVolunteer_VolunteerIdAndUnit_UnitIdAndIsActiveTrue(UUID volunteerId, UUID unitId);
 }

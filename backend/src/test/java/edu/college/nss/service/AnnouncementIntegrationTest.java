@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -118,7 +119,7 @@ class AnnouncementIntegrationTest {
         announcementService.createAnnouncement(req, adminPrincipal);
 
         List<NotificationResponse> notifs = announcementService.getMyNotifications(volunteerPrincipal);
-        Long notifId = notifs.get(0).notificationId();
+        UUID notifId = notifs.get(0).notificationId();
 
         announcementService.markNotificationRead(notifId, volunteerPrincipal);
 

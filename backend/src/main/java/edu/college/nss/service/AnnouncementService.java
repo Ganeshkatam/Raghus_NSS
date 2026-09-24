@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AnnouncementService {
@@ -88,12 +89,12 @@ public class AnnouncementService {
                 .stream().map(this::toResponse).toList();
         }
 
-        if (hasRole(principal, "ROLE_ADMIN") || hasRole(principal, "ROLE_FACULTY_COORDINATOR")) {
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR")) {
             return announcementRepository.findAllByOrderByPublishedAtDesc()
                 .stream().map(this::toResponse).toList();
         }
 
-        if (hasRole(principal, "ROLE_PROGRAMME_OFFICER")) {
+        if (hasRole(principal, "PROGRAMME_OFFICER")) {
             User officer = currentUser(principal);
             List<NssUnit> officerUnits = unitRepository.findByOfficer_UserId(officer.getUserId());
             if (!officerUnits.isEmpty()) {
@@ -113,12 +114,12 @@ public class AnnouncementService {
     }
 
     @Transactional
-    public void deleteAnnouncement(Long id, UserDetails principal) {
+    public void deleteAnnouncement(UUID id, UserDetails principal) {
         Announcement announcement = announcementRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + id));
 
         User current = currentUser(principal);
-        boolean isAdmin = hasRole(principal, "ROLE_ADMIN") || hasRole(principal, "ROLE_FACULTY_COORDINATOR");
+        boolean isAdmin = hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR");
         boolean isAuthor = announcement.getCreatedBy().getUserId().equals(current.getUserId());
 
         if (!isAdmin && !isAuthor) {
@@ -142,7 +143,7 @@ public class AnnouncementService {
     }
 
     @Transactional
-    public void markNotificationRead(Long id, UserDetails principal) {
+    public void markNotificationRead(UUID id, UserDetails principal) {
         Notification notification = notificationRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
 
@@ -156,16 +157,21 @@ public class AnnouncementService {
     }
 
     private void assertCanAnnounce(UserDetails principal) {
-        boolean can = hasRole(principal, "ROLE_ADMIN") ||
-                      hasRole(principal, "ROLE_FACULTY_COORDINATOR") ||
-                      hasRole(principal, "ROLE_PROGRAMME_OFFICER");
+        boolean can = hasRole(principal, "ADMIN") ||
+                      hasRole(principal, "FACULTY_COORDINATOR") ||
+                      hasRole(principal, "PROGRAMME_OFFICER");
         if (!can) {
             throw new AccessDeniedException("Only designated Officers and Administrators can publish announcements.");
         }
     }
 
     private boolean hasRole(UserDetails principal, String role) {
-        return principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(role));
+        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        String roleWithoutPrefix = role.startsWith("ROLE_") ? role.substring(5) : role;
+        return principal.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals(role) ||
+                           a.getAuthority().equals(roleWithPrefix) ||
+                           a.getAuthority().equals(roleWithoutPrefix));
     }
 
     private User currentUser(UserDetails principal) {

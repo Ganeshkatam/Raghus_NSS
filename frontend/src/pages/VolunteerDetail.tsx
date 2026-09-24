@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { apiRequest, ApiError } from "../api/client";
 
 interface VolunteerData {
-  volunteerId: number;
+  volunteerId: string;
   userId: string;
   name: string;
   email: string;
@@ -13,14 +13,14 @@ interface VolunteerData {
   yearOfStudy: number;
   joinDate: string;
   status: string;
-  activeUnitId: number | null;
+  activeUnitId: string | null;
   activeUnitName: string | null;
   createdAt: string;
 }
 
 interface MembershipHistoryItem {
-  membershipId: number;
-  unitId: number;
+  membershipId: string;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   joinedAt: string;

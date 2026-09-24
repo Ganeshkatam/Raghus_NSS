@@ -45,7 +45,8 @@ public class VolunteerAndUnitIntegrationTest {
     @Test
     @WithMockUser(username = "admin@raghunss.edu", roles = {"ADMIN"})
     public void createUnit_asAdmin_shouldReturnCreated() throws Exception {
-        UnitResponse response = new UnitResponse(1L, "NSS Unit 1", "UNIT-01", null, null, null, 0, Instant.now());
+        UUID unitId = UUID.randomUUID();
+        UnitResponse response = new UnitResponse(unitId, "NSS Unit 1", "UNIT-01", null, null, null, 0, Instant.now());
         when(unitService.createUnit(any(UnitRequest.class))).thenReturn(response);
 
         UnitRequest request = new UnitRequest("NSS Unit 1", "UNIT-01", null);
@@ -73,8 +74,9 @@ public class VolunteerAndUnitIntegrationTest {
     @Test
     @WithMockUser(username = "admin@raghunss.edu", roles = {"ADMIN"})
     public void createVolunteer_asAdmin_shouldReturnCreated() throws Exception {
+        UUID volunteerId = UUID.randomUUID();
         VolunteerResponse response = new VolunteerResponse(
-            1L, UUID.randomUUID(), "Jane Doe", "jane@raghunss.edu", "9123456780",
+            volunteerId, UUID.randomUUID(), "Jane Doe", "jane@raghunss.edu", "9123456780",
             "2026CS001", "Computer Science", 2, LocalDate.now(), "ACTIVE",
             null, null, Instant.now()
         );
@@ -96,15 +98,18 @@ public class VolunteerAndUnitIntegrationTest {
     @Test
     @WithMockUser(username = "admin@raghunss.edu", roles = {"ADMIN"})
     public void addMemberToUnit_asAdmin_shouldReturnCreated() throws Exception {
+        UUID unitId = UUID.randomUUID();
+        UUID volunteerId = UUID.randomUUID();
+        UUID membershipId = UUID.randomUUID();
         MembershipResponse response = new MembershipResponse(
-            1L, 1L, "Jane Doe", "2026CS001", "Computer Science",
-            1L, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
+            membershipId, volunteerId, "Jane Doe", "2026CS001", "Computer Science",
+            unitId, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
         );
-        when(unitService.addMemberToUnit(eq(1L), eq(1L))).thenReturn(response);
+        when(unitService.addMemberToUnit(eq(unitId), eq(volunteerId))).thenReturn(response);
 
-        MembershipRequest request = new MembershipRequest(1L);
+        MembershipRequest request = new MembershipRequest(volunteerId);
 
-        mockMvc.perform(post("/api/v1/units/1/members")
+        mockMvc.perform(post("/api/v1/units/" + unitId + "/members")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
@@ -116,13 +121,14 @@ public class VolunteerAndUnitIntegrationTest {
     @Test
     @WithMockUser(username = "jane@raghunss.edu", roles = {"VOLUNTEER"})
     public void getUnitMembers_asVolunteer_shouldReturnOk() throws Exception {
+        UUID unitId = UUID.randomUUID();
         MembershipResponse response = new MembershipResponse(
-            1L, 1L, "Jane Doe", "2026CS001", "Computer Science",
-            1L, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
+            UUID.randomUUID(), UUID.randomUUID(), "Jane Doe", "2026CS001", "Computer Science",
+            unitId, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
         );
-        when(unitService.getUnitMembers(1L)).thenReturn(List.of(response));
+        when(unitService.getUnitMembers(unitId)).thenReturn(List.of(response));
 
-        mockMvc.perform(get("/api/v1/units/1/members"))
+        mockMvc.perform(get("/api/v1/units/" + unitId + "/members"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].volunteerName").value("Jane Doe"));
     }

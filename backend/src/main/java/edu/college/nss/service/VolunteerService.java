@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,8 +68,9 @@ public class VolunteerService {
             String rawPassword = (request.password() != null && !request.password().isBlank())
                 ? request.password() : "Volunteer@123";
 
-            Role volunteerRole = roleRepository.findByName("ROLE_VOLUNTEER")
-                .orElseGet(() -> roleRepository.save(new Role("ROLE_VOLUNTEER", "Registered NSS Volunteer")));
+            Role volunteerRole = roleRepository.findByName("VOLUNTEER")
+                .or(() -> roleRepository.findByName("ROLE_VOLUNTEER"))
+                .orElseGet(() -> roleRepository.save(new Role("VOLUNTEER", "Registered NSS Volunteer")));
 
             user = new User(request.name(), email, passwordEncoder.encode(rawPassword), request.phone());
             user.setRoles(Set.of(volunteerRole));
@@ -86,7 +88,7 @@ public class VolunteerService {
     }
 
     @Transactional(readOnly = true)
-    public VolunteerResponse getVolunteerById(Long volunteerId, UserDetails principal) {
+    public VolunteerResponse getVolunteerById(UUID volunteerId, UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
 
@@ -131,7 +133,7 @@ public class VolunteerService {
     }
 
     @Transactional
-    public VolunteerResponse updateVolunteer(Long volunteerId, VolunteerUpdateRequest request, UserDetails principal) {
+    public VolunteerResponse updateVolunteer(UUID volunteerId, VolunteerUpdateRequest request, UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
 
@@ -182,7 +184,7 @@ public class VolunteerService {
     }
 
     @Transactional(readOnly = true)
-    public List<MembershipResponse> getVolunteerMemberships(Long volunteerId, UserDetails principal) {
+    public List<MembershipResponse> getVolunteerMemberships(UUID volunteerId, UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
 
@@ -208,9 +210,9 @@ public class VolunteerService {
     private boolean isStaffOrAdmin(UserDetails principal) {
         return principal.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
-            .anyMatch(a -> a.equals("ROLE_ADMIN") ||
-                           a.equals("ROLE_FACULTY_COORDINATOR") ||
-                           a.equals("ROLE_PROGRAMME_OFFICER") ||
+            .anyMatch(a -> a.equals("ADMIN") || a.equals("ROLE_ADMIN") ||
+                           a.equals("FACULTY_COORDINATOR") || a.equals("ROLE_FACULTY_COORDINATOR") ||
+                           a.equals("PROGRAMME_OFFICER") || a.equals("ROLE_PROGRAMME_OFFICER") ||
                            a.equals("VOLUNTEERS_MANAGE"));
     }
 }

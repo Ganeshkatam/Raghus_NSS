@@ -2,14 +2,15 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "attendance_corrections")
 public class AttendanceCorrection {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "correction_id")
-    private Long correctionId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "correction_id", updatable = false, nullable = false)
+    private UUID correctionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attendance_id", nullable = false)
@@ -42,7 +43,7 @@ public class AttendanceCorrection {
         this.correctedAt = Instant.now();
     }
 
-    public Long getCorrectionId() { return correctionId; }
+    public UUID getCorrectionId() { return correctionId; }
     public AttendanceRecord getAttendanceRecord() { return attendanceRecord; }
     public User getCorrectedBy() { return correctedBy; }
     public String getPreviousStatus() { return previousStatus; }

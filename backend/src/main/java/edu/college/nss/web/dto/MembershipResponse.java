@@ -2,14 +2,15 @@ package edu.college.nss.web.dto;
 
 import edu.college.nss.domain.UnitMembership;
 import java.time.Instant;
+import java.util.UUID;
 
 public record MembershipResponse(
-    Long membershipId,
-    Long volunteerId,
+    UUID membershipId,
+    UUID volunteerId,
     String volunteerName,
     String collegeId,
     String department,
-    Long unitId,
+    UUID unitId,
     String unitName,
     String unitNumber,
     Instant joinedAt,

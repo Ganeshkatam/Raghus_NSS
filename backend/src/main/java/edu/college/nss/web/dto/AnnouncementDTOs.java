@@ -3,6 +3,7 @@ package edu.college.nss.web.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.UUID;
 
 public class AnnouncementDTOs {
 
@@ -14,16 +15,16 @@ public class AnnouncementDTOs {
         @NotBlank(message = "Content is required.")
         String content,
 
-        Long unitId,
+        UUID unitId,
 
         Instant expiresAt
     ) {}
 
     public record AnnouncementResponse(
-        Long announcementId,
+        UUID announcementId,
         String title,
         String content,
-        Long unitId,
+        UUID unitId,
         String unitName,
         String createdByName,
         Instant publishedAt,
@@ -31,7 +32,7 @@ public class AnnouncementDTOs {
     ) {}
 
     public record NotificationResponse(
-        Long notificationId,
+        UUID notificationId,
         String title,
         String message,
         Boolean isRead,

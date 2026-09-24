@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface UnitSummary {
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   officerName: string | null;
@@ -285,7 +285,7 @@ export const Admin: React.FC = () => {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                  <strong>ROLE_ADMIN</strong>
+                  <strong>ADMIN</strong>
                   <span className="badge badge-primary">Full System Scope</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0 }}>
@@ -302,7 +302,7 @@ export const Admin: React.FC = () => {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                  <strong>ROLE_FACULTY_COORDINATOR</strong>
+                  <strong>FACULTY_COORDINATOR</strong>
                   <span className="badge badge-muted">Cross-Unit Review</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0 }}>
@@ -319,7 +319,7 @@ export const Admin: React.FC = () => {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                  <strong>ROLE_PROGRAMME_OFFICER</strong>
+                  <strong>PROGRAMME_OFFICER</strong>
                   <span className="badge badge-muted">Unit Operational Scope</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0 }}>
@@ -336,7 +336,7 @@ export const Admin: React.FC = () => {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                  <strong>ROLE_VOLUNTEER</strong>
+                  <strong>VOLUNTEER</strong>
                   <span className="badge badge-muted">Self-Service Scope</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", margin: 0 }}>

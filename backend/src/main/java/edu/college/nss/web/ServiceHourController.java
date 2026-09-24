@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/service-hours")
@@ -43,7 +44,7 @@ public class ServiceHourController {
 
     @PostMapping("/{entryId}/review")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<ServiceHourResponse> reviewClaim(@PathVariable Long entryId,
+    public ResponseEntity<ServiceHourResponse> reviewClaim(@PathVariable UUID entryId,
                                                            @Valid @RequestBody ServiceHourReviewRequest request,
                                                            @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.reviewClaim(entryId, request, principal));

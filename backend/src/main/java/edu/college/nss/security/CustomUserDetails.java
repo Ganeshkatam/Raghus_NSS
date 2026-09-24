@@ -29,7 +29,10 @@ public class CustomUserDetails implements UserDetails {
         Set<SimpleGrantedAuthority> auths = new HashSet<>();
         if (user.getRoles() != null) {
             user.getRoles().forEach(role -> {
-                auths.add(new SimpleGrantedAuthority(role.getName()));
+                String name = role.getName();
+                String cleanName = name.startsWith("ROLE_") ? name.substring(5) : name;
+                auths.add(new SimpleGrantedAuthority(cleanName));
+                auths.add(new SimpleGrantedAuthority("ROLE_" + cleanName));
                 if (role.getPermissions() != null) {
                     role.getPermissions().forEach(perm ->
                         auths.add(new SimpleGrantedAuthority(perm.getName()))

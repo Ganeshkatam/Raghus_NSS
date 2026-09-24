@@ -15,7 +15,9 @@ public record UserDto(
 ) {
     public static UserDto fromEntity(User user) {
         Set<String> roleNames = user.getRoles() != null
-            ? user.getRoles().stream().map(r -> r.getName()).collect(Collectors.toSet())
+            ? user.getRoles().stream()
+                .map(r -> r.getName().startsWith("ROLE_") ? r.getName().substring(5) : r.getName())
+                .collect(Collectors.toSet())
             : Set.of();
 
         return new UserDto(

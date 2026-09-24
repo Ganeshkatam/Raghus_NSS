@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface UnitItem {
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   officerId: string | null;

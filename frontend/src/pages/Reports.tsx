@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { apiRequest, API_BASE_URL } from "../api/client";
 
 interface UnitPerformance {
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   officerName: string;

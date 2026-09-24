@@ -5,15 +5,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "volunteers")
 public class Volunteer {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "volunteer_id")
-    private Long volunteerId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "volunteer_id", updatable = false, nullable = false)
+    private UUID volunteerId;
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -59,11 +60,11 @@ public class Volunteer {
         this.updatedAt = Instant.now();
     }
 
-    public Long getVolunteerId() {
+    public UUID getVolunteerId() {
         return volunteerId;
     }
 
-    public void setVolunteerId(Long volunteerId) {
+    public void setVolunteerId(UUID volunteerId) {
         this.volunteerId = volunteerId;
     }
 

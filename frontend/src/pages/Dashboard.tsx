@@ -4,15 +4,15 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 
 interface UnitSummary {
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   activeMemberCount: number;
 }
 
 interface EventItem {
-  eventId: number;
-  unitId: number;
+  eventId: string;
+  unitId: string;
   unitName: string;
   title: string;
   eventType: string;
@@ -25,13 +25,13 @@ interface EventItem {
 }
 
 interface VolunteerProfile {
-  volunteerId: number;
+  volunteerId: string;
   collegeId: string;
   department: string;
   yearOfStudy: number;
   status: string;
   name: string;
-  activeUnitId: number | null;
+  activeUnitId: string | null;
   activeUnitNumber: string | null;
   activeUnitName: string | null;
 }
@@ -41,7 +41,7 @@ interface ServiceHourSummary {
   approvedCount: number;
   pendingCount: number;
   entries: {
-    entryId: number;
+    entryId: string;
     hours: number;
     status: string;
     eventTitle: string | null;
@@ -52,7 +52,7 @@ interface ServiceHourSummary {
 }
 
 interface AnnouncementItem {
-  announcementId: number;
+  announcementId: string;
   title: string;
   content: string;
   priority: string;

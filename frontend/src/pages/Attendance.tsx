@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 
 interface SessionData {
-  sessionId: number;
-  eventId: number;
+  sessionId: string;
+  eventId: string;
   eventTitle: string;
   openedByName: string;
   startsAt: string;
@@ -17,7 +17,7 @@ interface SessionData {
 }
 
 interface RosterItem {
-  volunteerId: number;
+  volunteerId: string;
   rollNumber: string;
   fullName: string;
   department: string;
@@ -26,11 +26,11 @@ interface RosterItem {
   attendanceStatus: string;
   checkInMethod: string | null;
   checkedInAt: string | null;
-  attendanceId: number | null;
+  attendanceId: string | null;
 }
 
 interface VolunteerAttendanceRecord {
-  entryId: number;
+  entryId: string;
   hours: number;
   status: string;
   eventTitle: string | null;
@@ -42,11 +42,11 @@ interface VolunteerAttendanceRecord {
 export const Attendance: React.FC = () => {
   const { user, isCoordinatorOrOfficer } = useAuth();
   const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
-    ["ADMIN", "ROLE_ADMIN", "FACULTY_COORDINATOR", "ROLE_FACULTY_COORDINATOR", "PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER"].includes(r)
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
   ));
 
   const [events, setEvents] = useState<any[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
   const [roster, setRoster] = useState<RosterItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,7 +88,7 @@ export const Attendance: React.FC = () => {
     }
   }, []);
 
-  const loadSessionAndRoster = useCallback(async (eventId: number) => {
+  const loadSessionAndRoster = useCallback(async (eventId: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -385,7 +385,7 @@ export const Attendance: React.FC = () => {
                   id="eventSelect"
                   className="attendance-select"
                   value={selectedEventId || ""}
-                  onChange={(e) => setSelectedEventId(Number(e.target.value))}
+                  onChange={(e) => setSelectedEventId(e.target.value || null)}
                 >
                   {events.length === 0 && <option value="">No active events found</option>}
                   {events.map((ev) => (

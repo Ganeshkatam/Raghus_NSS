@@ -51,7 +51,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public SessionResponse openSession(Long eventId, CreateSessionRequest req, UserDetails principal) {
+    public SessionResponse openSession(UUID eventId, CreateSessionRequest req, UserDetails principal) {
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
@@ -78,7 +78,7 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public SessionResponse getActiveSession(Long eventId, UserDetails principal) {
+    public SessionResponse getActiveSession(UUID eventId, UserDetails principal) {
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
@@ -96,7 +96,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public SessionResponse closeSession(Long sessionId, UserDetails principal) {
+    public SessionResponse closeSession(UUID sessionId, UserDetails principal) {
         AttendanceSession session = sessionRepository.findById(sessionId)
             .orElseThrow(() -> new IllegalArgumentException("Attendance session not found with ID: " + sessionId));
         assertManagerForUnit(principal, session.getEvent().getUnit());
@@ -162,7 +162,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public CheckInResponse manualCheckIn(Long sessionId, ManualCheckInRequest req, UserDetails principal) {
+    public CheckInResponse manualCheckIn(UUID sessionId, ManualCheckInRequest req, UserDetails principal) {
         AttendanceSession session = sessionRepository.findById(sessionId)
             .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         assertManagerForUnit(principal, session.getEvent().getUnit());
@@ -198,7 +198,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public CorrectionResponse correctAttendance(Long attendanceId, CorrectionRequest req, UserDetails principal) {
+    public CorrectionResponse correctAttendance(UUID attendanceId, CorrectionRequest req, UserDetails principal) {
         if (req.reason() == null || req.reason().trim().isBlank()) {
             throw new IllegalArgumentException("A valid non-blank audit reason is mandatory for attendance corrections.");
         }
@@ -236,13 +236,13 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<AttendanceRosterItem> getRoster(Long eventId, Long sessionId, UserDetails principal) {
+    public List<AttendanceRosterItem> getRoster(UUID eventId, UUID sessionId, UserDetails principal) {
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
 
         List<EventRegistration> registrations = registrationRepository.findByEvent_EventIdOrderByRegisteredAtAsc(eventId);
-        Map<Long, AttendanceRecord> recordsByVolunteer = new HashMap<>();
+        Map<UUID, AttendanceRecord> recordsByVolunteer = new HashMap<>();
 
         if (sessionId != null) {
             recordRepository.findBySession_SessionId(sessionId)
@@ -286,8 +286,8 @@ public class AttendanceService {
             if (parts.length != 5) {
                 throw new IllegalArgumentException("Malformed token format.");
             }
-            Long sessionId = Long.parseLong(parts[0]);
-            Long eventId = Long.parseLong(parts[1]);
+            UUID sessionId = UUID.fromString(parts[0]);
+            UUID eventId = UUID.fromString(parts[1]);
             long issuedAt = Long.parseLong(parts[2]);
             long expiresAt = Long.parseLong(parts[3]);
             String signature = parts[4];
@@ -349,8 +349,8 @@ public class AttendanceService {
     }
 
     private void assertManagerForUnit(UserDetails principal, NssUnit unit) {
-        if (hasRole(principal, "ROLE_ADMIN") || hasRole(principal, "ROLE_FACULTY_COORDINATOR")) return;
-        if (hasRole(principal, "ROLE_PROGRAMME_OFFICER")) {
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR")) return;
+        if (hasRole(principal, "PROGRAMME_OFFICER")) {
             User user = currentUser(principal);
             if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
         }
@@ -358,7 +358,12 @@ public class AttendanceService {
     }
 
     private boolean hasRole(UserDetails principal, String role) {
-        return principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(role));
+        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        String roleWithoutPrefix = role.startsWith("ROLE_") ? role.substring(5) : role;
+        return principal.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals(role) ||
+                           a.getAuthority().equals(roleWithPrefix) ||
+                           a.getAuthority().equals(roleWithoutPrefix));
     }
 
     private User currentUser(UserDetails principal) {
@@ -381,5 +386,5 @@ public class AttendanceService {
         );
     }
 
-    private record ParsedToken(Long sessionId, Long eventId, long expiresAt) {}
+    private record ParsedToken(UUID sessionId, UUID eventId, long expiresAt) {}
 }

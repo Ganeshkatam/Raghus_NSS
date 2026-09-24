@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface UnitData {
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   officerId: string | null;
@@ -15,12 +15,12 @@ interface UnitData {
 }
 
 interface MemberItem {
-  membershipId: number;
-  volunteerId: number;
+  membershipId: string;
+  volunteerId: string;
   volunteerName: string;
   collegeId: string;
   department: string;
-  unitId: number;
+  unitId: string;
   unitName: string;
   unitNumber: string;
   joinedAt: string;
@@ -29,7 +29,7 @@ interface MemberItem {
 }
 
 interface AvailableVolunteer {
-  volunteerId: number;
+  volunteerId: string;
   name: string;
   collegeId: string;
   department: string;
@@ -99,7 +99,7 @@ export const UnitDetail: React.FC = () => {
       await apiRequest<MemberItem>(`/units/${id}/members`, {
         method: "POST",
         body: JSON.stringify({
-          volunteerId: Number(selectedVolunteerId),
+          volunteerId: selectedVolunteerId,
         }),
       });
 
@@ -113,7 +113,7 @@ export const UnitDetail: React.FC = () => {
     }
   };
 
-  const handleDeactivateMember = async (membershipId: number) => {
+  const handleDeactivateMember = async (membershipId: string) => {
     if (!window.confirm("Remove this volunteer from the unit? (Historical record is preserved)")) {
       return;
     }

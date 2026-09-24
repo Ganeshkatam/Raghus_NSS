@@ -5,15 +5,16 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "roles")
 public class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "role_id")
-    private Long roleId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "role_id", updatable = false, nullable = false)
+    private UUID roleId;
 
     @Column(name = "name", nullable = false, unique = true, length = 50)
     private String name;
@@ -39,11 +40,11 @@ public class Role {
         this.description = description;
     }
 
-    public Long getRoleId() {
+    public UUID getRoleId() {
         return roleId;
     }
 
-    public void setRoleId(Long roleId) {
+    public void setRoleId(UUID roleId) {
         this.roleId = roleId;
     }
 

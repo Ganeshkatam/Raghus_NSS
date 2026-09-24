@@ -9,15 +9,16 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface EventRepository extends JpaRepository<Event, Long> {
+public interface EventRepository extends JpaRepository<Event, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Event e where e.eventId = :eventId")
-    Optional<Event> findByIdWithLock(@Param("eventId") Long eventId);
+    Optional<Event> findByIdWithLock(@Param("eventId") UUID eventId);
 
     long countByStatus(String status);
-    long countByUnit_UnitId(Long unitId);
+    long countByUnit_UnitId(UUID unitId);
 
     @Query("""
         select e from Event e
@@ -25,7 +26,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
           and (:status is null or e.status = :status)
         order by e.startAt asc
         """)
-    Page<Event> search(@Param("unitId") Long unitId, @Param("status") String status, Pageable pageable);
+    Page<Event> search(@Param("unitId") UUID unitId, @Param("status") String status, Pageable pageable);
 
     @Query("""
         select e from Event e
@@ -34,5 +35,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
           and (:status is null or e.status = :status)
         order by e.startAt asc
         """)
-    Page<Event> searchPublic(@Param("unitId") Long unitId, @Param("status") String status, Pageable pageable);
+    Page<Event> searchPublic(@Param("unitId") UUID unitId, @Param("status") String status, Pageable pageable);
 }

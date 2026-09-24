@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface VolunteerRepository extends JpaRepository<Volunteer, Long>, JpaSpecificationExecutor<Volunteer> {
+public interface VolunteerRepository extends JpaRepository<Volunteer, UUID>, JpaSpecificationExecutor<Volunteer> {
     Optional<Volunteer> findByCollegeId(String collegeId);
     Optional<Volunteer> findByUser_UserId(UUID userId);
     Optional<Volunteer> findByUser_Email(String email);

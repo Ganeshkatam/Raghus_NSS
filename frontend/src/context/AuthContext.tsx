@@ -81,13 +81,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const roles = user?.roles || [];
-  const isAdmin = roles.includes("ROLE_ADMIN");
-  const isCoordinator = roles.includes("ROLE_FACULTY_COORDINATOR");
-  const isOfficer = roles.includes("ROLE_PROGRAMME_OFFICER");
+  const roles = (user?.roles || []).map((r) => r.replace(/^ROLE_/, ""));
+  const isAdmin = roles.includes("ADMIN");
+  const isCoordinator = roles.includes("FACULTY_COORDINATOR");
+  const isOfficer = roles.includes("PROGRAMME_OFFICER");
   const isCoordinatorOrOfficer = isAdmin || isCoordinator || isOfficer;
-  const isStudentLeader = roles.includes("ROLE_STUDENT_LEADER");
-  const isVolunteer = roles.includes("ROLE_VOLUNTEER") || (!isAdmin && !isCoordinator && !isOfficer);
+  const isStudentLeader = roles.includes("STUDENT_LEADER");
+  const isVolunteer = roles.includes("VOLUNTEER") || (!isAdmin && !isCoordinator && !isOfficer);
 
   const roleDisplayName = isAdmin
     ? "System Administrator"

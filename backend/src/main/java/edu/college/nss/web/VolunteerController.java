@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/volunteers")
@@ -60,7 +61,7 @@ public class VolunteerController {
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VolunteerResponse> getVolunteer(
-        @PathVariable Long id,
+        @PathVariable UUID id,
         @AuthenticationPrincipal UserDetails principal
     ) {
         VolunteerResponse response = volunteerService.getVolunteerById(id, principal);
@@ -70,7 +71,7 @@ public class VolunteerController {
     @PatchMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VolunteerResponse> updateVolunteer(
-        @PathVariable Long id,
+        @PathVariable UUID id,
         @Valid @RequestBody VolunteerUpdateRequest request,
         @AuthenticationPrincipal UserDetails principal
     ) {
@@ -81,7 +82,7 @@ public class VolunteerController {
     @GetMapping("/{id}/memberships")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MembershipResponse>> getVolunteerMemberships(
-        @PathVariable Long id,
+        @PathVariable UUID id,
         @AuthenticationPrincipal UserDetails principal
     ) {
         List<MembershipResponse> responses = volunteerService.getVolunteerMemberships(id, principal);

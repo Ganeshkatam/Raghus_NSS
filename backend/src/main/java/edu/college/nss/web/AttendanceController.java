@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -23,7 +24,7 @@ public class AttendanceController {
 
     @PostMapping("/events/{eventId}/attendance/sessions")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<SessionResponse> openSession(@PathVariable Long eventId,
+    public ResponseEntity<SessionResponse> openSession(@PathVariable UUID eventId,
                                                        @Valid @RequestBody CreateSessionRequest request,
                                                        @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.openSession(eventId, request, principal));
@@ -31,7 +32,7 @@ public class AttendanceController {
 
     @GetMapping("/events/{eventId}/attendance/sessions/active")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<SessionResponse> getActiveSession(@PathVariable Long eventId,
+    public ResponseEntity<SessionResponse> getActiveSession(@PathVariable UUID eventId,
                                                             @AuthenticationPrincipal UserDetails principal) {
         SessionResponse response = service.getActiveSession(eventId, principal);
         if (response == null) return ResponseEntity.noContent().build();
@@ -40,7 +41,7 @@ public class AttendanceController {
 
     @PostMapping("/attendance/sessions/{sessionId}/close")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<SessionResponse> closeSession(@PathVariable Long sessionId,
+    public ResponseEntity<SessionResponse> closeSession(@PathVariable UUID sessionId,
                                                         @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.closeSession(sessionId, principal));
     }
@@ -54,7 +55,7 @@ public class AttendanceController {
 
     @PostMapping("/attendance/sessions/{sessionId}/manual")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<CheckInResponse> manualCheckIn(@PathVariable Long sessionId,
+    public ResponseEntity<CheckInResponse> manualCheckIn(@PathVariable UUID sessionId,
                                                          @Valid @RequestBody ManualCheckInRequest request,
                                                          @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.manualCheckIn(sessionId, request, principal));
@@ -62,15 +63,15 @@ public class AttendanceController {
 
     @GetMapping("/events/{eventId}/attendance/roster")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<List<AttendanceRosterItem>> getRoster(@PathVariable Long eventId,
-                                                               @RequestParam(required = false) Long sessionId,
+    public ResponseEntity<List<AttendanceRosterItem>> getRoster(@PathVariable UUID eventId,
+                                                               @RequestParam(required = false) UUID sessionId,
                                                                @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.getRoster(eventId, sessionId, principal));
     }
 
     @PostMapping("/attendance/records/{attendanceId}/correct")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<CorrectionResponse> correctAttendance(@PathVariable Long attendanceId,
+    public ResponseEntity<CorrectionResponse> correctAttendance(@PathVariable UUID attendanceId,
                                                                 @Valid @RequestBody CorrectionRequest request,
                                                                 @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.correctAttendance(attendanceId, request, principal));

@@ -2,15 +2,16 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.util.Objects;
+import java.util.UUID;
 
 @Entity
 @Table(name = "permissions")
 public class Permission {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "permission_id")
-    private Long permissionId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "permission_id", updatable = false, nullable = false)
+    private UUID permissionId;
 
     @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
@@ -25,11 +26,11 @@ public class Permission {
         this.description = description;
     }
 
-    public Long getPermissionId() {
+    public UUID getPermissionId() {
         return permissionId;
     }
 
-    public void setPermissionId(Long permissionId) {
+    public void setPermissionId(UUID permissionId) {
         this.permissionId = permissionId;
     }
 

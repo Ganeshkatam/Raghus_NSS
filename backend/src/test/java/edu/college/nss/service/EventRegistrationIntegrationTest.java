@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -165,7 +166,7 @@ class EventRegistrationIntegrationTest {
         assertEquals(1, registrationRepository.countRegistered(finalEvent.getEventId()));
     }
 
-    private boolean attemptRegistration(Long eventId, Long volunteerId, UserDetails principal,
+    private boolean attemptRegistration(UUID eventId, UUID volunteerId, UserDetails principal,
                                         CountDownLatch ready, CountDownLatch start) {
         ready.countDown();
         try {

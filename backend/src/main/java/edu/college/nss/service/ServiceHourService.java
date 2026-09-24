@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ServiceHourService {
@@ -93,7 +94,7 @@ public class ServiceHourService {
     }
 
     @Transactional
-    public ServiceHourResponse reviewClaim(Long entryId, ServiceHourReviewRequest req, UserDetails principal) {
+    public ServiceHourResponse reviewClaim(UUID entryId, ServiceHourReviewRequest req, UserDetails principal) {
         assertOfficerOrAdmin(principal);
 
         ServiceHourEntry entry = serviceHourRepository.findById(entryId)
@@ -127,9 +128,9 @@ public class ServiceHourService {
 
     private void assertOfficerOrAdmin(UserDetails principal) {
         boolean authorized = principal.getAuthorities().stream().anyMatch(a ->
-            a.getAuthority().equals("ROLE_ADMIN") ||
-            a.getAuthority().equals("ROLE_FACULTY_COORDINATOR") ||
-            a.getAuthority().equals("ROLE_PROGRAMME_OFFICER")
+            a.getAuthority().equals("ADMIN") || a.getAuthority().equals("ROLE_ADMIN") ||
+            a.getAuthority().equals("FACULTY_COORDINATOR") || a.getAuthority().equals("ROLE_FACULTY_COORDINATOR") ||
+            a.getAuthority().equals("PROGRAMME_OFFICER") || a.getAuthority().equals("ROLE_PROGRAMME_OFFICER")
         );
         if (!authorized) {
             throw new AccessDeniedException("Access denied. Officer or Admin privileges required.");

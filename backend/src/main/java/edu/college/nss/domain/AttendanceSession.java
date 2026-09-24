@@ -2,14 +2,15 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "attendance_sessions")
 public class AttendanceSession {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "session_id")
-    private Long sessionId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "session_id", updatable = false, nullable = false)
+    private UUID sessionId;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "event_id", nullable = false)
@@ -64,8 +65,8 @@ public class AttendanceSession {
         this.status = "EXPIRED";
     }
 
-    public Long getSessionId() { return sessionId; }
-    public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
+    public UUID getSessionId() { return sessionId; }
+    public void setSessionId(UUID sessionId) { this.sessionId = sessionId; }
     public Event getEvent() { return event; }
     public void setEvent(Event event) { this.event = event; }
     public User getOpenedBy() { return openedBy; }

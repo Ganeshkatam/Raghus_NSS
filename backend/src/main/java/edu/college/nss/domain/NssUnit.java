@@ -4,15 +4,16 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "nss_units")
 public class NssUnit {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "unit_id")
-    private Long unitId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "unit_id", updatable = false, nullable = false)
+    private UUID unitId;
 
     @Column(name = "unit_name", nullable = false, length = 100)
     private String unitName;
@@ -46,11 +47,11 @@ public class NssUnit {
         this.updatedAt = Instant.now();
     }
 
-    public Long getUnitId() {
+    public UUID getUnitId() {
         return unitId;
     }
 
-    public void setUnitId(Long unitId) {
+    public void setUnitId(UUID unitId) {
         this.unitId = unitId;
     }
 

@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -36,7 +37,7 @@ public class AnnouncementController {
 
     @DeleteMapping("/announcements/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public ResponseEntity<Void> deleteAnnouncement(@PathVariable Long id,
+    public ResponseEntity<Void> deleteAnnouncement(@PathVariable UUID id,
                                                    @AuthenticationPrincipal UserDetails principal) {
         service.deleteAnnouncement(id, principal);
         return ResponseEntity.noContent().build();
@@ -50,7 +51,7 @@ public class AnnouncementController {
 
     @PostMapping("/notifications/{id}/read")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> markNotificationRead(@PathVariable Long id,
+    public ResponseEntity<Void> markNotificationRead(@PathVariable UUID id,
                                                      @AuthenticationPrincipal UserDetails principal) {
         service.markNotificationRead(id, principal);
         return ResponseEntity.ok().build();

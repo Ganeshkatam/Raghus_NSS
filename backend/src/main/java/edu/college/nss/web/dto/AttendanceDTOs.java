@@ -3,6 +3,7 @@ package edu.college.nss.web.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.UUID;
 
 public class AttendanceDTOs {
 
@@ -12,8 +13,8 @@ public class AttendanceDTOs {
     ) {}
 
     public record SessionResponse(
-        Long sessionId,
-        Long eventId,
+        UUID sessionId,
+        UUID eventId,
         String eventTitle,
         String openedByName,
         Instant startsAt,
@@ -29,8 +30,8 @@ public class AttendanceDTOs {
     ) {}
 
     public record CheckInResponse(
-        Long attendanceId,
-        Long volunteerId,
+        UUID attendanceId,
+        UUID volunteerId,
         String volunteerName,
         String rollNumber,
         Instant checkedInAt,
@@ -40,7 +41,7 @@ public class AttendanceDTOs {
     ) {}
 
     public record ManualCheckInRequest(
-        @NotNull Long volunteerId,
+        @NotNull UUID volunteerId,
         @NotBlank String status
     ) {}
 
@@ -50,8 +51,8 @@ public class AttendanceDTOs {
     ) {}
 
     public record CorrectionResponse(
-        Long correctionId,
-        Long attendanceId,
+        UUID correctionId,
+        UUID attendanceId,
         String correctedByName,
         String previousStatus,
         String newStatus,
@@ -60,7 +61,7 @@ public class AttendanceDTOs {
     ) {}
 
     public record AttendanceRosterItem(
-        Long volunteerId,
+        UUID volunteerId,
         String rollNumber,
         String fullName,
         String department,
@@ -69,6 +70,6 @@ public class AttendanceDTOs {
         String attendanceStatus,
         String checkInMethod,
         Instant checkedInAt,
-        Long attendanceId
+        UUID attendanceId
     ) {}
 }

@@ -2,15 +2,16 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "attendance_records",
        uniqueConstraints = @UniqueConstraint(name = "uq_session_volunteer_attendance", columnNames = {"session_id", "volunteer_id"}))
 public class AttendanceRecord {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "attendance_id")
-    private Long attendanceId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "attendance_id", updatable = false, nullable = false)
+    private UUID attendanceId;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "session_id", nullable = false)
@@ -39,8 +40,8 @@ public class AttendanceRecord {
         this.checkedInAt = Instant.now();
     }
 
-    public Long getAttendanceId() { return attendanceId; }
-    public void setAttendanceId(Long attendanceId) { this.attendanceId = attendanceId; }
+    public UUID getAttendanceId() { return attendanceId; }
+    public void setAttendanceId(UUID attendanceId) { this.attendanceId = attendanceId; }
     public AttendanceSession getSession() { return session; }
     public void setSession(AttendanceSession session) { this.session = session; }
     public Volunteer getVolunteer() { return volunteer; }

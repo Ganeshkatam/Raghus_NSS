@@ -3,11 +3,11 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 
 interface ServiceHourEntry {
-  entryId: number;
-  volunteerId: number;
+  entryId: string;
+  volunteerId: string;
   volunteerName: string;
   rollNumber: string;
-  eventId: number | null;
+  eventId: string | null;
   eventTitle: string | null;
   hours: number;
   status: "APPROVED" | "PENDING" | "REJECTED";
@@ -17,7 +17,7 @@ interface ServiceHourEntry {
 }
 
 interface PersonalSummary {
-  volunteerId: number;
+  volunteerId: string;
   volunteerName: string;
   rollNumber: string;
   totalApprovedHours: number;
@@ -29,7 +29,7 @@ interface PersonalSummary {
 export const ServiceHours: React.FC = () => {
   const { user, isCoordinatorOrOfficer } = useAuth();
   const isOfficerOrAdmin = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
-    ["ADMIN", "ROLE_ADMIN", "FACULTY_COORDINATOR", "ROLE_FACULTY_COORDINATOR", "PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER"].includes(r)
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
   ));
 
   const [activeTab, setActiveTab] = useState<"my" | "pending">(isOfficerOrAdmin ? "pending" : "my");
@@ -131,7 +131,7 @@ export const ServiceHours: React.FC = () => {
         body: JSON.stringify({
           hours: hoursNum,
           description: claimDescription.trim(),
-          eventId: claimEventId ? parseInt(claimEventId, 10) : null
+          eventId: claimEventId ? claimEventId : null
         })
       });
       setSuccess("Service hour claim submitted successfully. Awaiting coordinator review.");
@@ -147,7 +147,7 @@ export const ServiceHours: React.FC = () => {
     }
   };
 
-  const handleApproveClaim = async (entryId: number) => {
+  const handleApproveClaim = async (entryId: string) => {
     try {
       setReviewing(true);
       setError(null);
@@ -201,7 +201,7 @@ export const ServiceHours: React.FC = () => {
 
         {/* Action button */}
         <div style={{ display: "flex", gap: "0.75rem" }}>
-          {user?.roles?.some((r) => ["VOLUNTEER", "ROLE_VOLUNTEER"].includes(r)) && (
+          {user?.roles?.some((r) => r.replace(/^ROLE_/, "") === "VOLUNTEER") && (
             <button
               onClick={() => setShowClaimModal(true)}
               style={{

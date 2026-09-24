@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 
 interface VolunteerItem {
-  volunteerId: number;
+  volunteerId: string;
   userId: string;
   name: string;
   email: string;
@@ -14,7 +14,7 @@ interface VolunteerItem {
   yearOfStudy: number;
   joinDate: string;
   status: string;
-  activeUnitId: number | null;
+  activeUnitId: string | null;
   activeUnitName: string | null;
 }
 

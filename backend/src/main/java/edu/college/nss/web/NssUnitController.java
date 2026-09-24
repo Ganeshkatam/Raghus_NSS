@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/units")
@@ -40,7 +41,7 @@ public class NssUnitController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UnitResponse> getUnit(@PathVariable Long id) {
+    public ResponseEntity<UnitResponse> getUnit(@PathVariable UUID id) {
         UnitResponse response = unitService.getUnitById(id);
         return ResponseEntity.ok(response);
     }
@@ -48,7 +49,7 @@ public class NssUnitController {
     @PatchMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR')")
     public ResponseEntity<UnitResponse> updateUnit(
-        @PathVariable Long id,
+        @PathVariable UUID id,
         @Valid @RequestBody UnitUpdateRequest request
     ) {
         UnitResponse response = unitService.updateUnit(id, request);
@@ -58,7 +59,7 @@ public class NssUnitController {
     @PostMapping("/{id}/members")
     @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<MembershipResponse> addMember(
-        @PathVariable Long id,
+        @PathVariable UUID id,
         @Valid @RequestBody MembershipRequest request
     ) {
         MembershipResponse response = unitService.addMemberToUnit(id, request.volunteerId());
@@ -67,7 +68,7 @@ public class NssUnitController {
 
     @GetMapping("/{id}/members")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<MembershipResponse>> getMembers(@PathVariable Long id) {
+    public ResponseEntity<List<MembershipResponse>> getMembers(@PathVariable UUID id) {
         List<MembershipResponse> responses = unitService.getUnitMembers(id);
         return ResponseEntity.ok(responses);
     }
@@ -75,8 +76,8 @@ public class NssUnitController {
     @PatchMapping("/{id}/members/{membershipId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<MembershipResponse> deactivateMember(
-        @PathVariable Long id,
-        @PathVariable Long membershipId
+        @PathVariable UUID id,
+        @PathVariable UUID membershipId
     ) {
         MembershipResponse response = unitService.deactivateMembership(id, membershipId);
         return ResponseEntity.ok(response);

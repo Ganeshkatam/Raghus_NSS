@@ -2,15 +2,16 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "announcements")
 public class Announcement {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "announcement_id")
-    private Long announcementId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "announcement_id", updatable = false, nullable = false)
+    private UUID announcementId;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by", nullable = false)
@@ -47,7 +48,7 @@ public class Announcement {
         this.createdAt = Instant.now();
     }
 
-    public Long getAnnouncementId() { return announcementId; }
+    public UUID getAnnouncementId() { return announcementId; }
     public User getCreatedBy() { return createdBy; }
     public NssUnit getUnit() { return unit; }
     public void setUnit(NssUnit unit) { this.unit = unit; }

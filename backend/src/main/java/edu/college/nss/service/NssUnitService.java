@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,7 +59,7 @@ public class NssUnitService {
     }
 
     @Transactional(readOnly = true)
-    public UnitResponse getUnitById(Long unitId) {
+    public UnitResponse getUnitById(UUID unitId) {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
@@ -77,7 +78,7 @@ public class NssUnitService {
     }
 
     @Transactional
-    public UnitResponse updateUnit(Long unitId, UnitUpdateRequest request) {
+    public UnitResponse updateUnit(UUID unitId, UnitUpdateRequest request) {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
@@ -97,7 +98,7 @@ public class NssUnitService {
     }
 
     @Transactional
-    public MembershipResponse addMemberToUnit(Long unitId, Long volunteerId) {
+    public MembershipResponse addMemberToUnit(UUID unitId, UUID volunteerId) {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
@@ -119,7 +120,7 @@ public class NssUnitService {
     }
 
     @Transactional(readOnly = true)
-    public List<MembershipResponse> getUnitMembers(Long unitId) {
+    public List<MembershipResponse> getUnitMembers(UUID unitId) {
         unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
@@ -130,7 +131,7 @@ public class NssUnitService {
     }
 
     @Transactional
-    public MembershipResponse deactivateMembership(Long unitId, Long membershipId) {
+    public MembershipResponse deactivateMembership(UUID unitId, UUID membershipId) {
         UnitMembership membership = membershipRepository.findById(membershipId)
             .orElseThrow(() -> new IllegalArgumentException("Membership not found with ID: " + membershipId));
 

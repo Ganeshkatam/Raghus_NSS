@@ -2,6 +2,7 @@ package edu.college.nss.web.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public class ReportDTOs {
 
@@ -16,7 +17,7 @@ public class ReportDTOs {
     ) {}
 
     public record UnitPerformanceMetric(
-        Long unitId,
+        UUID unitId,
         String unitName,
         String unitNumber,
         String officerName,

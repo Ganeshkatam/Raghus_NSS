@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface NssUnitRepository extends JpaRepository<NssUnit, Long> {
+public interface NssUnitRepository extends JpaRepository<NssUnit, UUID> {
     Optional<NssUnit> findByUnitNumber(String unitNumber);
     boolean existsByUnitNumber(String unitNumber);
     List<NssUnit> findByOfficer_UserId(UUID officerId);

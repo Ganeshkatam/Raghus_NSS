@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public class ServiceHourDTOs {
 
@@ -18,7 +19,7 @@ public class ServiceHourDTOs {
         @DecimalMax(value = "24.00", message = "Maximum single claim is 24.00 hours.")
         BigDecimal hours,
 
-        Long eventId,
+        UUID eventId,
 
         @NotBlank(message = "Activity description is required.")
         @Size(max = 255, message = "Description must not exceed 255 characters.")
@@ -33,11 +34,11 @@ public class ServiceHourDTOs {
     ) {}
 
     public record ServiceHourResponse(
-        Long entryId,
-        Long volunteerId,
+        UUID entryId,
+        UUID volunteerId,
         String volunteerName,
         String rollNumber,
-        Long eventId,
+        UUID eventId,
         String eventTitle,
         BigDecimal hours,
         String status,
@@ -47,7 +48,7 @@ public class ServiceHourDTOs {
     ) {}
 
     public record VolunteerServiceHoursSummary(
-        Long volunteerId,
+        UUID volunteerId,
         String volunteerName,
         String rollNumber,
         BigDecimal totalApprovedHours,

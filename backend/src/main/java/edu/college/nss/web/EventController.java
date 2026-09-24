@@ -14,6 +14,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -30,7 +31,7 @@ public class EventController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public Page<EventResponse> search(@RequestParam(required = false) Long unitId,
+    public Page<EventResponse> search(@RequestParam(required = false) UUID unitId,
                                       @RequestParam(required = false) String status,
                                       @RequestParam(defaultValue = "0") int page,
                                       @RequestParam(defaultValue = "12") int size,
@@ -41,34 +42,34 @@ public class EventController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public EventResponse get(@PathVariable Long id) { return service.get(id); }
+    public EventResponse get(@PathVariable UUID id) { return service.get(id); }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse update(@PathVariable Long id, @Valid @RequestBody EventUpdateRequest request,
+    public EventResponse update(@PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request,
                                 @AuthenticationPrincipal UserDetails principal) {
         return service.update(id, request, principal);
     }
 
     @PostMapping("/{id}/publish")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse publish(@PathVariable Long id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "publish", p); }
+    public EventResponse publish(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "publish", p); }
     @PostMapping("/{id}/open")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse open(@PathVariable Long id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "open", p); }
+    public EventResponse open(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "open", p); }
     @PostMapping("/{id}/close")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse close(@PathVariable Long id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "close", p); }
+    public EventResponse close(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "close", p); }
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse cancel(@PathVariable Long id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "cancel", p); }
+    public EventResponse cancel(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "cancel", p); }
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public EventResponse complete(@PathVariable Long id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "complete", p); }
+    public EventResponse complete(@PathVariable UUID id, @AuthenticationPrincipal UserDetails p) { return service.transition(id, "complete", p); }
 
     @PostMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<EventRegistrationResponse> register(@PathVariable Long id,
+    public ResponseEntity<EventRegistrationResponse> register(@PathVariable UUID id,
                                                                @Valid @RequestBody RegistrationRequest request,
                                                                @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.register(id, request, principal));
@@ -76,21 +77,21 @@ public class EventController {
 
     @GetMapping("/{id}/registrations")
     @PreAuthorize("hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
-    public List<EventRegistrationResponse> registrations(@PathVariable Long id,
+    public List<EventRegistrationResponse> registrations(@PathVariable UUID id,
                                                          @AuthenticationPrincipal UserDetails principal) {
         return service.registrations(id, principal);
     }
 
     @GetMapping("/{id}/registrations/me")
     @PreAuthorize("isAuthenticated()")
-    public EventRegistrationResponse myRegistration(@PathVariable Long id,
+    public EventRegistrationResponse myRegistration(@PathVariable UUID id,
                                                     @AuthenticationPrincipal UserDetails principal) {
         return service.myRegistration(id, principal);
     }
 
     @DeleteMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> cancelRegistration(@PathVariable Long id,
+    public ResponseEntity<Void> cancelRegistration(@PathVariable UUID id,
                                                     @AuthenticationPrincipal UserDetails principal) {
         service.cancelRegistration(id, principal);
         return ResponseEntity.noContent().build();

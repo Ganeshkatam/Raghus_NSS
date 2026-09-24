@@ -5,8 +5,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record EventResponse(
-    Long eventId,
-    Long unitId,
+    UUID eventId,
+    UUID unitId,
     String unitName,
     UUID createdBy,
     String createdByName,

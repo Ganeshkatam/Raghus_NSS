@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record VolunteerResponse(
-    Long volunteerId,
+    UUID volunteerId,
     UUID userId,
     String name,
     String email,
@@ -18,12 +18,12 @@ public record VolunteerResponse(
     Integer yearOfStudy,
     LocalDate joinDate,
     String status,
-    Long activeUnitId,
+    UUID activeUnitId,
     String activeUnitName,
     Instant createdAt
 ) {
     public static VolunteerResponse fromEntity(Volunteer v, UnitMembership activeMembership) {
-        Long unitId = (activeMembership != null && activeMembership.getUnit() != null)
+        UUID unitId = (activeMembership != null && activeMembership.getUnit() != null)
             ? activeMembership.getUnit().getUnitId() : null;
         String unitName = (activeMembership != null && activeMembership.getUnit() != null)
             ? activeMembership.getUnit().getUnitName() : null;

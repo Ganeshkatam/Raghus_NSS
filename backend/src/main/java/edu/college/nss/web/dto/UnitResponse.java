@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record UnitResponse(
-    Long unitId,
+    UUID unitId,
     String unitName,
     String unitNumber,
     UUID officerId,

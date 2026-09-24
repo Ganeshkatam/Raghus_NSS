@@ -2,9 +2,10 @@ package edu.college.nss.web.dto;
 
 import jakarta.validation.constraints.*;
 import java.time.Instant;
+import java.util.UUID;
 
 public record EventCreateRequest(
-    @NotNull Long unitId,
+    @NotNull UUID unitId,
     @NotBlank @Size(max = 200) String title,
     @Size(max = 5000) String description,
     @NotBlank @Size(max = 50) String eventType,

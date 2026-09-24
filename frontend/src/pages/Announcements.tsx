@@ -3,10 +3,10 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 
 interface Announcement {
-  announcementId: number;
+  announcementId: string;
   title: string;
   content: string;
-  unitId: number | null;
+  unitId: string | null;
   unitName: string;
   createdByName: string;
   publishedAt: string;
@@ -14,7 +14,7 @@ interface Announcement {
 }
 
 interface NotificationItem {
-  notificationId: number;
+  notificationId: string;
   title: string;
   message: string;
   isRead: boolean;
@@ -24,7 +24,7 @@ interface NotificationItem {
 export const Announcements: React.FC = () => {
   const { user } = useAuth();
   const isOfficerOrAdmin = user?.roles.some((r) =>
-    ["ADMIN", "ROLE_ADMIN", "FACULTY_COORDINATOR", "ROLE_FACULTY_COORDINATOR", "PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER"].includes(r)
+    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r.replace(/^ROLE_/, ""))
   );
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -89,7 +89,7 @@ export const Announcements: React.FC = () => {
         body: JSON.stringify({
           title: newTitle.trim(),
           content: newContent.trim(),
-          unitId: newUnitId ? parseInt(newUnitId, 10) : null,
+          unitId: newUnitId ? newUnitId : null,
           expiresAt: newExpiresAt ? new Date(newExpiresAt).toISOString() : null
         })
       });
@@ -107,7 +107,7 @@ export const Announcements: React.FC = () => {
     }
   };
 
-  const handleDeleteAnnouncement = async (id: number) => {
+  const handleDeleteAnnouncement = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this announcement?")) return;
     try {
       await apiRequest(`/announcements/${id}`, { method: "DELETE" });
@@ -118,7 +118,7 @@ export const Announcements: React.FC = () => {
     }
   };
 
-  const handleMarkNotificationRead = async (id: number) => {
+  const handleMarkNotificationRead = async (id: string) => {
     try {
       await apiRequest(`/notifications/${id}/read`, { method: "POST" });
       setNotifications((prev) =>
@@ -134,7 +134,7 @@ export const Announcements: React.FC = () => {
   const filteredAnnouncements = announcements.filter((a) => {
     if (selectedUnitFilter === "ALL") return true;
     if (selectedUnitFilter === "COLLEGE") return a.unitId === null;
-    return a.unitId === parseInt(selectedUnitFilter, 10);
+    return a.unitId === selectedUnitFilter;
   });
 
   return (

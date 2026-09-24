@@ -2,15 +2,16 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "notifications")
 public class Notification {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "notification_id")
-    private Long notificationId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "notification_id", updatable = false, nullable = false)
+    private UUID notificationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -38,7 +39,7 @@ public class Notification {
         this.createdAt = Instant.now();
     }
 
-    public Long getNotificationId() { return notificationId; }
+    public UUID getNotificationId() { return notificationId; }
     public User getUser() { return user; }
     public String getTitle() { return title; }
     public String getMessage() { return message; }

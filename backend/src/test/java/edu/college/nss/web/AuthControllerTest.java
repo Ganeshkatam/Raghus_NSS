@@ -59,7 +59,7 @@ public class AuthControllerTest {
 
     @Test
     public void login_withValidCredentials_shouldReturnAuthResponse() throws Exception {
-        UserDto userDto = new UserDto(UUID.randomUUID(), "Admin User", "admin@raghunss.edu", "1234567890", "ACTIVE", Set.of("ROLE_ADMIN"));
+        UserDto userDto = new UserDto(UUID.randomUUID(), "Admin User", "admin@raghunss.edu", "1234567890", "ACTIVE", Set.of("ADMIN"));
         AuthResponse authResponse = new AuthResponse("mock-access-token", "mock-refresh-token", 900000L, userDto);
 
         when(authService.login(any(LoginRequest.class))).thenReturn(authResponse);

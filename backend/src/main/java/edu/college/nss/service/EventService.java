@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class EventService {
@@ -50,7 +51,7 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public Page<EventResponse> search(Long unitId, String status, Pageable pageable, UserDetails principal) {
+    public Page<EventResponse> search(UUID unitId, String status, Pageable pageable, UserDetails principal) {
         if (!isManager(principal)) {
             if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
                 return Page.empty(pageable);
@@ -61,12 +62,12 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public EventResponse get(Long eventId) {
+    public EventResponse get(UUID eventId) {
         return toResponse(getEntity(eventId));
     }
 
     @Transactional
-    public EventResponse update(Long eventId, EventUpdateRequest req, UserDetails principal) {
+    public EventResponse update(UUID eventId, EventUpdateRequest req, UserDetails principal) {
         Event e = getEntity(eventId);
         assertManagerForUnit(principal, e.getUnit());
         if (!"DRAFT".equals(e.getStatus())) {
@@ -98,7 +99,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponse transition(Long eventId, String transition, UserDetails principal) {
+    public EventResponse transition(UUID eventId, String transition, UserDetails principal) {
         Event e = getEntity(eventId);
         assertManagerForUnit(principal, e.getUnit());
         switch (transition) {
@@ -113,7 +114,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventRegistrationResponse register(Long eventId, RegistrationRequest req, UserDetails principal) {
+    public EventRegistrationResponse register(UUID eventId, RegistrationRequest req, UserDetails principal) {
         Event event = eventRepository.findByIdWithLock(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
 
@@ -162,7 +163,7 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public List<EventRegistrationResponse> registrations(Long eventId, UserDetails principal) {
+    public List<EventRegistrationResponse> registrations(UUID eventId, UserDetails principal) {
         Event event = getEntity(eventId);
         assertManagerForUnit(principal, event.getUnit());
         return registrationRepository.findByEvent_EventIdOrderByRegisteredAtAsc(eventId)
@@ -170,7 +171,7 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public EventRegistrationResponse myRegistration(Long eventId, UserDetails principal) {
+    public EventRegistrationResponse myRegistration(UUID eventId, UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
             .orElseThrow(() -> new AccessDeniedException("Authenticated user is not registered as a volunteer."));
         EventRegistration registration = registrationRepository
@@ -180,7 +181,7 @@ public class EventService {
     }
 
     @Transactional
-    public void cancelRegistration(Long eventId, UserDetails principal) {
+    public void cancelRegistration(UUID eventId, UserDetails principal) {
         Event event = getEntity(eventId);
         Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
             .orElseThrow(() -> new AccessDeniedException("Only a registered volunteer can cancel their registration."));
@@ -207,8 +208,8 @@ public class EventService {
     }
 
     private void assertManagerForUnit(UserDetails principal, NssUnit unit) {
-        if (hasRole(principal, "ROLE_ADMIN") || hasRole(principal, "ROLE_FACULTY_COORDINATOR")) return;
-        if (hasRole(principal, "ROLE_PROGRAMME_OFFICER")) {
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR")) return;
+        if (hasRole(principal, "PROGRAMME_OFFICER")) {
             User user = currentUser(principal);
             if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
         }
@@ -216,13 +217,18 @@ public class EventService {
     }
 
     private boolean isManager(UserDetails principal) {
-        return hasRole(principal, "ROLE_ADMIN")
-            || hasRole(principal, "ROLE_FACULTY_COORDINATOR")
-            || hasRole(principal, "ROLE_PROGRAMME_OFFICER");
+        return hasRole(principal, "ADMIN")
+            || hasRole(principal, "FACULTY_COORDINATOR")
+            || hasRole(principal, "PROGRAMME_OFFICER");
     }
 
     private boolean hasRole(UserDetails principal, String role) {
-        return principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(role::equals);
+        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        String roleWithoutPrefix = role.startsWith("ROLE_") ? role.substring(5) : role;
+        return principal.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals(role) ||
+                           a.getAuthority().equals(roleWithPrefix) ||
+                           a.getAuthority().equals(roleWithoutPrefix));
     }
 
     private User currentUser(UserDetails principal) {
@@ -230,7 +236,7 @@ public class EventService {
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found."));
     }
 
-    private Event getEntity(Long eventId) {
+    private Event getEntity(UUID eventId) {
         return eventRepository.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
     }

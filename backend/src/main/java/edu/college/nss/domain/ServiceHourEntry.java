@@ -3,14 +3,15 @@ package edu.college.nss.domain;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "service_hour_entries")
 public class ServiceHourEntry {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "entry_id")
-    private Long entryId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "entry_id", updatable = false, nullable = false)
+    private UUID entryId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "volunteer_id", nullable = false)
@@ -54,7 +55,7 @@ public class ServiceHourEntry {
         this.createdAt = Instant.now();
     }
 
-    public Long getEntryId() { return entryId; }
+    public UUID getEntryId() { return entryId; }
     public Volunteer getVolunteer() { return volunteer; }
     public Event getEvent() { return event; }
     public AttendanceRecord getAttendanceRecord() { return attendanceRecord; }
