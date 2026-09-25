@@ -46,7 +46,14 @@ interface AvailableVolunteer {
   name: string;
   collegeId: string;
   department: string;
+  activeUnitId?: string | null;
   activeUnitName: string | null;
+}
+
+interface UnitSummary {
+  unitId: string;
+  unitName: string;
+  unitNumber: string;
 }
 
 interface OfficerCandidate {
@@ -65,6 +72,7 @@ export const UnitDetail: React.FC = () => {
   const [unit, setUnit] = useState<UnitData | null>(null);
   const [stats, setStats] = useState<UnitStats | null>(null);
   const [members, setMembers] = useState<MemberItem[]>([]);
+  const [allUnits, setAllUnits] = useState<UnitSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -78,7 +86,7 @@ export const UnitDetail: React.FC = () => {
   const [assigningOfficer, setAssigningOfficer] = useState(false);
   const [officerModalError, setOfficerModalError] = useState<string | null>(null);
 
-  // Add Member Modal
+  // Add (Allot) Member Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableVolunteers, setAvailableVolunteers] = useState<AvailableVolunteer[]>([]);
   const [selectedVolunteerId, setSelectedVolunteerId] = useState<string>("");
@@ -87,7 +95,10 @@ export const UnitDetail: React.FC = () => {
 
   // Transfer Member Modal
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferMode, setTransferMode] = useState<"in" | "out">("in");
+  const [transferringMember, setTransferringMember] = useState<MemberItem | null>(null);
   const [transferVolunteerId, setTransferVolunteerId] = useState("");
+  const [transferTargetUnitId, setTransferTargetUnitId] = useState("");
   const [transferReason, setTransferReason] = useState("");
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
@@ -97,14 +108,16 @@ export const UnitDetail: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [unitData, membersData, statsData] = await Promise.all([
+      const [unitData, membersData, statsData, unitsList] = await Promise.all([
         apiRequest<UnitData>(`/units/${id}`),
         apiRequest<MemberItem[]>(`/units/${id}/members`),
         apiRequest<UnitStats>(`/units/${id}/stats`).catch(() => null),
+        apiRequest<UnitSummary[]>("/units").catch(() => []),
       ]);
       setUnit(unitData);
       setMembers(membersData);
       setStats(statsData);
+      setAllUnits(unitsList || []);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       setError(apiErr.message || "Failed to load unit details.");
@@ -173,9 +186,14 @@ export const UnitDetail: React.FC = () => {
     setModalError(null);
     try {
       const res = await apiRequest<{ content: AvailableVolunteer[] }>("/volunteers?size=100");
-      setAvailableVolunteers(res.content || []);
-      if (res.content && res.content.length > 0) {
-        setSelectedVolunteerId(res.content[0].volunteerId.toString());
+      const list = res.content || [];
+      setAvailableVolunteers(list);
+      // Prefer unallotted volunteers by default
+      const unassigned = list.find((v) => !v.activeUnitName);
+      if (unassigned) {
+        setSelectedVolunteerId(unassigned.volunteerId);
+      } else if (list.length > 0) {
+        setSelectedVolunteerId(list[0].volunteerId);
       }
     } catch {
       // Fallback
@@ -183,22 +201,61 @@ export const UnitDetail: React.FC = () => {
   };
 
   const openTransferModal = async () => {
+    setTransferMode("in");
+    setTransferringMember(null);
     setShowTransferModal(true);
     setTransferError(null);
+    setTransferReason("");
     try {
       const res = await apiRequest<{ content: AvailableVolunteer[] }>("/volunteers?size=100");
-      setAvailableVolunteers(res.content || []);
-      if (res.content && res.content.length > 0) {
-        setTransferVolunteerId(res.content[0].volunteerId.toString());
+      const list = res.content || [];
+      setAvailableVolunteers(list);
+      const eligibleTransfers = list.filter((v) => v.activeUnitName && v.activeUnitId !== id);
+      if (eligibleTransfers.length > 0) {
+        setTransferVolunteerId(eligibleTransfers[0].volunteerId);
+      } else {
+        setTransferVolunteerId("");
       }
     } catch {
       // Fallback
     }
   };
 
+  const openTransferOutModal = (m: MemberItem) => {
+    setTransferMode("out");
+    setTransferringMember(m);
+    setTransferVolunteerId(m.volunteerId);
+    setTransferReason("");
+    setTransferError(null);
+    const otherUnits = allUnits.filter((u) => u.unitId !== id);
+    if (otherUnits.length > 0) {
+      setTransferTargetUnitId(otherUnits[0].unitId);
+    } else {
+      setTransferTargetUnitId("");
+    }
+    setShowTransferModal(true);
+  };
+
+  const switchToTransferFromAllot = (vol: AvailableVolunteer) => {
+    setShowAddModal(false);
+    setTransferMode("in");
+    setTransferringMember(null);
+    setTransferVolunteerId(vol.volunteerId);
+    setTransferReason("");
+    setTransferError(null);
+    setShowTransferModal(true);
+  };
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVolunteerId) return;
+
+    const chosenVol = availableVolunteers.find((v) => v.volunteerId === selectedVolunteerId);
+    if (chosenVol?.activeUnitName) {
+      setModalError(`Cannot allot ${chosenVol.name}: Volunteer is already active in ${chosenVol.activeUnitName}. Please use the Transfer Volunteer action.`);
+      return;
+    }
+
     setAdding(true);
     setModalError(null);
 
@@ -211,11 +268,11 @@ export const UnitDetail: React.FC = () => {
       });
 
       setShowAddModal(false);
-      setSuccess("Volunteer assigned to unit.");
+      setSuccess("Volunteer allotted to unit successfully.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setModalError(apiErr.message || "Failed to allocate volunteer to unit.");
+      setModalError(apiErr.message || "Failed to allot volunteer to unit.");
     } finally {
       setAdding(false);
     }
@@ -223,22 +280,48 @@ export const UnitDetail: React.FC = () => {
 
   const handleTransferVolunteer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !transferVolunteerId) return;
+    if (!id) return;
     setTransferring(true);
     setTransferError(null);
 
     try {
-      await apiRequest(`/units/${id}/transfer`, {
-        method: "POST",
-        body: JSON.stringify({
-          volunteerId: transferVolunteerId,
-          reason: transferReason.trim() || undefined,
-        }),
-      });
+      if (transferMode === "out") {
+        if (!transferringMember || !transferTargetUnitId) {
+          setTransferError("Please select a destination NSS unit.");
+          setTransferring(false);
+          return;
+        }
+        await apiRequest(`/units/${id}/transfer`, {
+          method: "POST",
+          body: JSON.stringify({
+            volunteerId: transferringMember.volunteerId,
+            targetUnitId: transferTargetUnitId,
+            reason: transferReason.trim() || undefined,
+          }),
+        });
+        setSuccess(`Volunteer ${transferringMember.volunteerName} transferred out successfully.`);
+      } else {
+        // Transfer IN
+        const targetVol = availableVolunteers.find((v) => v.volunteerId === transferVolunteerId);
+        if (!targetVol) {
+          setTransferError("Please choose a volunteer to transfer into this unit.");
+          setTransferring(false);
+          return;
+        }
+        const sourceUnitId = targetVol.activeUnitId || id;
+        await apiRequest(`/units/${sourceUnitId}/transfer`, {
+          method: "POST",
+          body: JSON.stringify({
+            volunteerId: targetVol.volunteerId,
+            targetUnitId: id,
+            reason: transferReason.trim() || undefined,
+          }),
+        });
+        setSuccess(`Volunteer ${targetVol.name} transferred into ${unit?.unitName || "this unit"} successfully.`);
+      }
 
       setShowTransferModal(false);
       setTransferReason("");
-      setSuccess("Volunteer successfully transferred into this unit.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
@@ -334,7 +417,7 @@ export const UnitDetail: React.FC = () => {
               Transfer Volunteer In
             </button>
             <button onClick={openAddModal} className="btn-primary">
-              + Assign Volunteer
+              + Allot Volunteer
             </button>
           </div>
         )}
@@ -386,7 +469,7 @@ export const UnitDetail: React.FC = () => {
             <p>No volunteers are currently assigned to this unit.</p>
             {isCoordinatorOrOfficer && (
               <button onClick={openAddModal} className="btn-primary-sm">
-                Assign First Volunteer
+                Allot First Volunteer
               </button>
             )}
           </div>
@@ -424,12 +507,24 @@ export const UnitDetail: React.FC = () => {
                     </td>
                     {isCoordinatorOrOfficer && (
                       <td>
-                        <button
-                          onClick={() => handleDeactivateMember(m.membershipId)}
-                          className="btn-danger-sm"
-                        >
-                          Remove from Unit
-                        </button>
+                        <div style={{ display: "flex", gap: "0.4rem" }}>
+                          <button
+                            type="button"
+                            onClick={() => openTransferOutModal(m)}
+                            className="btn-secondary-sm"
+                            style={{ fontSize: "0.75rem" }}
+                          >
+                            Transfer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeactivateMember(m.membershipId)}
+                            className="btn-danger-sm"
+                            style={{ fontSize: "0.75rem" }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -440,11 +535,12 @@ export const UnitDetail: React.FC = () => {
         )}
       </div>
 
+      {/* ALLOT VOLUNTEER MODAL */}
       {showAddModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Assign Volunteer to {unit.unitName}</h3>
+              <h3>Allot Volunteer to {unit.unitName}</h3>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="btn-close"
@@ -461,7 +557,7 @@ export const UnitDetail: React.FC = () => {
 
             <form onSubmit={handleAddMember} className="form-stack">
               <div className="form-group">
-                <label htmlFor="volunteerSelect">Select Registered Volunteer *</label>
+                <label htmlFor="volunteerSelect">Select Registered Volunteer to Allot *</label>
                 <CustomSelect
                   id="volunteerSelect"
                   value={selectedVolunteerId}
@@ -471,16 +567,56 @@ export const UnitDetail: React.FC = () => {
                     ...availableVolunteers.map((v) => ({
                       value: v.volunteerId,
                       label: `${v.name} (${v.collegeId}) - ${v.department} ${
-                        v.activeUnitName ? `[Currently in: ${v.activeUnitName}]` : "[Unassigned]"
+                        v.activeUnitName ? `[Already in: ${v.activeUnitName}]` : "[Unallotted]"
                       }`,
                     })),
                   ]}
                   placeholder="-- Choose a volunteer --"
                 />
-                <small className="form-hint">
-                  Note: If the volunteer belongs to another unit, their previous
-                  membership will be archived to preserve history.
-                </small>
+
+                {(() => {
+                  const selVol = availableVolunteers.find((v) => v.volunteerId === selectedVolunteerId);
+                  if (!selVol) return null;
+                  if (selVol.activeUnitName) {
+                    return (
+                      <div
+                        style={{
+                          marginTop: "0.75rem",
+                          padding: "0.85rem 1rem",
+                          backgroundColor: "#fef3c7",
+                          border: "1px solid #f59e0b",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span style={{ fontWeight: 700, color: "#92400e", fontSize: "0.9rem" }}>
+                            Volunteer Already Allotted
+                          </span>
+                          <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>
+                            {selVol.activeUnitName}
+                          </span>
+                        </div>
+                        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.82rem", color: "#78350f" }}>
+                          <strong>{selVol.name}</strong> ({selVol.collegeId}) is currently active in <strong>{selVol.activeUnitName}</strong>.
+                          Each volunteer can belong to at most one NSS Unit. Direct allotment is blocked to prevent silent reassignment.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-primary-sm"
+                          style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem" }}
+                          onClick={() => switchToTransferFromAllot(selVol)}
+                        >
+                          Transfer {selVol.name} to {unit.unitName} &rarr;
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <small className="form-hint" style={{ color: "#16a34a" }}>
+                      Volunteer is currently unallotted and eligible for primary unit allotment.
+                    </small>
+                  );
+                })()}
               </div>
 
               <div className="modal-actions">
@@ -494,9 +630,13 @@ export const UnitDetail: React.FC = () => {
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={adding || !selectedVolunteerId}
+                  disabled={
+                    adding ||
+                    !selectedVolunteerId ||
+                    Boolean(availableVolunteers.find((v) => v.volunteerId === selectedVolunteerId)?.activeUnitName)
+                  }
                 >
-                  {adding ? "Assigning..." : "Assign to Unit"}
+                  {adding ? "Allotting..." : "Allot to Unit"}
                 </button>
               </div>
             </form>
@@ -504,11 +644,16 @@ export const UnitDetail: React.FC = () => {
         </div>
       )}
 
+      {/* EXPLICIT TRANSFER MODAL */}
       {showTransferModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Transfer Volunteer to {unit.unitName}</h3>
+              <h3>
+                {transferMode === "out"
+                  ? `Transfer Volunteer Out of ${unit.unitName}`
+                  : `Transfer Volunteer into ${unit.unitName}`}
+              </h3>
               <button
                 onClick={() => setShowTransferModal(false)}
                 className="btn-close"
@@ -524,31 +669,82 @@ export const UnitDetail: React.FC = () => {
             )}
 
             <form onSubmit={handleTransferVolunteer} className="form-stack">
-              <div className="form-group">
-                <label htmlFor="transferVolunteerSelect">Select Volunteer to Transfer *</label>
-                <CustomSelect
-                  id="transferVolunteerSelect"
-                  value={transferVolunteerId}
-                  onChange={setTransferVolunteerId}
-                  options={[
-                    { value: "", label: "-- Choose a volunteer --" },
-                    ...availableVolunteers.map((v) => ({
-                      value: v.volunteerId,
-                      label: `${v.name} (${v.collegeId}) - ${v.department} ${
-                        v.activeUnitName ? `[From: ${v.activeUnitName}]` : "[Unassigned]"
-                      }`,
-                    })),
-                  ]}
-                  placeholder="-- Choose a volunteer --"
-                />
-              </div>
+              {transferMode === "out" && transferringMember ? (
+                <>
+                  <div className="form-group">
+                    <label>Volunteer to Transfer</label>
+                    <div
+                      style={{
+                        padding: "0.6rem 0.85rem",
+                        backgroundColor: "#f8fafc",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      <strong>{transferringMember.volunteerName}</strong> ({transferringMember.collegeId}) &bull; {transferringMember.department}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Current Origin Unit</label>
+                    <div style={{ fontSize: "0.9rem", color: "#475569" }}>
+                      <strong>{unit.unitName}</strong> ({unit.unitNumber})
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="targetUnitSelect">Destination NSS Unit *</label>
+                    <CustomSelect
+                      id="targetUnitSelect"
+                      value={transferTargetUnitId}
+                      onChange={setTransferTargetUnitId}
+                      options={[
+                        { value: "", label: "-- Select destination unit --" },
+                        ...allUnits
+                          .filter((u) => u.unitId !== id)
+                          .map((u) => ({
+                            value: u.unitId,
+                            label: `${u.unitName} (${u.unitNumber})`,
+                          })),
+                      ]}
+                      placeholder="-- Select destination unit --"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="transferVolunteerSelect">Select Enrolled Volunteer to Transfer In *</label>
+                    <CustomSelect
+                      id="transferVolunteerSelect"
+                      value={transferVolunteerId}
+                      onChange={setTransferVolunteerId}
+                      options={[
+                        { value: "", label: "-- Choose an actively allotted volunteer --" },
+                        ...availableVolunteers
+                          .filter((v) => v.activeUnitName && v.activeUnitId !== id)
+                          .map((v) => ({
+                            value: v.volunteerId,
+                            label: `${v.name} (${v.collegeId}) - [Current: ${v.activeUnitName}]`,
+                          })),
+                      ]}
+                      placeholder="-- Choose an actively allotted volunteer --"
+                    />
+                    <small className="form-hint">
+                      Lists volunteers currently active in other units. Destination unit is <strong>{unit.unitName}</strong>.
+                    </small>
+                  </div>
+                </>
+              )}
 
               <div className="form-group">
-                <label htmlFor="transferReasonInput">Transfer Reason / Authorization</label>
+                <label htmlFor="transferReasonInput">Transfer Reason / Authorization Note *</label>
                 <textarea
                   id="transferReasonInput"
                   rows={3}
-                  placeholder="e.g., Departmental re-alignment or schedule conflict accommodation."
+                  required
+                  placeholder="e.g. Academic schedule realignment or approved unit transfer request."
                   value={transferReason}
                   onChange={(e) => setTransferReason(e.target.value)}
                 />
@@ -566,9 +762,12 @@ export const UnitDetail: React.FC = () => {
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={transferring || !transferVolunteerId}
+                  disabled={
+                    transferring ||
+                    (transferMode === "out" ? !transferTargetUnitId : !transferVolunteerId)
+                  }
                 >
-                  {transferring ? "Processing Transfer..." : "Commit Transfer"}
+                  {transferring ? "Processing Transfer..." : "Confirm & Execute Transfer"}
                 </button>
               </div>
             </form>

@@ -136,8 +136,17 @@ public class NssUnitService {
 
     @Transactional
     public MembershipResponse addMemberToUnit(UUID unitId, UUID volunteerId) {
+        return addMemberToUnit(unitId, volunteerId, null);
+    }
+
+    @Transactional
+    public MembershipResponse addMemberToUnit(UUID unitId, UUID volunteerId, org.springframework.security.core.userdetails.UserDetails principal) {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
+
+        if (principal != null && !unitSecurity.canManageUnit(principal, unitId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to allot volunteers to Unit " + unit.getUnitNumber());
+        }
 
         long currentCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
         if (unit.getCapacity() != null && currentCount >= unit.getCapacity()) {
@@ -147,50 +156,87 @@ public class NssUnitService {
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found with ID: " + volunteerId));
 
-        // If volunteer currently has an active membership, deactivate it to preserve history
-        membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteerId)
-            .ifPresent(active -> {
-                active.setIsActive(false);
-                active.setLeftAt(Instant.now());
-                membershipRepository.save(active);
-            });
+        // Enforce: One active volunteer = at most one active NSS Unit.
+        // Allotment is ONLY for unallotted volunteers. Reject if already allotted to ANY unit.
+        java.util.Optional<UnitMembership> existingActive = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteerId);
+        if (existingActive.isPresent()) {
+            UnitMembership active = existingActive.get();
+            String currentUnitName = active.getUnit() != null ? active.getUnit().getUnitName() : "another unit";
+            String currentUnitNumber = active.getUnit() != null ? active.getUnit().getUnitNumber() : "";
+            String volName = volunteer.getUser() != null ? volunteer.getUser().getName() : "Volunteer";
+            throw new IllegalStateException(volName + " is already actively allotted to " + currentUnitName +
+                (currentUnitNumber.isBlank() ? "" : " (" + currentUnitNumber + ")") +
+                ". Please use the explicit Transfer Volunteer action to move them between units.");
+        }
 
         UnitMembership membership = new UnitMembership(volunteer, unit);
         membership = membershipRepository.save(membership);
+
+        if (volunteer.getUser() != null) {
+            notificationService.sendNotification(
+                volunteer.getUser(),
+                "Unit Allotment Completed",
+                "You have been allotted to NSS Unit: " + unit.getUnitName() + " (" + unit.getUnitNumber() + ").",
+                "UNIT",
+                "/units/" + unit.getUnitId()
+            );
+        }
 
         return MembershipResponse.fromEntity(membership);
     }
 
     @Transactional
-    public MembershipResponse transferVolunteer(UUID sourceUnitId, edu.college.nss.web.dto.UnitTransferRequest request, org.springframework.security.core.userdetails.UserDetails principal) {
-        NssUnit sourceUnit = unitRepository.findById(sourceUnitId)
-            .orElseThrow(() -> new IllegalArgumentException("Source NSS Unit not found: " + sourceUnitId));
-        NssUnit targetUnit = unitRepository.findById(request.targetUnitId())
-            .orElseThrow(() -> new IllegalArgumentException("Target NSS Unit not found: " + request.targetUnitId()));
-
-        if (!unitSecurity.canManageUnit(principal, sourceUnitId)) {
-            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to transfer volunteers out of Unit " + sourceUnit.getUnitNumber());
-        }
-
-        long targetActiveCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(request.targetUnitId()).size();
-        if (targetUnit.getCapacity() != null && targetActiveCount >= targetUnit.getCapacity()) {
-            throw new IllegalStateException("Target unit " + targetUnit.getUnitName() + " has reached capacity.");
-        }
-
+    public MembershipResponse transferVolunteer(UUID unitIdInPath, edu.college.nss.web.dto.UnitTransferRequest request, org.springframework.security.core.userdetails.UserDetails principal) {
         Volunteer volunteer = volunteerRepository.findById(request.volunteerId())
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found: " + request.volunteerId()));
 
-        membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
-            .ifPresent(active -> {
-                active.setIsActive(false);
-                active.setLeftAt(Instant.now());
-                membershipRepository.save(active);
-            });
+        UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+            .orElseThrow(() -> new IllegalStateException("Volunteer is not currently active in any unit. Use Allotment to assign them."));
+
+        NssUnit sourceUnit = activeMembership.getUnit();
+        UUID actualSourceUnitId = sourceUnit.getUnitId();
+
+        UUID rawTargetUnitId = request.targetUnitId();
+        if (rawTargetUnitId == null) {
+            if (!unitIdInPath.equals(actualSourceUnitId)) {
+                rawTargetUnitId = unitIdInPath;
+            } else {
+                throw new IllegalArgumentException("Target unit ID is required.");
+            }
+        }
+
+        if (actualSourceUnitId.equals(rawTargetUnitId)) {
+            throw new IllegalArgumentException("Target unit cannot be the same as the volunteer's current unit (" + sourceUnit.getUnitName() + ").");
+        }
+
+        final UUID targetUnitId = rawTargetUnitId;
+        NssUnit targetUnit = unitRepository.findById(targetUnitId)
+            .orElseThrow(() -> new IllegalArgumentException("Target NSS Unit not found: " + targetUnitId));
+
+        // Authorization: Admin and Coordinator can transfer across any units.
+        // Programme Officers can transfer if they manage the source unit OR the target unit.
+        boolean canManageSource = unitSecurity.canManageUnit(principal, actualSourceUnitId);
+        boolean canManageTarget = unitSecurity.canManageUnit(principal, targetUnitId);
+        if (!canManageSource && !canManageTarget) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                "You are not authorized to transfer volunteers between Unit " + sourceUnit.getUnitNumber() +
+                " and Unit " + targetUnit.getUnitNumber()
+            );
+        }
+
+        long targetActiveCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(targetUnitId).size();
+        if (targetUnit.getCapacity() != null && targetActiveCount >= targetUnit.getCapacity()) {
+            throw new IllegalStateException("Target unit " + targetUnit.getUnitName() + " has reached maximum capacity.");
+        }
+
+        activeMembership.setIsActive(false);
+        activeMembership.setLeftAt(Instant.now());
+        membershipRepository.save(activeMembership);
 
         UnitMembership newMembership = new UnitMembership(volunteer, targetUnit);
         newMembership = membershipRepository.save(newMembership);
 
-        User officer = userRepository.findByEmail(principal.getUsername()).orElse(null);
+        User officer = principal != null ? userRepository.findByEmail(principal.getUsername()).orElse(null) : null;
         edu.college.nss.domain.UnitTransferHistory transferHistory = new edu.college.nss.domain.UnitTransferHistory(
             volunteer, sourceUnit, targetUnit, request.reason(), officer
         );
@@ -251,6 +297,15 @@ public class NssUnitService {
 
     @Transactional
     public MembershipResponse deactivateMembership(UUID unitId, UUID membershipId) {
+        return deactivateMembership(unitId, membershipId, null);
+    }
+
+    @Transactional
+    public MembershipResponse deactivateMembership(UUID unitId, UUID membershipId, org.springframework.security.core.userdetails.UserDetails principal) {
+        if (principal != null && !unitSecurity.canManageUnit(principal, unitId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to remove volunteers from this unit.");
+        }
+
         UnitMembership membership = membershipRepository.findById(membershipId)
             .orElseThrow(() -> new IllegalArgumentException("Membership not found with ID: " + membershipId));
 

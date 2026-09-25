@@ -105,7 +105,7 @@ public class VolunteerAndUnitIntegrationTest {
             membershipId, volunteerId, "Jane Doe", "2026CS001", "Computer Science",
             unitId, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
         );
-        when(unitService.addMemberToUnit(eq(unitId), eq(volunteerId))).thenReturn(response);
+        when(unitService.addMemberToUnit(eq(unitId), eq(volunteerId), any())).thenReturn(response);
 
         MembershipRequest request = new MembershipRequest(volunteerId);
 

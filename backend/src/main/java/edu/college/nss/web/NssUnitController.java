@@ -65,12 +65,13 @@ public class NssUnitController {
     }
 
     @PostMapping("/{id}/members")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<MembershipResponse> addMember(
         @PathVariable UUID id,
-        @Valid @RequestBody MembershipRequest request
+        @Valid @RequestBody MembershipRequest request,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        MembershipResponse response = unitService.addMemberToUnit(id, request.volunteerId());
+        MembershipResponse response = unitService.addMemberToUnit(id, request.volunteerId(), principal);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -82,12 +83,13 @@ public class NssUnitController {
     }
 
     @PatchMapping("/{id}/members/{membershipId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<MembershipResponse> deactivateMember(
         @PathVariable UUID id,
-        @PathVariable UUID membershipId
+        @PathVariable UUID membershipId,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        MembershipResponse response = unitService.deactivateMembership(id, membershipId);
+        MembershipResponse response = unitService.deactivateMembership(id, membershipId, principal);
         return ResponseEntity.ok(response);
     }
 
