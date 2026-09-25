@@ -277,14 +277,16 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
                   >
                     My Dashboard
                   </Link>
-                  <Link
-                    to="/service-hours"
-                    className="popover-item"
-                    role="menuitem"
-                    onClick={() => setProfileOpen(false)}
-                  >
-                    Service Hours
-                  </Link>
+                  {isVolunteer && (
+                    <Link
+                      to="/service-hours"
+                      className="popover-item"
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      My Service Hours
+                    </Link>
+                  )}
                   <button
                     type="button"
                     className="popover-item"

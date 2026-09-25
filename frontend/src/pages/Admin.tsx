@@ -841,6 +841,7 @@ export const Admin: React.FC = () => {
                   onChange={setNewRole}
                   options={[
                     { value: "VOLUNTEER", label: "VOLUNTEER" },
+                    { value: "STUDENT_LEADER", label: "STUDENT_LEADER" },
                     { value: "PROGRAMME_OFFICER", label: "PROGRAMME_OFFICER" },
                     { value: "FACULTY_COORDINATOR", label: "FACULTY_COORDINATOR" },
                     { value: "ADMIN", label: "ADMIN" },
@@ -978,6 +979,7 @@ export const Admin: React.FC = () => {
                     onChange={setNewUserRole}
                     options={[
                       { value: "VOLUNTEER", label: "VOLUNTEER" },
+                      { value: "STUDENT_LEADER", label: "STUDENT_LEADER" },
                       { value: "PROGRAMME_OFFICER", label: "PROGRAMME_OFFICER" },
                       { value: "FACULTY_COORDINATOR", label: "FACULTY_COORDINATOR" },
                       { value: "ADMIN", label: "ADMIN" },
