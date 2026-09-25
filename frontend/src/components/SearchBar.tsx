@@ -63,7 +63,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         autoFocus={autoFocus}
         aria-label={ariaLabel || placeholder}
         className="premium-search-input"
-        style={inputStyle}
+        style={{
+          paddingLeft: "2.65rem",
+          paddingRight: "2.25rem",
+          height: "42px",
+          boxSizing: "border-box",
+          ...inputStyle,
+        }}
       />
 
       {value && !disabled && (
