@@ -138,21 +138,128 @@ export interface ApiRequestOptions extends RequestInit {
   retryDelayMs?: number;
 }
 
-let isRefreshing = false;
-let refreshQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (err: any) => void;
-}> = [];
+let activeRefreshPromise: Promise<string> | null = null;
 
-function processRefreshQueue(error: any, newToken: string | null = null) {
-  refreshQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else if (newToken) {
-      prom.resolve(newToken);
+export function decodeJwtPayload(token: string): any | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4 !== 0) {
+      base64 += "=";
     }
-  });
-  refreshQueue = [];
+    const jsonStr = atob(base64);
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpiringSoon(token: string | null, thresholdSeconds = 90): boolean {
+  if (!token) return true;
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== "number") return false;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp - now < thresholdSeconds;
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  if (activeRefreshPromise) {
+    return activeRefreshPromise;
+  }
+
+  const refreshToken = localStorage.getItem("nss_refresh_token");
+  if (!refreshToken) {
+    localStorage.removeItem("nss_token");
+    localStorage.removeItem("nss_user");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+    }
+    const error: ApiError = {
+      code: "AUTHENTICATION_EXPIRED",
+      message: "Your login session has expired. Please sign in again.",
+      status: 401,
+      category: "AUTH_EXPIRED",
+      retryable: false,
+    };
+    throw error;
+  }
+
+  activeRefreshPromise = (async () => {
+    try {
+      let refreshResp: Response;
+      try {
+        refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        const netErr: ApiError = {
+          code: "NETWORK_ERROR",
+          message: "Unable to reach server to refresh session. Please check your connection.",
+          status: 0,
+          category: "NETWORK_OFFLINE",
+          retryable: true,
+        };
+        throw netErr;
+      }
+
+      if (refreshResp.ok) {
+        const refreshData = await refreshResp.json();
+        const newAccessToken = refreshData.accessToken;
+        const newRefreshToken = refreshData.refreshToken;
+
+        if (newAccessToken) {
+          localStorage.setItem("nss_token", newAccessToken);
+        }
+        if (newRefreshToken) {
+          localStorage.setItem("nss_refresh_token", newRefreshToken);
+        }
+
+        return newAccessToken;
+      }
+
+      const isTransientServerError =
+        refreshResp.status === 429 ||
+        refreshResp.status === 502 ||
+        refreshResp.status === 503 ||
+        refreshResp.status === 504;
+
+      if (isTransientServerError) {
+        const transientErr: ApiError = {
+          code: "SERVER_UNAVAILABLE",
+          message: "Authentication service temporarily unavailable. Please try again shortly.",
+          status: refreshResp.status,
+          category: "SERVER_WARMUP",
+          retryable: true,
+        };
+        throw transientErr;
+      }
+
+      // Definitive failure
+      localStorage.removeItem("nss_token");
+      localStorage.removeItem("nss_refresh_token");
+      localStorage.removeItem("nss_user");
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+      }
+
+      const error: ApiError = {
+        code: "AUTHENTICATION_EXPIRED",
+        message: "Your login session has expired. Please sign in again.",
+        status: 401,
+        category: "AUTH_EXPIRED",
+        retryable: false,
+      };
+      throw error;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
 }
 
 export async function apiRequest<T>(
@@ -165,9 +272,10 @@ export async function apiRequest<T>(
     endpoint.startsWith("/actuator");
 
   let token = localStorage.getItem("nss_token");
+  const refreshToken = localStorage.getItem("nss_refresh_token");
 
   // Prevent protected endpoints from hitting the network without an authenticated token
-  if (!token && !isPublicEndpoint) {
+  if (!token && !refreshToken && !isPublicEndpoint) {
     const error: ApiError = {
       code: "AUTHENTICATION_REQUIRED",
       message: "You must be signed in to perform this action.",
@@ -176,6 +284,17 @@ export async function apiRequest<T>(
       retryable: false,
     };
     return Promise.reject(error);
+  }
+
+  // Proactive refresh: if access token expires within 90 seconds, refresh before dispatching
+  if (!isPublicEndpoint && refreshToken && (!token || isTokenExpiringSoon(token, 90))) {
+    try {
+      token = await refreshAccessToken();
+    } catch (err: any) {
+      if (!token) {
+        throw err;
+      }
+    }
   }
 
   const method = (options.method || "GET").toUpperCase();
@@ -233,125 +352,24 @@ export async function apiRequest<T>(
       return {} as T;
     }
 
-    // Handle 401 Unauthorized with automatic refresh token rotation
+    // Handle 401 Unauthorized with fallback refresh
     if (response.status === 401 && !endpoint.startsWith("/auth/login") && !endpoint.startsWith("/auth/refresh")) {
-      const refreshToken = localStorage.getItem("nss_refresh_token");
+      const currentRefreshToken = localStorage.getItem("nss_refresh_token");
 
-      if (refreshToken) {
-        if (isRefreshing) {
-          try {
-            const freshToken = await new Promise<string>((resolve, reject) => {
-              refreshQueue.push({ resolve, reject });
-            });
-            // Retry original request with newly issued access token
-            return apiRequest<T>(endpoint, {
-              ...options,
-              headers: {
-                ...(options.headers || {}),
-                Authorization: `Bearer ${freshToken}`,
-              },
-            });
-          } catch (refreshErr) {
-            throw refreshErr;
-          }
-        }
-
-        isRefreshing = true;
-
+      if (currentRefreshToken) {
         try {
-          let refreshResp: Response;
-          try {
-            refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken }),
-            });
-          } catch {
-            // Transient network failure / offline / server connection closed
-            // Keep session credentials in localStorage; do not log out
-            isRefreshing = false;
-            const netErr: ApiError = {
-              code: "NETWORK_ERROR",
-              message: "Unable to reach server to refresh session. Please check your connection.",
-              status: 0,
-              category: "NETWORK_OFFLINE",
-              retryable: true,
-            };
-            processRefreshQueue(netErr, null);
-            throw netErr;
-          }
-
-          if (refreshResp.ok) {
-            const refreshData = await refreshResp.json();
-            const newAccessToken = refreshData.accessToken;
-            const newRefreshToken = refreshData.refreshToken;
-
-            if (newAccessToken) {
-              localStorage.setItem("nss_token", newAccessToken);
-            }
-            if (newRefreshToken) {
-              localStorage.setItem("nss_refresh_token", newRefreshToken);
-            }
-
-            isRefreshing = false;
-            processRefreshQueue(null, newAccessToken);
-
-            // Retry original request with new token
-            return apiRequest<T>(endpoint, {
-              ...options,
-              headers: {
-                ...(options.headers || {}),
-                Authorization: `Bearer ${newAccessToken}`,
-              },
-            });
-          }
-
-          // Check for transient server errors (502, 503, 504, 429)
-          const isTransientServerError =
-            refreshResp.status === 429 ||
-            refreshResp.status === 502 ||
-            refreshResp.status === 503 ||
-            refreshResp.status === 504;
-
-          if (isTransientServerError) {
-            isRefreshing = false;
-            const transientErr: ApiError = {
-              code: "SERVER_UNAVAILABLE",
-              message: "Authentication service temporarily unavailable. Please try again shortly.",
-              status: refreshResp.status,
-              category: "SERVER_WARMUP",
-              retryable: true,
-            };
-            processRefreshQueue(transientErr, null);
-            throw transientErr;
-          }
-
-          // Definitive authentication failure (e.g. 401 Unauthorized, 403 Forbidden, 400 Bad Request)
-          // Refresh token has expired or is invalid -> clear session and notify app
-          isRefreshing = false;
-          processRefreshQueue(new Error("Session expired"), null);
-          localStorage.removeItem("nss_token");
-          localStorage.removeItem("nss_refresh_token");
-          localStorage.removeItem("nss_user");
-
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("nss:auth:expired"));
-          }
-
-          const error: ApiError = {
-            code: "AUTHENTICATION_EXPIRED",
-            message: "Your login session has expired. Please sign in again.",
-            status: 401,
-            category: "AUTH_EXPIRED",
-            retryable: false,
-          };
-          throw error;
+          const freshToken = await refreshAccessToken();
+          return apiRequest<T>(endpoint, {
+            ...options,
+            headers: {
+              ...(options.headers || {}),
+              Authorization: `Bearer ${freshToken}`,
+            },
+          });
         } catch (refreshErr) {
-          isRefreshing = false;
           throw refreshErr;
         }
       } else {
-        // No refresh token available to rescue session
         localStorage.removeItem("nss_token");
         localStorage.removeItem("nss_user");
 
@@ -366,7 +384,6 @@ export async function apiRequest<T>(
           category: "AUTH_EXPIRED",
           retryable: false,
         };
-        throw error;
       }
     }
 

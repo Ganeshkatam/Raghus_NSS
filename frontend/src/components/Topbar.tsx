@@ -43,10 +43,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
   useEffect(() => {
     if (!isAuthenticated || !token || !user) return;
     let isSubscribed = true;
+
     const fetchUnread = () => {
-      apiRequest<{ unreadCount: number }>("/notifications/unread-count", {
-        retries: 0,
-      })
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      apiRequest<{ unreadCount: number }>("/notifications/unread-count")
         .then((res) => {
           if (isSubscribed && res && typeof res.unreadCount === "number") {
             setUnreadCount(res.unreadCount);
@@ -54,11 +56,21 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
         })
         .catch(() => {});
     };
+
     fetchUnread();
-    const timer = setInterval(fetchUnread, 30000);
+    const timer = setInterval(fetchUnread, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchUnread();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       isSubscribed = false;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isAuthenticated, token, user]);
 

@@ -64,19 +64,19 @@ const RoleRoute: React.FC<{
 };
 
 export const AppContent: React.FC = () => {
-  // Background keep-alive to keep Render container awake and prevent 503 spin-downs
+  // Background keep-alive to keep Render container awake and prevent 503 spin-downs while tab is active
   React.useEffect(() => {
     const pingBackend = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
       fetch(`${API_BASE_URL.replace(/\/api\/v1\/?$/, "")}/actuator/health`, {
         method: "GET",
         cache: "no-store",
       }).catch(() => { });
     };
 
-    // Immediate ping on app startup
-    pingBackend();
-
-    // Keep alive every 9 minutes (Render sleeps after 15 minutes of inactivity)
+    // Keep alive every 9 minutes only if user remains active on the tab
     const interval = setInterval(pingBackend, 9 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
