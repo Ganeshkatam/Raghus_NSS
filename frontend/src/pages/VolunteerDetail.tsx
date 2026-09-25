@@ -161,13 +161,12 @@ export const VolunteerDetail: React.FC = () => {
           <p className="subtitle">
             College ID: <strong>{volunteer.collegeId}</strong> &bull; Status:{" "}
             <span
-              className={`badge ${
-                volunteer.status === "ACTIVE"
+              className={`badge ${volunteer.status === "ACTIVE"
                   ? "badge-success"
                   : volunteer.status === "PENDING_APPROVAL"
-                  ? "badge-warning"
-                  : "badge-muted"
-              }`}
+                    ? "badge-warning"
+                    : "badge-muted"
+                }`}
             >
               {volunteer.status}
             </span>
@@ -243,7 +242,7 @@ export const VolunteerDetail: React.FC = () => {
             <div className="empty-state">
               <p>No active unit membership.</p>
               <Link to="/units" className="btn-secondary-sm">
-                Assign Unit from Units Roster
+                Assign Unit from Units List
               </Link>
             </div>
           )}
@@ -279,13 +278,12 @@ export const VolunteerDetail: React.FC = () => {
                       </td>
                       <td>
                         <span
-                          className={`badge ${
-                            s.newStatus === "ACTIVE"
+                          className={`badge ${s.newStatus === "ACTIVE"
                               ? "badge-success"
                               : s.newStatus === "PENDING_APPROVAL"
-                              ? "badge-warning"
-                              : "badge-primary"
-                          }`}
+                                ? "badge-warning"
+                                : "badge-primary"
+                            }`}
                         >
                           {s.newStatus}
                         </span>

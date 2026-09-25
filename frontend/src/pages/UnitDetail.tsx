@@ -341,7 +341,7 @@ export const UnitDetail: React.FC = () => {
       await apiRequest(`/units/${id}/members/${membershipId}`, {
         method: "PATCH",
       });
-      setSuccess("Volunteer removed from active unit roster.");
+      setSuccess("Volunteer removed from active unit lists.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
@@ -405,7 +405,7 @@ export const UnitDetail: React.FC = () => {
               </button>
             )}
             <span>
-              &bull; Active Roster: <strong>{members.length}</strong> {unit?.capacity ? `/ ${unit.capacity} capacity` : ""}
+              &bull; Active List: <strong>{members.length}</strong> {unit?.capacity ? `/ ${unit.capacity} capacity` : ""}
             </span>
           </p>
         </div>
@@ -475,7 +475,7 @@ export const UnitDetail: React.FC = () => {
           <div className="section-card">
             <div className="section-header" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
               <div>
-                <h3>Unit Member Roster</h3>
+                <h3>Unit Member List</h3>
                 <span className="results-count">
                   {filteredMembers.length} of {members.length} Active Volunteers
                 </span>
@@ -519,54 +519,54 @@ export const UnitDetail: React.FC = () => {
                   </thead>
                   <tbody>
                     {filteredMembers.map((m) => (
-                  <tr key={m.membershipId}>
-                    <td>
-                      <strong>{m.collegeId}</strong>
-                    </td>
-                    <td>
-                      <Link
-                        to={`/volunteers/${m.volunteerId}`}
-                        className="table-action-link"
-                      >
-                        {m.volunteerName}
-                      </Link>
-                    </td>
-                    <td>{m.department}</td>
-                    <td>{new Date(m.joinedAt).toLocaleDateString()}</td>
-                    <td>
-                      <span className="badge badge-success">ACTIVE</span>
-                    </td>
-                    {isCoordinatorOrOfficer && (
-                      <td>
-                        <div style={{ display: "flex", gap: "0.4rem" }}>
-                          <button
-                            type="button"
-                            onClick={() => openTransferOutModal(m)}
-                            className="btn-secondary-sm"
-                            style={{ fontSize: "0.75rem" }}
+                      <tr key={m.membershipId}>
+                        <td>
+                          <strong>{m.collegeId}</strong>
+                        </td>
+                        <td>
+                          <Link
+                            to={`/volunteers/${m.volunteerId}`}
+                            className="table-action-link"
                           >
-                            Transfer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeactivateMember(m.membershipId)}
-                            className="btn-danger-sm"
-                            style={{ fontSize: "0.75rem" }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                            {m.volunteerName}
+                          </Link>
+                        </td>
+                        <td>{m.department}</td>
+                        <td>{new Date(m.joinedAt).toLocaleDateString()}</td>
+                        <td>
+                          <span className="badge badge-success">ACTIVE</span>
+                        </td>
+                        {isCoordinatorOrOfficer && (
+                          <td>
+                            <div style={{ display: "flex", gap: "0.4rem" }}>
+                              <button
+                                type="button"
+                                onClick={() => openTransferOutModal(m)}
+                                className="btn-secondary-sm"
+                                style={{ fontSize: "0.75rem" }}
+                              >
+                                Transfer
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeactivateMember(m.membershipId)}
+                                className="btn-danger-sm"
+                                style={{ fontSize: "0.75rem" }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    );
-  })()}
+        );
+      })()}
 
       {/* ALLOT VOLUNTEER MODAL */}
       {showAddModal && (
@@ -599,9 +599,8 @@ export const UnitDetail: React.FC = () => {
                     { value: "", label: "-- Choose a volunteer --" },
                     ...availableVolunteers.map((v) => ({
                       value: v.volunteerId,
-                      label: `${v.name} (${v.collegeId}) - ${v.department} ${
-                        v.activeUnitName ? `[Already in: ${v.activeUnitName}]` : "[Unallotted]"
-                      }`,
+                      label: `${v.name} (${v.collegeId}) - ${v.department} ${v.activeUnitName ? `[Already in: ${v.activeUnitName}]` : "[Unallotted]"
+                        }`,
                     })),
                   ]}
                   placeholder="-- Choose a volunteer --"

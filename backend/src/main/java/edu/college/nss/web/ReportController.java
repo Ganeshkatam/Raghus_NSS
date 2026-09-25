@@ -36,7 +36,7 @@ public class ReportController {
     ) {
         byte[] csv = service.exportVolunteersCsv(unitId, status, principal);
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_volunteers_roster.csv")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_volunteers_lists.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(csv);
     }
@@ -51,7 +51,7 @@ public class ReportController {
     ) {
         byte[] csv = service.exportEventsCsv(unitId, status, startDate, endDate, principal);
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_events_roster.csv")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_events_lists.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(csv);
     }

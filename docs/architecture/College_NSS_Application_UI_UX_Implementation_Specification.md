@@ -254,7 +254,7 @@ QR attendance
 
 QR attendance should be mobile-first. The server remains authoritative for session validity and attendance recording.
 
-Attendance roster
+Attendance lists
 
 Show volunteer, registration state, attendance state, timestamp, and correction status, with filters for present, absent, pending, and corrected.
 

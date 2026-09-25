@@ -122,7 +122,7 @@ public class ReportService {
             List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
             if (unitId != null) {
                 if (!managedIds.contains(unitId)) {
-                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export roster for this unit.");
+                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export lists for this unit.");
                 }
             } else {
                 if (managedIds.isEmpty()) return new byte[0];

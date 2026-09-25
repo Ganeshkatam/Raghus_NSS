@@ -85,7 +85,7 @@ The color system honors the institutional identity of the National Service Schem
   - Active links highlighted with `--color-primary-600` background and distinct visual indicator.
 
 ### 3.2 Filterable Data Tables & Server Pagination
-- Implemented across Volunteers, Events, Attendance Roster, and Service Hours.
+- Implemented across Volunteers, Events, Attendance List, and Service Hours.
 - Search input with 300ms debounce.
 - Dropdown filters for Unit, Status, Category, Department, and Academic Year.
 - Status badges with both high-contrast text and semantic icons (WCAG non-color-only requirement).

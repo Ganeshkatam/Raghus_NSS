@@ -444,7 +444,7 @@ export const Admin: React.FC = () => {
         <div className="section-card">
           <div className="section-header">
             <div>
-              <h2>NSS Units Master Roster</h2>
+              <h2>NSS Units Master List</h2>
               <p className="subtitle">Operational units governed under Raghu Engineering College NSS Cell.</p>
             </div>
             <button onClick={() => setShowUnitModal(true)} className="btn-secondary-sm">
@@ -453,7 +453,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {loading ? (
-            <p className="loading-state">Loading operational units roster...</p>
+            <p className="loading-state">Loading operational units lists...</p>
           ) : units.length === 0 ? (
             <div className="empty-state">
               <p>No NSS units configured. Provision your first operational unit.</p>
@@ -604,13 +604,12 @@ export const Admin: React.FC = () => {
                       <td>{u.phone || "-"}</td>
                       <td>
                         <span
-                          className={`badge ${
-                            u.status === "ACTIVE"
-                              ? "badge-success"
-                              : u.status === "PENDING"
+                          className={`badge ${u.status === "ACTIVE"
+                            ? "badge-success"
+                            : u.status === "PENDING"
                               ? "badge-warning"
                               : "badge-muted"
-                          }`}
+                            }`}
                         >
                           {u.status}
                         </span>

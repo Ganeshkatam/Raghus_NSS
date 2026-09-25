@@ -104,7 +104,7 @@ public class UnitSecurityService {
         if (isGlobalManager(principal)) return true;
         if (canManageUnit(principal, unitId)) return true;
 
-        // Active members (Volunteers / Student Leaders) can view the roster of their own unit
+        // Active members (Volunteers / Student Leaders) can view the lists of their own unit
         return membershipRepository.findByVolunteer_User_EmailIgnoreCaseAndUnit_UnitIdAndIsActiveTrue(principal.getUsername(), unitId)
             .isPresent();
     }

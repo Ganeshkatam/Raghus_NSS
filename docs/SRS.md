@@ -194,7 +194,7 @@ Registration Closes
 Event Day: Officer Opens Attendance Session
         │
         ▼
-Volunteers Check In (QR Scan or Officer Manual Roster)
+Volunteers Check In (QR Scan or Officer Manual List)
         │
         ▼
 Officer Closes Attendance Session

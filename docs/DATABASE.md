@@ -378,7 +378,7 @@ Community activities, awareness campaigns, blood drives, and special rural camps
 - `updated_at` (`TIMESTAMPTZ`, NOT NULL, DEFAULT now()).
 
 #### `event_registrations`
-Volunteer self-registration roster.
+Volunteer self-registration lists.
 - `id` (`UUID`, PK, `DEFAULT gen_random_uuid()`): Registration ID.
 - `event_id` (`UUID`, NOT NULL, FK `events.id` ON DELETE CASCADE).
 - `volunteer_id` (`UUID`, NOT NULL, FK `volunteers.id` ON DELETE CASCADE).

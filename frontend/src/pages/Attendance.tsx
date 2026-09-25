@@ -19,7 +19,7 @@ interface SessionData {
   totalRegistered: number;
 }
 
-interface RosterItem {
+interface ListItem {
   volunteerId: string;
   rollNumber: string;
   fullName: string;
@@ -68,8 +68,8 @@ export const Attendance: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
-  const [roster, setRoster] = useState<RosterItem[]>([]);
-  const [rosterSearch, setRosterSearch] = useState("");
+  const [lists, setList] = useState<ListItem[]>([]);
+  const [listsSearch, setListSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -81,14 +81,14 @@ export const Attendance: React.FC = () => {
   const [checkInResult, setCheckInResult] = useState<any | null>(null);
 
   // Audited correction modal state
-  const [correctingRecord, setCorrectingRecord] = useState<RosterItem | null>(null);
+  const [correctingRecord, setCorrectingRecord] = useState<ListItem | null>(null);
   const [correctionStatus, setCorrectionStatus] = useState("PRESENT");
   const [correctionReason, setCorrectionReason] = useState("");
   const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
   // Pending Corrections review state
   const [pendingCorrections, setPendingCorrections] = useState<PendingCorrection[]>([]);
-  const [attendanceSubTab, setAttendanceSubTab] = useState<"roster" | "corrections">("roster");
+  const [attendanceSubTab, setAttendanceSubTab] = useState<"lists" | "corrections">("lists");
   const [reviewModalCorrection, setReviewModalCorrection] = useState<PendingCorrection | null>(null);
   const [reviewAction, setReviewAction] = useState<"APPROVE" | "REJECT">("APPROVE");
   const [reviewRemarks, setReviewRemarks] = useState("");
@@ -118,16 +118,16 @@ export const Attendance: React.FC = () => {
     }
   }, []);
 
-  const loadSessionAndRoster = useCallback(async (eventId: string) => {
+  const loadSessionAndList = useCallback(async (eventId: string) => {
     setLoading(true);
     setError(null);
     try {
       const session = await apiRequest<SessionData | null>(`/events/${eventId}/attendance/sessions/active`).catch(() => null);
       setActiveSession(session && session.status === "OPEN" ? session : null);
 
-      const rosterData = await apiRequest<any>(`/events/${eventId}/attendance/roster`);
-      const safeRoster = Array.isArray(rosterData) ? rosterData : Array.isArray(rosterData?.content) ? rosterData.content : [];
-      setRoster(safeRoster);
+      const listsData = await apiRequest<any>(`/events/${eventId}/attendance/lists`);
+      const safeList = Array.isArray(listsData) ? listsData : Array.isArray(listsData?.content) ? listsData.content : [];
+      setList(safeList);
     } catch (err: any) {
       setError(err.message || "Error loading attendance session.");
     } finally {
@@ -146,9 +146,9 @@ export const Attendance: React.FC = () => {
 
   useEffect(() => {
     if (selectedEventId && isManager) {
-      loadSessionAndRoster(selectedEventId);
+      loadSessionAndList(selectedEventId);
     }
-  }, [selectedEventId, isManager, loadSessionAndRoster]);
+  }, [selectedEventId, isManager, loadSessionAndList]);
 
   const handleOpenSession = async () => {
     if (!selectedEventId) return;
@@ -165,7 +165,7 @@ export const Attendance: React.FC = () => {
       });
       setActiveSession(session);
       setSuccess("Live attendance session opened.");
-      loadSessionAndRoster(selectedEventId);
+      loadSessionAndList(selectedEventId);
     } catch (err: any) {
       setError(err.message || "Could not open attendance session.");
     }
@@ -177,7 +177,7 @@ export const Attendance: React.FC = () => {
       await apiRequest(`/attendance/sessions/${activeSession.sessionId}/close`, { method: "POST" });
       setActiveSession(null);
       setSuccess("Attendance session closed.");
-      if (selectedEventId) loadSessionAndRoster(selectedEventId);
+      if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
       setError(err.message || "Could not close session.");
     }
@@ -225,7 +225,7 @@ export const Attendance: React.FC = () => {
       setSuccess(`Record for ${correctingRecord.fullName} corrected to ${correctionStatus}.`);
       setCorrectingRecord(null);
       setCorrectionReason("");
-      if (selectedEventId) loadSessionAndRoster(selectedEventId);
+      if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
       setError(err.message || "Attendance correction failed.");
     } finally {
@@ -266,7 +266,7 @@ export const Attendance: React.FC = () => {
       setReviewModalCorrection(null);
       setReviewRemarks("");
       loadPendingCorrections();
-      if (selectedEventId) loadSessionAndRoster(selectedEventId);
+      if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
       setError(err.message || `Failed to ${reviewAction.toLowerCase()} correction.`);
     } finally {
@@ -459,18 +459,18 @@ export const Attendance: React.FC = () => {
           <div style={{ display: "flex", gap: "1rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", paddingBottom: "0.5rem" }}>
             <button
               type="button"
-              onClick={() => setAttendanceSubTab("roster")}
+              onClick={() => setAttendanceSubTab("lists")}
               style={{
                 background: "none",
                 border: "none",
-                borderBottom: attendanceSubTab === "roster" ? "3px solid #1e40af" : "3px solid transparent",
+                borderBottom: attendanceSubTab === "lists" ? "3px solid #1e40af" : "3px solid transparent",
                 padding: "0.5rem 1rem",
-                fontWeight: attendanceSubTab === "roster" ? 700 : 500,
-                color: attendanceSubTab === "roster" ? "#1e40af" : "#64748b",
+                fontWeight: attendanceSubTab === "lists" ? 700 : 500,
+                color: attendanceSubTab === "lists" ? "#1e40af" : "#64748b",
                 cursor: "pointer"
               }}
             >
-              Live Session &amp; Event Roster
+              Live Session &amp; Event List
             </button>
             <button
               type="button"
@@ -576,7 +576,7 @@ export const Attendance: React.FC = () => {
                 <div className="section-header" style={{ marginBottom: "1rem" }}>
                   <div>
                     <h2>Session Control &amp; Event Selector</h2>
-                    <p className="subtitle">Choose an event to manage its live attendance session and roster.</p>
+                    <p className="subtitle">Choose an event to manage its live attendance session and lists.</p>
                   </div>
                 </div>
                 <div className="attendance-control-bar">
@@ -669,9 +669,9 @@ export const Attendance: React.FC = () => {
               )}
 
               {(() => {
-                const filteredRoster = roster.filter((row) => {
-                  if (!rosterSearch.trim()) return true;
-                  const q = rosterSearch.toLowerCase();
+                const filteredList = lists.filter((row) => {
+                  if (!listsSearch.trim()) return true;
+                  const q = listsSearch.toLowerCase();
                   return (
                     row.fullName.toLowerCase().includes(q) ||
                     row.rollNumber.toLowerCase().includes(q) ||
@@ -684,35 +684,35 @@ export const Attendance: React.FC = () => {
                   <div className="section-card">
                     <div className="section-header" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
                       <div>
-                        <h2>Event Roster &amp; Verification State</h2>
+                        <h2>Event List &amp; Verification State</h2>
                         <p className="subtitle">
-                          {filteredRoster.length} of {roster.length} Enrolled &bull; Filtered by registration
+                          {filteredList.length} of {lists.length} Enrolled &bull; Filtered by registration
                         </p>
                       </div>
                       <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
                         <SearchBar
-                          value={rosterSearch}
-                          onChange={setRosterSearch}
+                          value={listsSearch}
+                          onChange={setListSearch}
                           placeholder="Search attendee by name, roll no..."
                           style={{ minWidth: "260px", maxWidth: "360px" }}
                         />
                         <button
                           type="button"
                           className="btn-secondary-sm"
-                          onClick={() => selectedEventId && loadSessionAndRoster(selectedEventId)}
+                          onClick={() => selectedEventId && loadSessionAndList(selectedEventId)}
                         >
-                          Refresh Roster
+                          Refresh List
                         </button>
                       </div>
                     </div>
 
                     {loading ? (
-                      <p className="loading-state">Loading roster records...</p>
-                    ) : roster.length === 0 ? (
+                      <p className="loading-state">Loading lists records...</p>
+                    ) : lists.length === 0 ? (
                       <div className="empty-state">
                         <p>No volunteers registered for this event.</p>
                       </div>
-                    ) : filteredRoster.length === 0 ? (
+                    ) : filteredList.length === 0 ? (
                       <div className="empty-state">
                         <p>No attendees match your search query.</p>
                       </div>
@@ -732,7 +732,7 @@ export const Attendance: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredRoster.map((row) => (
+                            {filteredList.map((row) => (
                               <tr key={row.volunteerId}>
                                 <td>
                                   <strong>{row.fullName}</strong>

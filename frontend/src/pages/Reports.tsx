@@ -354,66 +354,66 @@ export const Reports: React.FC = () => {
       {/* Export Action Cards */}
       {canExport && (
         <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
-              Accreditation Data Export Center
-            </h3>
-            <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
-              Generates audit-ready CSV datasets applying active unit and date filters.
-            </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
+                Accreditation Data Export Center
+              </h3>
+              <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+                Generates audit-ready CSV datasets applying active unit and date filters.
+              </p>
+            </div>
+            {downloading && (
+              <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
+                Generating and streaming CSV download...
+              </span>
+            )}
           </div>
-          {downloading && (
-            <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
-              Generating and streaming CSV download...
-            </span>
-          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
+            <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Volunteers Directory</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Enrollment, department &amp; status</div>
+              </div>
+              <button
+                onClick={() => handleDownloadCsv("volunteers", "nss_volunteers_lists.csv")}
+                disabled={downloading === "nss_volunteers_lists.csv"}
+                className="btn-primary-sm"
+              >
+                {downloading === "nss_volunteers_lists.csv" ? "Exporting..." : "Export CSV"}
+              </button>
+            </div>
+
+            <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Events &amp; Turnout</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Schedule, capacity &amp; registered counts</div>
+              </div>
+              <button
+                onClick={() => handleDownloadCsv("events", "nss_events_lists.csv")}
+                disabled={downloading === "nss_events_lists.csv"}
+                className="btn-primary-sm"
+              >
+                {downloading === "nss_events_lists.csv" ? "Exporting..." : "Export CSV"}
+              </button>
+            </div>
+
+            <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Ledger</div>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Verified 120-hour accreditation credit</div>
+              </div>
+              <button
+                onClick={() => handleDownloadCsv("service-hours", "nss_service_hours_accreditation.csv")}
+                disabled={downloading === "nss_service_hours_accreditation.csv"}
+                className="btn-primary-sm"
+              >
+                {downloading === "nss_service_hours_accreditation.csv" ? "Exporting..." : "Export CSV"}
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
-          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Volunteers Directory</div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Enrollment, department &amp; status</div>
-            </div>
-            <button
-              onClick={() => handleDownloadCsv("volunteers", "nss_volunteers_roster.csv")}
-              disabled={downloading === "nss_volunteers_roster.csv"}
-              className="btn-primary-sm"
-            >
-              {downloading === "nss_volunteers_roster.csv" ? "Exporting..." : "Export CSV"}
-            </button>
-          </div>
-
-          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Events &amp; Turnout</div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Schedule, capacity &amp; registered counts</div>
-            </div>
-            <button
-              onClick={() => handleDownloadCsv("events", "nss_events_roster.csv")}
-              disabled={downloading === "nss_events_roster.csv"}
-              className="btn-primary-sm"
-            >
-              {downloading === "nss_events_roster.csv" ? "Exporting..." : "Export CSV"}
-            </button>
-          </div>
-
-          <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Ledger</div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Verified 120-hour accreditation credit</div>
-            </div>
-            <button
-              onClick={() => handleDownloadCsv("service-hours", "nss_service_hours_accreditation.csv")}
-              disabled={downloading === "nss_service_hours_accreditation.csv"}
-              className="btn-primary-sm"
-            >
-              {downloading === "nss_service_hours_accreditation.csv" ? "Exporting..." : "Export CSV"}
-            </button>
-          </div>
-        </div>
-      </div>
       )}
 
       {/* Preview Section Tabs */}
@@ -458,7 +458,7 @@ export const Reports: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          Volunteers Roster Preview
+          Volunteers List Preview
         </button>
         <button
           type="button"
@@ -579,7 +579,7 @@ export const Reports: React.FC = () => {
         <div className="section-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
-              <h3 style={{ margin: 0 }}>Volunteers Roster Preview</h3>
+              <h3 style={{ margin: 0 }}>Volunteers List Preview</h3>
               <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
                 Showing up to 50 records matching current filter scope.
               </p>

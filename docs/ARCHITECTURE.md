@@ -54,7 +54,7 @@ The system is organized into modular bounded contexts. Communication between mod
 | **Volunteer Management** | Student profiling, academic department mapping, enrollment lifecycle, and leadership designations. |
 | **Unit Management** | NSS unit provisioning, Programme Officer assignments, volunteer lists, and unit-scoped access boundaries. |
 | **Event Management** | Programme lifecycle (Draft -> Published -> Open -> Closed -> Completed -> Cancelled), venue, capacity, and scheduling. |
-| **Event Registration** | Volunteer self-registration, capacity reservation, cutoff enforcement, and registration roster tracking. |
+| **Event Registration** | Volunteer self-registration, capacity reservation, cutoff enforcement, and registration lists tracking. |
 | **Attendance** | Controlled sessions, dynamic QR verification, manual check-in lists, supervisor corrections, and audit history. |
 | **Service Hours** | Authoritative service-hour ledger, event credit derivation, manual claims review, and 120-hour milestone progress. |
 | **Activity Reporting** | Post-programme documentation, participant summaries, outcomes, and photo documentation. |

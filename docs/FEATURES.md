@@ -74,7 +74,7 @@ This specification defines the functional, technical, and operational contracts 
 - **Authorized Actors**: `ADMIN`, `FACULTY_COORDINATOR`, `PROGRAMME_OFFICER` (`UNITS_MANAGE`).
 - **API Endpoints**:
   - `GET /api/v1/units`: Returns all institutional units with active volunteer counts and PO details.
-  - `GET /api/v1/units/{id}`: Fetches specific unit profile, assigned leadership, and enrolled roster.
+  - `GET /api/v1/units/{id}`: Fetches specific unit profile, assigned leadership, and enrolled lists.
   - `POST /api/v1/units`: Creates a new operational unit with unit number, name, and PO binding.
   - `PUT /api/v1/units/{id}`: Modifies unit title, status, or reassigns Programme Officer.
 - **Data Entities**: `nss_units`, `users`, `unit_memberships`.
@@ -91,7 +91,7 @@ This specification defines the functional, technical, and operational contracts 
 - **Authorized Actors**: `ADMIN`, `PROGRAMME_OFFICER` (`UNITS_MANAGE`, `VOLUNTEERS_MANAGE`).
 - **API Endpoints**:
   - `POST /api/v1/units/{unitId}/members`: Enrolls volunteer into unit with academic year tag.
-  - `DELETE /api/v1/units/{unitId}/members/{volunteerId}`: Transfers or de-registers volunteer from active unit roster.
+  - `DELETE /api/v1/units/{unitId}/members/{volunteerId}`: Transfers or de-registers volunteer from active unit lists.
 - **Data Entities**: `unit_memberships`, `volunteers`, `nss_units`.
 - **Validation Rules**:
   - A volunteer cannot have duplicate active memberships within the same academic year (`UNIQUE(volunteer_id, unit_id, academic_year)`).
@@ -125,7 +125,7 @@ This specification defines the functional, technical, and operational contracts 
 - **API Endpoints**:
   - `POST /api/v1/events/{eventId}/register`: Self-registers the authenticated volunteer.
   - `DELETE /api/v1/events/{eventId}/register`: Withdraws registration prior to event lock-in.
-  - `GET /api/v1/events/{eventId}/registrations`: Roster of registered participants (supervisors only).
+  - `GET /api/v1/events/{eventId}/registrations`: List of registered participants (supervisors only).
 - **Data Entities**: `event_registrations`, `events`, `volunteers`.
 - **Validation Rules**:
   - Rejects duplicate registrations (`UNIQUE(event_id, volunteer_id)`).
@@ -169,7 +169,7 @@ This specification defines the functional, technical, and operational contracts 
 
 ---
 
-### F-10: Supervisory Manual Attendance Override & Roster Check-in
+### F-10: Supervisory Manual Attendance Override & List Check-in
 - **Purpose**: Allows Programme Officers to manually check in volunteers who lack smartphones or experience network connectivity issues in the field.
 - **Authorized Actors**: `PROGRAMME_OFFICER`, `FACULTY_COORDINATOR`, `ADMIN` (`ATTENDANCE_MANAGE`).
 - **API Endpoints**:
@@ -327,7 +327,7 @@ This specification defines the functional, technical, and operational contracts 
 - **Purpose**: Generates one-click institutional data exports for University NSS Cell reporting.
 - **Authorized Actors**: `ADMIN`, `FACULTY_COORDINATOR`, `PROGRAMME_OFFICER` (`REPORTS_EXPORT`).
 - **API Endpoints**:
-  - `GET /api/v1/reports/export/volunteers`: CSV export of volunteer enrollment roster.
+  - `GET /api/v1/reports/export/volunteers`: CSV export of volunteer enrollment lists.
   - `GET /api/v1/reports/export/events`: CSV export of all organized events and attendance counts.
   - `GET /api/v1/reports/export/service-hours`: CSV export of verified service credit ledger.
 - **Validation Rules**:

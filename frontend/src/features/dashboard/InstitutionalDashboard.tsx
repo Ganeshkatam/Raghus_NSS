@@ -212,7 +212,7 @@ export const InstitutionalDashboard: React.FC = () => {
                   <th>Unit Number</th>
                   <th>Unit Name</th>
                   <th>Officer In Charge</th>
-                  <th>Roster / Capacity</th>
+                  <th>List / Capacity</th>
                   <th>Capacity Utilisation</th>
                   <th>Actions</th>
                 </tr>

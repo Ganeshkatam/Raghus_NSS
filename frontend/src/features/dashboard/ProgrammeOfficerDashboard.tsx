@@ -105,7 +105,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
               </>
             ) : (
               <>
-                {" "}&bull; Active Roster: <strong>{enrolledCount} Enrolled Volunteers</strong>
+                {" "}&bull; Active List: <strong>{enrolledCount} Enrolled Volunteers</strong>
               </>
             )}
           </p>
@@ -233,7 +233,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
 
       {/* Operational Workflows & Events */}
       <div className="grid-2-col">
-        {/* Unit Events & Program Roster */}
+        {/* Unit Events & Program List */}
         <div className="section-card">
           <div className="section-header">
             <div>

@@ -71,7 +71,7 @@ backend/
 | **Volunteers** | Volunteer profile creation, enrollment verification, college ID, department mapping, academic year. |
 | **NSS Units** | Unit provisioning, Programme Officer assignments, member lists, active status tracking. |
 | **Events** | Event scheduling, venue, credit hours, capacity, registration window, and state machine lifecycle. |
-| **Registrations** | Volunteer self-registration, capacity checking under concurrency, cancellation, participant roster. |
+| **Registrations** | Volunteer self-registration, capacity checking under concurrency, cancellation, participant lists. |
 | **Attendance** | Controlled sessions, dynamic QR verification, manual check-ins, supervisor corrections, and audit history. |
 | **Service Hours** | Authoritative service-hour ledger, event credit derivation, manual claims review, and progress metrics. |
 | **Announcements** | Unit-wide or college-wide bulletins, audience targeting, priority ranking, and expiration. |

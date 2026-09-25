@@ -64,7 +64,7 @@ public class AttendanceDTOs {
         Instant correctedAt
     ) {}
 
-    public record AttendanceRosterItem(
+    public record AttendanceListItem(
         UUID volunteerId,
         String rollNumber,
         String fullName,

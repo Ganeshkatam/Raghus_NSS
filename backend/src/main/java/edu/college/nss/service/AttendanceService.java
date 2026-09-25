@@ -376,7 +376,7 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<AttendanceRosterItem> getRoster(UUID eventId, UUID sessionId, UserDetails principal) {
+    public List<AttendanceListItem> getList(UUID eventId, UUID sessionId, UserDetails principal) {
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
@@ -395,7 +395,7 @@ public class AttendanceService {
         return registrations.stream().map(reg -> {
             Volunteer v = reg.getVolunteer();
             AttendanceRecord rec = recordsByVolunteer.get(v.getVolunteerId());
-            return new AttendanceRosterItem(
+            return new AttendanceListItem(
                 v.getVolunteerId(),
                 v.getCollegeId(),
                 v.getUser().getName(),

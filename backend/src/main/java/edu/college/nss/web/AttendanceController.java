@@ -61,12 +61,12 @@ public class AttendanceController {
         return ResponseEntity.ok(service.manualCheckIn(sessionId, request, principal));
     }
 
-    @GetMapping("/events/{eventId}/attendance/roster")
+    @GetMapping("/events/{eventId}/attendance/lists")
     @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
-    public ResponseEntity<List<AttendanceRosterItem>> getRoster(@PathVariable UUID eventId,
+    public ResponseEntity<List<AttendanceListItem>> getList(@PathVariable UUID eventId,
                                                                @RequestParam(required = false) UUID sessionId,
                                                                @AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(service.getRoster(eventId, sessionId, principal));
+        return ResponseEntity.ok(service.getList(eventId, sessionId, principal));
     }
 
     @PostMapping("/attendance/records/{attendanceId}/correct")

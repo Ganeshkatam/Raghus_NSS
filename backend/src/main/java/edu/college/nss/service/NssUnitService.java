@@ -361,7 +361,7 @@ public class NssUnitService {
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
         if (principal != null && !unitSecurity.canViewUnitMembers(principal, unitId)) {
-            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to view the member roster for this unit.");
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to view the member lists for this unit.");
         }
 
         return membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId)
