@@ -35,6 +35,7 @@ public class AttendanceService {
     private final RedisAttendanceSecurityService redisSecurityService;
     private final UnitMembershipRepository membershipRepository;
     private final edu.college.nss.security.UnitSecurityService unitSecurity;
+    private final AuditService auditService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
@@ -48,7 +49,8 @@ public class AttendanceService {
                              NotificationService notificationService,
                              RedisAttendanceSecurityService redisSecurityService,
                              UnitMembershipRepository membershipRepository,
-                             edu.college.nss.security.UnitSecurityService unitSecurity) {
+                             edu.college.nss.security.UnitSecurityService unitSecurity,
+                             AuditService auditService) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.correctionRepository = correctionRepository;
@@ -61,6 +63,7 @@ public class AttendanceService {
         this.redisSecurityService = redisSecurityService;
         this.membershipRepository = membershipRepository;
         this.unitSecurity = unitSecurity;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -331,6 +334,17 @@ public class AttendanceService {
         }
 
         correction = correctionRepository.save(correction);
+
+        auditService.logEvent(
+            principal.getUsername(),
+            "ATTENDANCE_CORRECTION_" + correction.getStatus(),
+            "ATTENDANCE_RECORD",
+            correction.getAttendanceRecord().getAttendanceId().toString(),
+            correction.getAttendanceRecord().getVolunteer().getCollegeId(),
+            correction.getPreviousStatus(),
+            correction.getStatus().equals("APPROVED") ? correction.getNewStatus() : correction.getPreviousStatus(),
+            req.remarks() != null ? req.remarks() : "Attendance correction " + correction.getStatus()
+        );
 
         if (correction.getAttendanceRecord().getVolunteer().getUser() != null) {
             notificationService.sendNotification(

@@ -26,11 +26,14 @@ public class EventService {
     private final UnitMembershipRepository membershipRepository;
     private final NotificationService notificationService;
     private final AttendanceRecordRepository attendanceRecordRepository;
+    private final AttendanceSessionRepository attendanceSessionRepository;
+    private final AuditService auditService;
 
     public EventService(EventRepository eventRepository, EventRegistrationRepository registrationRepository,
                         NssUnitRepository unitRepository, UserRepository userRepository,
                         VolunteerRepository volunteerRepository, UnitMembershipRepository membershipRepository,
-                        NotificationService notificationService, AttendanceRecordRepository attendanceRecordRepository) {
+                        NotificationService notificationService, AttendanceRecordRepository attendanceRecordRepository,
+                        AttendanceSessionRepository attendanceSessionRepository, AuditService auditService) {
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.unitRepository = unitRepository;
@@ -39,6 +42,8 @@ public class EventService {
         this.membershipRepository = membershipRepository;
         this.notificationService = notificationService;
         this.attendanceRecordRepository = attendanceRecordRepository;
+        this.attendanceSessionRepository = attendanceSessionRepository;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -163,7 +168,16 @@ public class EventService {
     public EventResponse transition(UUID eventId, String transition, UserDetails principal) {
         Event e = getEntity(eventId);
         assertManagerForUnit(principal, e.getUnit());
-        switch (transition) {
+        String previousStatus = e.getStatus();
+
+        if ("complete".equalsIgnoreCase(transition)) {
+            List<AttendanceSession> activeSessions = attendanceSessionRepository.findActiveSessionsForEvent(eventId);
+            if (!activeSessions.isEmpty()) {
+                throw new IllegalStateException("Cannot complete event while attendance sessions are still open. Please close all active attendance sessions first.");
+            }
+        }
+
+        switch (transition.toLowerCase()) {
             case "publish" -> e.publish();
             case "open" -> e.open();
             case "close" -> e.close();
@@ -171,7 +185,20 @@ public class EventService {
             case "complete" -> e.complete();
             default -> throw new IllegalArgumentException("Unsupported event transition.");
         }
-        return toResponse(eventRepository.save(e));
+        Event saved = eventRepository.save(e);
+        if (principal != null) {
+            auditService.logEvent(
+                principal.getUsername(),
+                "EVENT_TRANSITION_" + transition.toUpperCase(),
+                "EVENT",
+                saved.getEventId().toString(),
+                saved.getTitle(),
+                previousStatus,
+                saved.getStatus(),
+                "Event status transitioned from " + previousStatus + " to " + saved.getStatus()
+            );
+        }
+        return toResponse(saved);
     }
 
     @Transactional

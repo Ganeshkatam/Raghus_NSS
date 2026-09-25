@@ -34,6 +34,7 @@ public class NssUnitService {
     private final edu.college.nss.repository.EventRepository eventRepository;
     private final edu.college.nss.repository.ServiceHourEntryRepository serviceHourRepository;
     private final NotificationService notificationService;
+    private final AuditService auditService;
 
     public NssUnitService(
         NssUnitRepository unitRepository,
@@ -44,7 +45,8 @@ public class NssUnitService {
         edu.college.nss.security.UnitSecurityService unitSecurity,
         edu.college.nss.repository.EventRepository eventRepository,
         edu.college.nss.repository.ServiceHourEntryRepository serviceHourRepository,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditService auditService
     ) {
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
@@ -55,6 +57,7 @@ public class NssUnitService {
         this.eventRepository = eventRepository;
         this.serviceHourRepository = serviceHourRepository;
         this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -145,6 +148,18 @@ public class NssUnitService {
 
         unit = unitRepository.save(unit);
         long count = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
+        if (principal != null) {
+            auditService.logEvent(
+                principal.getUsername(),
+                "UNIT_UPDATE",
+                "UNIT",
+                unit.getUnitId().toString(),
+                "Unit " + unit.getUnitNumber(),
+                "CONFIGURED",
+                "UPDATED",
+                "Administrative unit settings update"
+            );
+        }
         return UnitResponse.fromEntity(unit, count);
     }
 
@@ -185,6 +200,20 @@ public class NssUnitService {
 
         UnitMembership membership = new UnitMembership(volunteer, unit);
         membership = membershipRepository.save(membership);
+
+        if (principal != null) {
+            String volName = volunteer.getUser() != null ? volunteer.getUser().getName() : volunteer.getCollegeId();
+            auditService.logEvent(
+                principal.getUsername(),
+                "UNIT_ALLOTMENT",
+                "UNIT_MEMBERSHIP",
+                membership.getMembershipId().toString(),
+                volName + " -> Unit " + unit.getUnitNumber(),
+                "UNALLOTTED",
+                "ALLOTTED",
+                "Volunteer allotted to Unit " + unit.getUnitNumber()
+            );
+        }
 
         if (volunteer.getUser() != null) {
             notificationService.sendNotification(
@@ -255,6 +284,20 @@ public class NssUnitService {
             volunteer, sourceUnit, targetUnit, request.reason(), officer
         );
         transferHistoryRepository.save(transferHistory);
+
+        if (principal != null) {
+            String volName = volunteer.getUser() != null ? volunteer.getUser().getName() : volunteer.getCollegeId();
+            auditService.logEvent(
+                principal.getUsername(),
+                "UNIT_TRANSFER",
+                "UNIT_MEMBERSHIP",
+                newMembership.getMembershipId().toString(),
+                volName + " (from Unit " + sourceUnit.getUnitNumber() + " to Unit " + targetUnit.getUnitNumber() + ")",
+                "Unit " + sourceUnit.getUnitNumber(),
+                "Unit " + targetUnit.getUnitNumber(),
+                request.reason() != null ? request.reason() : "Transfer authorized"
+            );
+        }
 
         if (volunteer.getUser() != null) {
             notificationService.sendNotification(

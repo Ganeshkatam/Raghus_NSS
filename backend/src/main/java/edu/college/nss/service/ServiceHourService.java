@@ -23,6 +23,7 @@ public class ServiceHourService {
     private final NotificationService notificationService;
     private final UnitMembershipRepository membershipRepository;
     private final edu.college.nss.security.UnitSecurityService unitSecurity;
+    private final AuditService auditService;
 
     public ServiceHourService(ServiceHourEntryRepository serviceHourRepository,
                               VolunteerRepository volunteerRepository,
@@ -30,7 +31,8 @@ public class ServiceHourService {
                               UserRepository userRepository,
                               NotificationService notificationService,
                               UnitMembershipRepository membershipRepository,
-                              edu.college.nss.security.UnitSecurityService unitSecurity) {
+                              edu.college.nss.security.UnitSecurityService unitSecurity,
+                              AuditService auditService) {
         this.serviceHourRepository = serviceHourRepository;
         this.volunteerRepository = volunteerRepository;
         this.eventRepository = eventRepository;
@@ -38,6 +40,7 @@ public class ServiceHourService {
         this.notificationService = notificationService;
         this.membershipRepository = membershipRepository;
         this.unitSecurity = unitSecurity;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -212,6 +215,18 @@ public class ServiceHourService {
         }
 
         ServiceHourEntry saved = serviceHourRepository.save(entry);
+
+        auditService.logEvent(
+            principal.getUsername(),
+            "SERVICE_HOUR_CLAIM_" + entry.getStatus(),
+            "SERVICE_HOUR_ENTRY",
+            entry.getEntryId().toString(),
+            entry.getVolunteer().getCollegeId() + " (" + entry.getHours() + " hrs)",
+            "PENDING",
+            entry.getStatus(),
+            req.reason() != null ? req.reason() : "Service hour claim " + entry.getStatus()
+        );
+
         return toResponse(saved);
     }
 

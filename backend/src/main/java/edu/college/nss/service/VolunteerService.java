@@ -50,6 +50,16 @@ public class VolunteerService {
     private final VolunteerStatusHistoryRepository statusHistoryRepository;
     private final UnitSecurityService unitSecurity;
     private final NotificationService notificationService;
+    private final AuditService auditService;
+    private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+
+    private static final java.util.Map<String, java.util.Set<String>> ALLOWED_STATUS_TRANSITIONS = java.util.Map.of(
+        "PENDING_APPROVAL", java.util.Set.of("PENDING_APPROVAL", "ACTIVE", "INACTIVE"),
+        "ACTIVE", java.util.Set.of("ACTIVE", "INACTIVE", "SUSPENDED", "ALUMNI"),
+        "INACTIVE", java.util.Set.of("INACTIVE", "ACTIVE"),
+        "SUSPENDED", java.util.Set.of("SUSPENDED", "ACTIVE", "INACTIVE"),
+        "ALUMNI", java.util.Set.of("ALUMNI")
+    );
 
     public VolunteerService(
         VolunteerRepository volunteerRepository,
@@ -59,7 +69,8 @@ public class VolunteerService {
         PasswordEncoder passwordEncoder,
         VolunteerStatusHistoryRepository statusHistoryRepository,
         UnitSecurityService unitSecurity,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditService auditService
     ) {
         this.volunteerRepository = volunteerRepository;
         this.userRepository = userRepository;
@@ -69,6 +80,7 @@ public class VolunteerService {
         this.statusHistoryRepository = statusHistoryRepository;
         this.unitSecurity = unitSecurity;
         this.notificationService = notificationService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -82,7 +94,7 @@ public class VolunteerService {
 
         if (user == null) {
             String rawPassword = (request.password() != null && !request.password().isBlank())
-                ? request.password() : "Volunteer@123";
+                ? request.password() : generateSecurePassword();
 
             Role volunteerRole = roleRepository.findByName("VOLUNTEER")
                 .orElseGet(() -> roleRepository.save(new Role("VOLUNTEER", "Registered NSS Volunteer")));
@@ -233,6 +245,12 @@ public class VolunteerService {
         }
 
         String previousStatus = volunteer.getStatus();
+
+        java.util.Set<String> allowed = ALLOWED_STATUS_TRANSITIONS.getOrDefault(previousStatus, java.util.Set.of());
+        if (!allowed.contains(targetStatus)) {
+            throw new IllegalStateException("Illegal volunteer status transition from " + previousStatus + " to " + targetStatus);
+        }
+
         volunteer.setStatus(targetStatus);
         volunteer = volunteerRepository.save(volunteer);
 
@@ -245,6 +263,17 @@ public class VolunteerService {
             officer
         );
         statusHistoryRepository.save(history);
+
+        auditService.logEvent(
+            principal.getUsername(),
+            "VOLUNTEER_STATUS_CHANGE",
+            "VOLUNTEER",
+            volunteer.getVolunteerId().toString(),
+            volunteer.getUser() != null ? volunteer.getUser().getName() : volunteer.getCollegeId(),
+            previousStatus,
+            targetStatus,
+            request.reason() != null ? request.reason() : "Status updated to " + targetStatus
+        );
 
         if (volunteer.getUser() != null) {
             notificationService.sendNotification(
@@ -313,5 +342,14 @@ public class VolunteerService {
             return;
         }
         throw new AccessDeniedException("Access is denied to this volunteer profile.");
+    }
+
+    private String generateSecurePassword() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 16; i++) {
+            sb.append(chars.charAt(secureRandom.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 }

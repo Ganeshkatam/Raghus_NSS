@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { apiRequest, API_BASE_URL, ApiError } from "../api/client";
+import { apiRequest, apiRequestBlob, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
 
@@ -168,19 +168,8 @@ export const Reports: React.FC = () => {
       if (toDate) params.append("endDate", new Date(toDate).toISOString());
 
       const queryString = params.toString() ? `?${params.toString()}` : "";
-      const token = localStorage.getItem("nss_token");
 
-      const res = await fetch(`${API_BASE_URL}/reports/export/${endpoint}${queryString}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Export request failed with HTTP ${res.status}`);
-      }
-
-      const blob = await res.blob();
+      const blob = await apiRequestBlob(`/reports/export/${endpoint}${queryString}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

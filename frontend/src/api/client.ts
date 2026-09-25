@@ -377,3 +377,27 @@ export async function apiRequest<T>(
   }
 }
 
+export async function apiRequestBlob(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Blob> {
+  const token = localStorage.getItem("nss_token");
+  const headers: Record<string, string> = {
+    ...((options.headers as Record<string, string>) || {}),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Export request failed with status HTTP ${response.status}`);
+  }
+
+  return await response.blob();
+}
+
