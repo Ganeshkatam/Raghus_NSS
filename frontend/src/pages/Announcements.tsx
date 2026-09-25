@@ -29,9 +29,9 @@ interface NotificationItem {
 
 export const Announcements: React.FC = () => {
   const { user, hasCapability } = useAuth();
-  const isOfficerOrAdmin = hasCapability("ANNOUNCEMENTS_MANAGE") || user?.roles.some((r) =>
+  const isOfficerOrAdmin = hasCapability("ANNOUNCEMENTS_MANAGE") || Boolean(user?.roles?.some((r: string) =>
     ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
-  );
+  ));
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -583,6 +583,7 @@ export const Announcements: React.FC = () => {
                   <label htmlFor="announcementExpires" style={{ display: "block", marginBottom: "0.35rem" }}>Notice Expiry Date (Optional)</label>
                   <CustomDatePicker
                     id="announcementExpires"
+                    minDate={new Date().toISOString().slice(0, 10)}
                     value={newExpiresAt}
                     onChange={setNewExpiresAt}
                     placeholder="Select expiry date..."

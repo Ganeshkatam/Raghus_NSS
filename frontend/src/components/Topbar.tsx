@@ -9,7 +9,7 @@ interface TopbarProps {
 }
 
 export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
-  const { user, token, isAuthenticated, roleDisplayName, logout, isOfficer, isVolunteer } = useAuth();
+  const { user, token, isAuthenticated, roleDisplayName, logout, isOfficer, isVolunteer, primaryRole, workspaceConfig } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [assignedUnitText, setAssignedUnitText] = useState<string | null>(null);
@@ -34,7 +34,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
   const handleGlobalSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (globalSearch.trim()) {
-      navigate(`/volunteers?search=${encodeURIComponent(globalSearch.trim())}`);
+      const searchTarget = primaryRole === "VOLUNTEER" ? "/events" : "/volunteers";
+      navigate(`${searchTarget}?search=${encodeURIComponent(globalSearch.trim())}`);
       setMobileSearchOpen(false);
     }
   };
@@ -177,7 +178,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
           <form onSubmit={handleGlobalSearch} className="topbar-search" role="search">
             <input
               type="search"
-              placeholder="Search NSS (volunteers, events, units)..."
+              placeholder={workspaceConfig.searchScopePlaceholder}
               className="search-input"
               aria-label="Search NSS"
               value={globalSearch}
@@ -277,9 +278,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
                     role="menuitem"
                     onClick={() => setProfileOpen(false)}
                   >
-                    My Dashboard
+                    {primaryRole === "VOLUNTEER" || primaryRole === "STUDENT_LEADER"
+                      ? "My Dashboard"
+                      : "Management Dashboard"}
                   </Link>
-                  {isVolunteer && (
+                  {primaryRole === "VOLUNTEER" && (
                     <Link
                       to="/service-hours"
                       className="popover-item"
@@ -287,6 +290,16 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
                       onClick={() => setProfileOpen(false)}
                     >
                       My Service Hours
+                    </Link>
+                  )}
+                  {primaryRole === "STUDENT_LEADER" && (
+                    <Link
+                      to="/service-hours"
+                      className="popover-item"
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      My Activity
                     </Link>
                   )}
                   <button
@@ -330,7 +343,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
         </svg>
         <input
           type="search"
-          placeholder="Search NSS (volunteers, events, units)..."
+          placeholder={workspaceConfig.searchScopePlaceholder}
           className="topbar-mobile-search-input"
           aria-label="Search NSS"
           value={globalSearch}

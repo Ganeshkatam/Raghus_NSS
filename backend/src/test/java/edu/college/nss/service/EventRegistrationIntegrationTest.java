@@ -89,6 +89,19 @@ class EventRegistrationIntegrationTest {
     }
 
     @Test
+    void create_shouldRejectEventWithStartTimeInPast() {
+        EventCreateRequest pastRequest = new EventCreateRequest(
+            unit.getUnitId(), "Past Event", "Invalid past activity", "SERVICE",
+            Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600),
+            null, null, "College Campus", 20
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> eventService.create(pastRequest, adminPrincipal));
+        assertTrue(ex.getMessage().toLowerCase().contains("past"));
+    }
+
+    @Test
     void registration_shouldRejectOutsideWindowAndAllowEligibleVolunteer() {
         Volunteer volunteer = createVolunteer("student1@raghunss.edu", "COL-001");
         membershipRepository.save(new UnitMembership(volunteer, unit));

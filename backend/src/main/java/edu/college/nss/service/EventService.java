@@ -52,7 +52,7 @@ public class EventService {
         NssUnit unit = unitRepository.findById(req.unitId())
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + req.unitId()));
         assertManagerForUnit(principal, unit);
-        validateTimes(req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt());
+        validateTimes(req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt(), true);
 
         Event event = new Event(unit, creator, req.title().trim(), req.description(), req.eventType().trim(),
             req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt(),
@@ -144,7 +144,7 @@ public class EventService {
         Instant end = req.endAt() != null ? req.endAt() : e.getEndAt();
         Instant open = req.registrationOpenAt() != null ? req.registrationOpenAt() : e.getRegistrationOpenAt();
         Instant close = req.registrationCloseAt() != null ? req.registrationCloseAt() : e.getRegistrationCloseAt();
-        validateTimes(start, end, open, close);
+        validateTimes(start, end, open, close, req.startAt() != null);
 
         if (req.title() != null && !req.title().isBlank()) e.setTitle(req.title().trim());
         if (req.description() != null) e.setDescription(req.description());
@@ -488,9 +488,12 @@ public class EventService {
         return EventResponse.fromEntity(e, registrationRepository.countRegistered(e.getEventId()));
     }
 
-    private void validateTimes(Instant start, Instant end, Instant open, Instant close) {
+    private void validateTimes(Instant start, Instant end, Instant open, Instant close, boolean validateFutureStart) {
         if (start == null || end == null || !end.isAfter(start)) {
             throw new IllegalArgumentException("Event end time must be after event start time.");
+        }
+        if (validateFutureStart && start.isBefore(Instant.now().minus(java.time.Duration.ofMinutes(5)))) {
+            throw new IllegalArgumentException("Event start time cannot be in the past.");
         }
         if (open != null && close != null && close.isBefore(open)) {
             throw new IllegalArgumentException("Registration close time must be on or after registration open time.");

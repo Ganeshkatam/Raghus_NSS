@@ -38,7 +38,7 @@ interface PersonalSummary {
 
 export const ServiceHours: React.FC = () => {
   const { user, isCoordinatorOrOfficer, hasCapability } = useAuth();
-  const isOfficerOrAdmin = isCoordinatorOrOfficer || hasCapability("SERVICE_HOURS_MANAGE") || Boolean(user?.roles?.some((r) =>
+  const isOfficerOrAdmin = isCoordinatorOrOfficer || hasCapability("SERVICE_HOURS_MANAGE") || Boolean(user?.roles?.some((r: string) =>
     ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   ));
 

@@ -133,6 +133,79 @@ export const Events: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     setModalError(null);
+
+    const currentTime = new Date();
+    const fiveMinutesAgo = new Date(currentTime.getTime() - 5 * 60 * 1000);
+    const startDate = new Date(form.startAt);
+    const endDate = new Date(form.endAt);
+
+    if (isNaN(startDate.getTime())) {
+      setModalError("Please select a valid event start date & time.");
+      setSaving(false);
+      return;
+    }
+
+    if (isNaN(endDate.getTime())) {
+      setModalError("Please select a valid event end date & time.");
+      setSaving(false);
+      return;
+    }
+
+    if (startDate < fiveMinutesAgo) {
+      setModalError("Event start date & time cannot be in the past.");
+      setSaving(false);
+      return;
+    }
+
+    if (endDate <= startDate) {
+      setModalError("Event end date & time must be strictly after the start time.");
+      setSaving(false);
+      return;
+    }
+
+    if (form.registrationOpenAt) {
+      const regOpenDate = new Date(form.registrationOpenAt);
+      if (isNaN(regOpenDate.getTime())) {
+        setModalError("Invalid registration opening date & time.");
+        setSaving(false);
+        return;
+      }
+      if (regOpenDate < fiveMinutesAgo) {
+        setModalError("Registration opening time cannot be in the past.");
+        setSaving(false);
+        return;
+      }
+      if (regOpenDate > startDate) {
+        setModalError("Registration opening time cannot be after the event start time.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (form.registrationCloseAt) {
+      const regCloseDate = new Date(form.registrationCloseAt);
+      if (isNaN(regCloseDate.getTime())) {
+        setModalError("Invalid registration closing date & time.");
+        setSaving(false);
+        return;
+      }
+      if (regCloseDate > startDate) {
+        setModalError("Registration must close on or before the event start time.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (form.registrationOpenAt && form.registrationCloseAt) {
+      const regOpenDate = new Date(form.registrationOpenAt);
+      const regCloseDate = new Date(form.registrationCloseAt);
+      if (regCloseDate < regOpenDate) {
+        setModalError("Registration closing time must be on or after registration opening time.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       await apiRequest<EventItem>("/events", {
         method: "POST",
@@ -216,6 +289,28 @@ export const Events: React.FC = () => {
       ev.unitName.toLowerCase().includes(q)
     );
   });
+
+  const now = new Date();
+  const padZero = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const todayIso = `${now.getFullYear()}-${padZero(now.getMonth() + 1)}-${padZero(now.getDate())}`;
+
+  // Max horizon: 1 academic year (365 days)
+  const maxHorizonDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+  const maxHorizonIso = `${maxHorizonDate.getFullYear()}-${padZero(maxHorizonDate.getMonth() + 1)}-${padZero(maxHorizonDate.getDate())}`;
+
+  const eventStartMin = todayIso;
+  const eventStartMax = maxHorizonIso;
+
+  const eventEndMin = form.startAt ? form.startAt.slice(0, 10) : todayIso;
+  const eventEndMax = maxHorizonIso;
+
+  const regOpenMin = todayIso;
+  const regOpenMax = form.startAt ? form.startAt.slice(0, 10) : maxHorizonIso;
+
+  const regCloseMin = form.registrationOpenAt
+    ? form.registrationOpenAt.slice(0, 10)
+    : todayIso;
+  const regCloseMax = form.startAt ? form.startAt.slice(0, 10) : maxHorizonIso;
 
   return (
     <div className="page-container">
@@ -440,7 +535,7 @@ export const Events: React.FC = () => {
       )}
 
       {/* Create Event Modal */}
-      {showModal && (
+      {showModal && canManageEvents && (
         <div className="modal-backdrop">
           <div className="modal-card modal-card-wide">
             <div className="modal-header">
@@ -514,6 +609,8 @@ export const Events: React.FC = () => {
                   <CustomDatePicker
                     required
                     includeTime
+                    minDate={eventStartMin}
+                    maxDate={eventStartMax}
                     value={form.startAt}
                     onChange={(val) => setForm({ ...form, startAt: val })}
                     placeholder="Select start date & time"
@@ -524,6 +621,8 @@ export const Events: React.FC = () => {
                   <CustomDatePicker
                     required
                     includeTime
+                    minDate={eventEndMin}
+                    maxDate={eventEndMax}
                     value={form.endAt}
                     onChange={(val) => setForm({ ...form, endAt: val })}
                     placeholder="Select end date & time"
@@ -533,6 +632,8 @@ export const Events: React.FC = () => {
                   <label style={{ display: "block", marginBottom: "0.35rem" }}>Registration opens</label>
                   <CustomDatePicker
                     includeTime
+                    minDate={regOpenMin}
+                    maxDate={regOpenMax}
                     value={form.registrationOpenAt}
                     onChange={(val) => setForm({ ...form, registrationOpenAt: val })}
                     placeholder="Select opening date & time"
@@ -542,6 +643,8 @@ export const Events: React.FC = () => {
                   <label style={{ display: "block", marginBottom: "0.35rem" }}>Registration closes</label>
                   <CustomDatePicker
                     includeTime
+                    minDate={regCloseMin}
+                    maxDate={regCloseMax}
                     value={form.registrationCloseAt}
                     onChange={(val) => setForm({ ...form, registrationCloseAt: val })}
                     placeholder="Select closing date & time"

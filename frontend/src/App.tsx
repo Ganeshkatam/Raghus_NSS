@@ -6,6 +6,8 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { API_BASE_URL } from "./api/client";
 
+import { UserRole } from "./config/navigation";
+
 // Dynamic route-based code splitting
 const Login = React.lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
 const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -40,8 +42,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <AppShell>{children}</AppShell>;
 };
 
-const OfficerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isCoordinatorOrOfficer, isStudentLeader, loading } = useAuth();
+const RoleRoute: React.FC<{
+  allowedRoles: UserRole[];
+  children: React.ReactNode;
+}> = ({ allowedRoles, children }) => {
+  const { primaryRole, loading } = useAuth();
 
   if (loading) {
     return (
@@ -51,25 +56,7 @@ const OfficerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     );
   }
 
-  if (!isCoordinatorOrOfficer && !isStudentLeader) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAdmin, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="page-container">
-        <p className="loading-state">Checking session authorization...</p>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
+  if (!allowedRoles.includes(primaryRole)) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -120,9 +107,9 @@ export const AppContent: React.FC = () => {
         path="/volunteers"
         element={
           <ProtectedRoute>
-            <OfficerRoute>
+            <RoleRoute allowedRoles={["STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"]}>
               <Volunteers />
-            </OfficerRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />
@@ -130,9 +117,9 @@ export const AppContent: React.FC = () => {
         path="/volunteers/:id"
         element={
           <ProtectedRoute>
-            <OfficerRoute>
+            <RoleRoute allowedRoles={["STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"]}>
               <VolunteerDetail />
-            </OfficerRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />
@@ -142,9 +129,9 @@ export const AppContent: React.FC = () => {
         path="/units"
         element={
           <ProtectedRoute>
-            <OfficerRoute>
+            <RoleRoute allowedRoles={["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"]}>
               <Units />
-            </OfficerRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />
@@ -152,9 +139,9 @@ export const AppContent: React.FC = () => {
         path="/units/:id"
         element={
           <ProtectedRoute>
-            <OfficerRoute>
+            <RoleRoute allowedRoles={["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"]}>
               <UnitDetail />
-            </OfficerRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />
@@ -312,9 +299,9 @@ export const AppContent: React.FC = () => {
         path="/reports"
         element={
           <ProtectedRoute>
-            <OfficerRoute>
+            <RoleRoute allowedRoles={["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"]}>
               <Reports />
-            </OfficerRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />
@@ -324,9 +311,9 @@ export const AppContent: React.FC = () => {
         path="/admin"
         element={
           <ProtectedRoute>
-            <AdminRoute>
+            <RoleRoute allowedRoles={["ADMIN"]}>
               <Admin />
-            </AdminRoute>
+            </RoleRoute>
           </ProtectedRoute>
         }
       />

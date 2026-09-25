@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiRequest } from "../api/client";
+import { UserRole, resolvePrimaryRole, ROLE_WORKSPACE_CONFIG } from "../config/navigation";
 
 export interface User {
   userId: string;
@@ -15,6 +16,8 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  primaryRole: UserRole;
+  workspaceConfig: typeof ROLE_WORKSPACE_CONFIG[UserRole];
   isAdmin: boolean;
   isCoordinator: boolean;
   isOfficer: boolean;
@@ -112,23 +115,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const roles = (user?.roles || []).map((r) => r.replace(/^ROLE_/, ""));
+  const roles = (user?.roles || []).map((r: string) => r.replace(/^ROLE_/, ""));
+  const primaryRole: UserRole = resolvePrimaryRole(user?.roles);
+  const workspaceConfig = ROLE_WORKSPACE_CONFIG[primaryRole];
+
   const isAdmin = roles.includes("ADMIN");
   const isCoordinator = roles.includes("FACULTY_COORDINATOR");
   const isOfficer = roles.includes("PROGRAMME_OFFICER");
   const isCoordinatorOrOfficer = isAdmin || isCoordinator || isOfficer;
   const isStudentLeader = roles.includes("STUDENT_LEADER");
-  const isVolunteer = roles.includes("VOLUNTEER") || (!isAdmin && !isCoordinator && !isOfficer);
+  const isVolunteer = primaryRole === "VOLUNTEER";
 
-  const roleDisplayName = isAdmin
-    ? "System Administrator"
-    : isCoordinator
-    ? "Faculty Coordinator"
-    : isOfficer
-    ? "Programme Officer"
-    : isStudentLeader
-    ? "Student Leader"
-    : "NSS Volunteer";
+  const roleDisplayName = workspaceConfig.displayName;
 
   const permissions = user?.permissions || [];
   const hasCapability = (permission: string): boolean => {
@@ -143,6 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isAuthenticated: Boolean(token && user),
+        primaryRole,
+        workspaceConfig,
         isAdmin,
         isCoordinator,
         isOfficer,
