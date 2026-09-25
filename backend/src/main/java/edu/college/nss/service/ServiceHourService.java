@@ -116,8 +116,8 @@ public class ServiceHourService {
             UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
                 .orElseThrow(() -> new AccessDeniedException("Volunteer must be enrolled in an active unit to claim event hours."));
 
-            if (!activeMembership.getUnit().getUnitId().equals(event.getUnit().getUnitId())) {
-                throw new AccessDeniedException("You can only claim hours for events organized by your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ").");
+            if (!event.isUnitEligible(activeMembership.getUnit().getUnitId())) {
+                throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
             }
 
             boolean duplicate = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId())

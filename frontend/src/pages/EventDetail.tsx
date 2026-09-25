@@ -6,10 +6,20 @@ import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
 
 
+interface EventUnitItem {
+  unitId: string;
+  unitName: string;
+  unitNumber: string;
+}
+
 interface EventItem {
   eventId: string;
   unitId: string;
   unitName: string;
+  organizingUnitId?: string;
+  organizingUnitName?: string;
+  eventScope?: "UNIT" | "MULTI_UNIT" | "COLLEGE_WIDE";
+  participatingUnits?: EventUnitItem[];
   title: string;
   description: string | null;
   eventType: string;
@@ -361,9 +371,14 @@ export const EventDetail: React.FC = () => {
 
       <div className="page-header" style={{ alignItems: "flex-start", gap: "1rem" }}>
         <div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
             <span className="badge badge-primary">{event.eventType}</span>
             <span className="badge badge-muted">{event.status}</span>
+            {event.eventScope === "COLLEGE_WIDE" ? (
+              <span className="badge badge-info" style={{ fontWeight: 700 }}>College-wide</span>
+            ) : event.eventScope === "MULTI_UNIT" ? (
+              <span className="badge badge-success" style={{ fontWeight: 700 }}>Multi-Unit Event</span>
+            ) : null}
             <span
               style={{
                 fontSize: "0.8rem",
@@ -379,7 +394,7 @@ export const EventDetail: React.FC = () => {
           </div>
           <h1 style={{ marginBottom: "0.25rem" }}>{event.title}</h1>
           <p className="subtitle">
-            {event.unitName} &bull; Venue: {event.venue}
+            Organized by {event.organizingUnitName || event.unitName} &bull; Venue: {event.venue}
           </p>
         </div>
 
@@ -557,6 +572,34 @@ export const EventDetail: React.FC = () => {
                 <dt>Venue</dt>
                 <dd>{event.venue}</dd>
               </div>
+              <div>
+                <dt>Organizing Unit</dt>
+                <dd><strong>{event.organizingUnitName || event.unitName}</strong></dd>
+              </div>
+              <div>
+                <dt>Participation Scope</dt>
+                <dd>
+                  {event.eventScope === "COLLEGE_WIDE" ? (
+                    <span className="badge badge-info" style={{ fontWeight: 700 }}>College-wide (All NSS Units)</span>
+                  ) : event.eventScope === "MULTI_UNIT" ? (
+                    <span className="badge badge-success" style={{ fontWeight: 700 }}>Multi-Unit Event</span>
+                  ) : (
+                    <span>Single Unit Event ({event.unitName})</span>
+                  )}
+                </dd>
+              </div>
+              {event.participatingUnits && event.participatingUnits.length > 0 && (
+                <div>
+                  <dt>Participating Units</dt>
+                  <dd style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.25rem" }}>
+                    {event.participatingUnits.map((pu) => (
+                      <span key={pu.unitId} className="badge badge-muted" style={{ fontWeight: 600 }}>
+                        {pu.unitNumber} - {pu.unitName}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>Capacity</dt>
                 <dd>

@@ -2,6 +2,8 @@ package edu.college.nss.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -15,6 +17,17 @@ public class Event {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "unit_id", nullable = false)
     private NssUnit unit;
+
+    @Column(name = "event_scope", nullable = false, length = 20)
+    private String eventScope = "UNIT";
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "event_units",
+        joinColumns = @JoinColumn(name = "event_id"),
+        inverseJoinColumns = @JoinColumn(name = "unit_id")
+    )
+    private Set<NssUnit> participatingUnits = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by", nullable = false)
@@ -72,6 +85,22 @@ public class Event {
         this.registrationCloseAt = registrationCloseAt;
         this.venue = venue;
         this.capacity = capacity;
+        this.eventScope = "UNIT";
+        if (unit != null) {
+            this.participatingUnits.add(unit);
+        }
+    }
+
+    public Event(NssUnit unit, User createdBy, String title, String description, String eventType,
+                 Instant startAt, Instant endAt, Instant registrationOpenAt, Instant registrationCloseAt,
+                 String venue, Integer capacity, String eventScope, Set<NssUnit> participatingUnits) {
+        this(unit, createdBy, title, description, eventType, startAt, endAt, registrationOpenAt, registrationCloseAt, venue, capacity);
+        if (eventScope != null && !eventScope.isBlank()) {
+            this.eventScope = eventScope.trim().toUpperCase();
+        }
+        if (participatingUnits != null && !participatingUnits.isEmpty()) {
+            this.participatingUnits = new HashSet<>(participatingUnits);
+        }
     }
 
     public void publish() {
@@ -138,4 +167,28 @@ public class Event {
     public void setStatus(String status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    public String getEventScope() { return eventScope; }
+    public void setEventScope(String eventScope) {
+        if (eventScope != null && !eventScope.isBlank()) {
+            this.eventScope = eventScope.trim().toUpperCase();
+        }
+    }
+
+    public Set<NssUnit> getParticipatingUnits() { return participatingUnits; }
+    public void setParticipatingUnits(Set<NssUnit> participatingUnits) {
+        this.participatingUnits = participatingUnits != null ? new HashSet<>(participatingUnits) : new HashSet<>();
+    }
+
+    public boolean isUnitEligible(UUID targetUnitId) {
+        if (targetUnitId == null) return false;
+        if ("COLLEGE_WIDE".equalsIgnoreCase(this.eventScope)) {
+            return true;
+        }
+        if (this.unit != null && targetUnitId.equals(this.unit.getUnitId())) {
+            return true;
+        }
+        return this.participatingUnits != null && this.participatingUnits.stream()
+            .anyMatch(u -> targetUnitId.equals(u.getUnitId()));
+    }
 }

@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -49,14 +51,40 @@ public class EventService {
     @Transactional
     public EventResponse create(EventCreateRequest req, UserDetails principal) {
         User creator = currentUser(principal);
-        NssUnit unit = unitRepository.findById(req.unitId())
-            .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + req.unitId()));
-        assertManagerForUnit(principal, unit);
+        UUID orgUnitId = req.resolvedOrganizingUnitId();
+        if (orgUnitId == null) {
+            throw new IllegalArgumentException("Organizing NSS Unit ID is required.");
+        }
+        NssUnit organizingUnit = unitRepository.findById(orgUnitId)
+            .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + orgUnitId));
+        assertManagerForUnit(principal, organizingUnit);
         validateTimes(req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt(), true);
 
-        Event event = new Event(unit, creator, req.title().trim(), req.description(), req.eventType().trim(),
+        String scope = req.resolvedScope();
+        Set<NssUnit> participating = new HashSet<>();
+        participating.add(organizingUnit);
+
+        if ("COLLEGE_WIDE".equals(scope)) {
+            participating.addAll(unitRepository.findAll());
+        } else if ("MULTI_UNIT".equals(scope)) {
+            List<UUID> partIds = req.resolvedParticipatingUnitIds();
+            if (partIds != null) {
+                for (UUID uid : partIds) {
+                    if (!uid.equals(orgUnitId)) {
+                        NssUnit pu = unitRepository.findById(uid)
+                            .orElseThrow(() -> new IllegalArgumentException("Participating NSS Unit not found with ID: " + uid));
+                        participating.add(pu);
+                    }
+                }
+            }
+            if (participating.size() < 2) {
+                throw new IllegalArgumentException("Multi-unit events require at least two participating NSS units.");
+            }
+        }
+
+        Event event = new Event(organizingUnit, creator, req.title().trim(), req.description(), req.eventType().trim(),
             req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt(),
-            req.venue().trim(), req.capacity());
+            req.venue().trim(), req.capacity(), scope, participating);
         return toResponse(eventRepository.save(event));
     }
 
@@ -161,6 +189,48 @@ public class EventService {
             }
             e.setCapacity(req.capacity());
         }
+
+        if (req.eventScope() != null && !req.eventScope().isBlank()) {
+            String newScope = req.eventScope().trim().toUpperCase();
+            e.setEventScope(newScope);
+            if ("COLLEGE_WIDE".equals(newScope)) {
+                e.setParticipatingUnits(new HashSet<>(unitRepository.findAll()));
+            } else if ("UNIT".equals(newScope)) {
+                e.setParticipatingUnits(Set.of(e.getUnit()));
+            } else if ("MULTI_UNIT".equals(newScope)) {
+                List<UUID> partIds = req.resolvedParticipatingUnitIds();
+                if (partIds != null && !partIds.isEmpty()) {
+                    Set<NssUnit> partUnits = new HashSet<>();
+                    partUnits.add(e.getUnit());
+                    for (UUID uid : partIds) {
+                        if (!uid.equals(e.getUnit().getUnitId())) {
+                            NssUnit pu = unitRepository.findById(uid)
+                                .orElseThrow(() -> new IllegalArgumentException("Participating NSS Unit not found with ID: " + uid));
+                            partUnits.add(pu);
+                        }
+                    }
+                    if (partUnits.size() < 2) {
+                        throw new IllegalArgumentException("Multi-unit events require at least two participating NSS units.");
+                    }
+                    e.setParticipatingUnits(partUnits);
+                }
+            }
+        } else if (req.resolvedParticipatingUnitIds() != null && "MULTI_UNIT".equals(e.getEventScope())) {
+            Set<NssUnit> partUnits = new HashSet<>();
+            partUnits.add(e.getUnit());
+            for (UUID uid : req.resolvedParticipatingUnitIds()) {
+                if (!uid.equals(e.getUnit().getUnitId())) {
+                    NssUnit pu = unitRepository.findById(uid)
+                        .orElseThrow(() -> new IllegalArgumentException("Participating NSS Unit not found with ID: " + uid));
+                    partUnits.add(pu);
+                }
+            }
+            if (partUnits.size() < 2) {
+                throw new IllegalArgumentException("Multi-unit events require at least two participating NSS units.");
+            }
+            e.setParticipatingUnits(partUnits);
+        }
+
         return toResponse(eventRepository.save(e));
     }
 
@@ -222,9 +292,12 @@ public class EventService {
             throw new RegistrationClosedException("Registration window has closed.");
         }
 
-        membershipRepository.findByVolunteer_VolunteerIdAndUnit_UnitIdAndIsActiveTrue(
-                volunteer.getVolunteerId(), event.getUnit().getUnitId())
-            .orElseThrow(() -> new AccessDeniedException("Volunteer is not an active member of this event's NSS unit."));
+        UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+            .orElseThrow(() -> new AccessDeniedException("Volunteer does not have an active NSS unit membership."));
+
+        if (!event.isUnitEligible(activeMembership.getUnit().getUnitId())) {
+            throw new AccessDeniedException("Volunteer's NSS unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
+        }
 
         EventRegistration existing = registrationRepository
             .findByEvent_EventIdAndVolunteer_VolunteerId(eventId, volunteer.getVolunteerId())
@@ -400,7 +473,9 @@ public class EventService {
             newOpen,
             newClose,
             source.getVenue(),
-            source.getCapacity()
+            source.getCapacity(),
+            source.getEventScope(),
+            source.getParticipatingUnits()
         );
         clone = eventRepository.save(clone);
         return toResponse(clone);

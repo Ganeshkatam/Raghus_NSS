@@ -13,10 +13,20 @@ interface Unit {
   unitNumber: string;
 }
 
+interface EventUnitItem {
+  unitId: string;
+  unitName: string;
+  unitNumber: string;
+}
+
 interface EventItem {
   eventId: string;
   unitId: string;
   unitName: string;
+  organizingUnitId?: string;
+  organizingUnitName?: string;
+  eventScope?: "UNIT" | "MULTI_UNIT" | "COLLEGE_WIDE";
+  participatingUnits?: EventUnitItem[];
   title: string;
   description: string | null;
   eventType: string;
@@ -69,6 +79,8 @@ export const Events: React.FC = () => {
 
   const [form, setForm] = useState({
     unitId: "",
+    eventScope: "UNIT" as "UNIT" | "MULTI_UNIT" | "COLLEGE_WIDE",
+    participatingUnitIds: [] as string[],
     title: "",
     description: "",
     eventType: "SERVICE",
@@ -206,11 +218,31 @@ export const Events: React.FC = () => {
       }
     }
 
+    if (!form.unitId) {
+      setModalError("Please select the organizing NSS unit.");
+      setSaving(false);
+      return;
+    }
+
+    if (form.eventScope === "MULTI_UNIT") {
+      const parts = Array.from(new Set([form.unitId, ...form.participatingUnitIds])).filter(Boolean);
+      if (parts.length < 2) {
+        setModalError("Please select at least 2 participating NSS units for a multi-unit event.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       await apiRequest<EventItem>("/events", {
         method: "POST",
         body: JSON.stringify({
           unitId: form.unitId,
+          organizingUnitId: form.unitId,
+          eventScope: form.eventScope,
+          participatingUnitIds: form.eventScope === "MULTI_UNIT"
+            ? Array.from(new Set([form.unitId, ...form.participatingUnitIds])).filter(Boolean)
+            : form.eventScope === "UNIT" ? [form.unitId] : [],
           title: form.title,
           description: form.description || null,
           eventType: form.eventType,
@@ -225,6 +257,8 @@ export const Events: React.FC = () => {
       setShowModal(false);
       setForm({
         unitId: "",
+        eventScope: "UNIT",
+        participatingUnitIds: [],
         title: "",
         description: "",
         eventType: "SERVICE",
@@ -280,13 +314,45 @@ export const Events: React.FC = () => {
     return { label: "Closed", state: "CLOSED", color: "#64748b", bg: "#f1f5f9" };
   };
 
+  const renderEventUnitScope = (event: EventItem) => {
+    if (event.eventScope === "COLLEGE_WIDE") {
+      return (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+          <span className="badge badge-info" style={{ fontWeight: 700 }}>College-wide Event</span>
+          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary, #64748b)" }}>
+            Organized by {event.organizingUnitName || event.unitName}
+          </span>
+        </span>
+      );
+    }
+    if (event.eventScope === "MULTI_UNIT" && event.participatingUnits && event.participatingUnits.length > 1) {
+      const unitNumbers = event.participatingUnits.map((u) => u.unitNumber).filter(Boolean);
+      const label = unitNumbers.length > 0 ? `Units ${unitNumbers.join(", ")}` : "Multi-Unit";
+      return (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+          <span className="badge badge-success" style={{ fontWeight: 700 }}>{label}</span>
+          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary, #64748b)" }}>
+            Organized by {event.organizingUnitName || event.unitName}
+          </span>
+        </span>
+      );
+    }
+    return <span style={{ fontWeight: 600 }}>{event.unitName}</span>;
+  };
+
   const filteredEvents = events.filter((ev) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
+    const matchesScope = ev.eventScope === "COLLEGE_WIDE" && "college-wide".includes(q);
+    const matchesParts = ev.participatingUnits?.some(
+      (u) => u.unitName.toLowerCase().includes(q) || u.unitNumber.toLowerCase().includes(q)
+    );
     return (
       ev.title.toLowerCase().includes(q) ||
       ev.venue.toLowerCase().includes(q) ||
-      ev.unitName.toLowerCase().includes(q)
+      ev.unitName.toLowerCase().includes(q) ||
+      matchesScope ||
+      Boolean(matchesParts)
     );
   });
 
@@ -426,7 +492,7 @@ export const Events: React.FC = () => {
                 </div>
 
                 <h2>{event.title}</h2>
-                <p className="cell-sub">{event.unitName}</p>
+                <p className="cell-sub">{renderEventUnitScope(event)}</p>
                 <p>{event.description || "No description provided."}</p>
 
                 <div className="event-meta">
@@ -550,20 +616,65 @@ export const Events: React.FC = () => {
               </div>
             )}
             <form className="form-stack" onSubmit={create}>
+              {/* Event Scope Selection */}
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label style={{ fontWeight: 600, display: "block", marginBottom: "0.5rem" }}>Event Scope *</label>
+                <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", padding: "0.25rem 0" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", cursor: "pointer", fontSize: "0.9rem", fontWeight: form.eventScope === "UNIT" ? 600 : 400 }}>
+                    <input
+                      type="radio"
+                      name="eventScope"
+                      value="UNIT"
+                      checked={form.eventScope === "UNIT"}
+                      onChange={() => setForm({ ...form, eventScope: "UNIT", participatingUnitIds: form.unitId ? [form.unitId] : [] })}
+                    />
+                    <span>Single NSS Unit</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", cursor: "pointer", fontSize: "0.9rem", fontWeight: form.eventScope === "MULTI_UNIT" ? 600 : 400 }}>
+                    <input
+                      type="radio"
+                      name="eventScope"
+                      value="MULTI_UNIT"
+                      checked={form.eventScope === "MULTI_UNIT"}
+                      onChange={() => setForm({ ...form, eventScope: "MULTI_UNIT", participatingUnitIds: form.unitId ? [form.unitId] : [] })}
+                    />
+                    <span>Multiple NSS Units</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", cursor: "pointer", fontSize: "0.9rem", fontWeight: form.eventScope === "COLLEGE_WIDE" ? 600 : 400 }}>
+                    <input
+                      type="radio"
+                      name="eventScope"
+                      value="COLLEGE_WIDE"
+                      checked={form.eventScope === "COLLEGE_WIDE"}
+                      onChange={() => setForm({ ...form, eventScope: "COLLEGE_WIDE", participatingUnitIds: [] })}
+                    />
+                    <span>College-wide Event</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="form-grid">
                 <div className="form-group">
-                  <label>NSS Unit *</label>
+                  <label>Organizing NSS Unit *</label>
                   <CustomSelect
                     value={form.unitId}
-                    onChange={(val) => setForm({ ...form, unitId: val })}
+                    onChange={(val) => {
+                      let updatedParts = form.participatingUnitIds;
+                      if (form.eventScope === "MULTI_UNIT") {
+                        updatedParts = Array.from(new Set([val, ...form.participatingUnitIds])).filter(Boolean);
+                      } else if (form.eventScope === "UNIT") {
+                        updatedParts = val ? [val] : [];
+                      }
+                      setForm({ ...form, unitId: val, participatingUnitIds: updatedParts });
+                    }}
                     options={[
-                      { value: "", label: "Choose unit" },
+                      { value: "", label: "Choose organizing unit" },
                       ...units.map((u) => ({
                         value: u.unitId,
                         label: `${u.unitNumber} - ${u.unitName}`,
                       })),
                     ]}
-                    placeholder="Choose unit"
+                    placeholder="Choose organizing unit"
                   />
                 </div>
                 <div className="form-group">
@@ -586,6 +697,44 @@ export const Events: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {form.eventScope === "MULTI_UNIT" && (
+                <div className="form-group" style={{ backgroundColor: "var(--bg-muted, #f8fafc)", padding: "0.85rem 1rem", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)", marginBottom: "1rem" }}>
+                  <label style={{ fontWeight: 600, display: "block", marginBottom: "0.5rem" }}>
+                    Participating NSS Units * (Select at least 2 units)
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.6rem" }}>
+                    {units.map((u) => {
+                      const isOrg = u.unitId === form.unitId;
+                      const isChecked = isOrg || form.participatingUnitIds.includes(u.unitId);
+                      return (
+                        <label key={u.unitId} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", cursor: isOrg ? "default" : "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isOrg}
+                            onChange={(e) => {
+                              if (isOrg) return;
+                              const newIds = e.target.checked
+                                ? [...form.participatingUnitIds, u.unitId]
+                                : form.participatingUnitIds.filter((id) => id !== u.unitId);
+                              setForm({ ...form, participatingUnitIds: newIds });
+                            }}
+                          />
+                          <span>{u.unitNumber} - {u.unitName} {isOrg ? "(Organizer)" : ""}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {form.eventScope === "COLLEGE_WIDE" && (
+                <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.75rem 1rem", borderRadius: "6px", marginBottom: "1rem", fontSize: "0.85rem", color: "#1e40af" }}>
+                  <strong>College-wide Event:</strong> Open to enrolled NSS volunteers across all active college units.
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Title *</label>
                 <input
