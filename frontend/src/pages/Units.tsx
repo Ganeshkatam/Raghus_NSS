@@ -188,7 +188,7 @@ export const Units: React.FC = () => {
                               className="table-action-link"
                               style={{ fontSize: "0.75rem" }}
                             >
-                              Assign &rarr;
+                              Assign
                             </Link>
                           )}
                         </div>

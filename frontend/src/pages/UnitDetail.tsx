@@ -638,7 +638,7 @@ export const UnitDetail: React.FC = () => {
                           style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem" }}
                           onClick={() => switchToTransferFromAllot(selVol)}
                         >
-                          Transfer {selVol.name} to {unit.unitName} &rarr;
+                          Transfer {selVol.name} to {unit.unitName}
                         </button>
                       </div>
                     );
