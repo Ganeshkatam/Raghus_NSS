@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface VolunteerItem {
@@ -228,12 +229,11 @@ export const Volunteers: React.FC = () => {
             <div className="filters-grid">
               <div className="filter-item search-box">
                 <label htmlFor="search">Search</label>
-                <input
+                <SearchBar
                   id="search"
-                  type="text"
                   value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
+                  onChange={(val) => {
+                    setSearch(val);
                     setPage(0);
                   }}
                   placeholder="Search by name or college ID..."

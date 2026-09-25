@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiRequest, API_BASE_URL, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface UnitPerformance {
@@ -588,12 +589,11 @@ export const Reports: React.FC = () => {
                 Showing up to 50 records matching current filter scope.
               </p>
             </div>
-            <input
-              type="text"
+            <SearchBar
               placeholder="Search by name, college ID, department..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ maxWidth: "300px" }}
+              onChange={setSearchQuery}
+              style={{ maxWidth: "340px", minWidth: "260px" }}
             />
           </div>
 
@@ -650,12 +650,11 @@ export const Reports: React.FC = () => {
                 Showing scheduled and completed activities matching current filter scope.
               </p>
             </div>
-            <input
-              type="text"
+            <SearchBar
               placeholder="Search by title, venue, unit..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ maxWidth: "300px" }}
+              onChange={setSearchQuery}
+              style={{ maxWidth: "340px", minWidth: "260px" }}
             />
           </div>
 

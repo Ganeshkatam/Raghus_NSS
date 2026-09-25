@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface UnitSummary {
@@ -535,12 +536,10 @@ export const Admin: React.FC = () => {
             }}
           >
             <div style={{ flex: "1 1 260px", minWidth: "220px", maxWidth: "400px" }}>
-              <input
-                type="text"
-                placeholder="Search user by name or email..."
+              <SearchBar
                 value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                style={{ width: "100%", height: "40px" }}
+                onChange={setUserSearch}
+                placeholder="Search user by name or email..."
               />
             </div>
             <div style={{ width: "220px", minWidth: "180px" }}>
@@ -667,12 +666,11 @@ export const Admin: React.FC = () => {
                 Immutable ledger of volunteer status approvals, unit transfers, and role actions.
               </p>
             </div>
-            <input
-              type="text"
-              placeholder="Search audit events by name, actor, reason..."
+            <SearchBar
               value={auditSearch}
-              onChange={(e) => setAuditSearch(e.target.value)}
-              style={{ minWidth: "260px" }}
+              onChange={setAuditSearch}
+              placeholder="Search audit events by name, actor, reason..."
+              style={{ minWidth: "280px", maxWidth: "420px" }}
             />
           </div>
 

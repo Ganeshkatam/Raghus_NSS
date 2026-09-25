@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface Unit {
@@ -267,12 +268,11 @@ export const Events: React.FC = () => {
       <div className="filter-bar section-card" style={{ marginBottom: "1.5rem" }}>
         <div className="form-group" style={{ flex: 1 }}>
           <label htmlFor="eventSearch">Search Events</label>
-          <input
+          <SearchBar
             id="eventSearch"
-            type="text"
             placeholder="Search by title, venue, or NSS unit..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
           />
         </div>
         <div className="form-group" style={{ minWidth: "240px" }}>
