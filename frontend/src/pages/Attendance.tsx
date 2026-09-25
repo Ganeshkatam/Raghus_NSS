@@ -285,8 +285,21 @@ export const Attendance: React.FC = () => {
       </div>
 
       {error && (
-        <div className="alert alert-error">
-          <strong>Notice:</strong> {error}
+        <div className="alert alert-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div>
+            <strong>Notice:</strong> {error}
+          </div>
+          <button
+            type="button"
+            className="btn-secondary-sm"
+            onClick={() => {
+              setError(null);
+              loadEvents();
+              if (isManager) loadPendingCorrections();
+            }}
+          >
+            Retry Connection
+          </button>
         </div>
       )}
       {success && (
@@ -565,7 +578,16 @@ export const Attendance: React.FC = () => {
             </div>
             <div className="attendance-control-bar">
               <div className="attendance-select-group">
-                <label htmlFor="eventSelect">Select Event</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label htmlFor="eventSelect" style={{ margin: 0 }}>Select Event</label>
+                  <button
+                    type="button"
+                    onClick={loadEvents}
+                    style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600, padding: 0 }}
+                  >
+                    Refresh List
+                  </button>
+                </div>
                 <select
                   id="eventSelect"
                   className="attendance-select"

@@ -18,6 +18,7 @@ import { Admin } from "./pages/Admin";
 import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { API_BASE_URL } from "./api/client";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -74,6 +75,23 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 export const AppContent: React.FC = () => {
+  // Background keep-alive to keep Render container awake and prevent 503 spin-downs
+  React.useEffect(() => {
+    const pingBackend = () => {
+      fetch(`${API_BASE_URL.replace(/\/api\/v1\/?$/, "")}/actuator/health`, {
+        method: "GET",
+        cache: "no-store",
+      }).catch(() => { });
+    };
+
+    // Immediate ping on app startup
+    pingBackend();
+
+    // Keep alive every 9 minutes (Render sleeps after 15 minutes of inactivity)
+    const interval = setInterval(pingBackend, 9 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -307,8 +325,7 @@ export const AppContent: React.FC = () => {
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
-};
-
+}
 export const App: React.FC = () => {
   return (
     <ErrorBoundary>

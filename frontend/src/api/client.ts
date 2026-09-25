@@ -142,7 +142,10 @@ export async function apiRequest<T>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
-  const { retries = 0, retryDelayMs = 1500, ...fetchOptions } = options;
+  const method = (options.method || "GET").toUpperCase();
+  const isIdempotent = method === "GET" || method === "HEAD";
+  const defaultRetries = isIdempotent ? 3 : 2;
+  const { retries = defaultRetries, retryDelayMs = 2000, ...fetchOptions } = options;
   const token = localStorage.getItem("nss_token");
 
   const headers: HeadersInit = {
@@ -168,12 +171,12 @@ export async function apiRequest<T>(
       networkError = true;
     }
 
-    if (networkError || (response && (response.status === 502 || response.status === 503 || response.status === 504))) {
-      if (attempt < retries) {
-        attempt++;
-        await new Promise((res) => setTimeout(res, retryDelayMs * attempt));
-        continue;
-      }
+    const isServerWarmup = response && (response.status === 502 || response.status === 503 || response.status === 504);
+    if ((networkError || isServerWarmup) && attempt < retries) {
+      attempt++;
+      const waitTime = retryDelayMs * attempt;
+      await new Promise((res) => setTimeout(res, waitTime));
+      continue;
     }
 
     if (networkError || !response) {
