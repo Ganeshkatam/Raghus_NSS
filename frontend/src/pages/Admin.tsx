@@ -499,33 +499,51 @@ export const Admin: React.FC = () => {
       {/* TAB 2: USER DIRECTORY & ROLES */}
       {activeTab === "users" && (
         <div className="section-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+          <div className="section-header" style={{ marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
             <div>
               <h2 style={{ margin: 0 }}>User Management Directory</h2>
-              <p className="subtitle" style={{ margin: 0 }}>
+              <p className="subtitle" style={{ margin: "0.25rem 0 0 0" }}>
                 Manage system users, activate/deactivate accounts, and assign administrative roles.
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  setCreateUserError(null);
-                  setShowCreateUserModal(true);
-                }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "42px", padding: "0 1.25rem", whiteSpace: "nowrap" }}
-              >
-                + Create User
-              </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setCreateUserError(null);
+                setShowCreateUserModal(true);
+              }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", whiteSpace: "nowrap" }}
+            >
+              + Create User
+            </button>
+          </div>
+
+          {/* User Search & Filter Toolbar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              flexWrap: "wrap",
+              marginBottom: "1.25rem",
+              padding: "0.75rem 1rem",
+              backgroundColor: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+            }}
+          >
+            <div style={{ flex: "1 1 260px", minWidth: "220px", maxWidth: "400px" }}>
               <input
                 type="text"
                 placeholder="Search user by name or email..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                style={{ minWidth: "220px", height: "42px" }}
+                style={{ width: "100%", height: "40px" }}
               />
+            </div>
+            <div style={{ width: "220px", minWidth: "180px" }}>
               <CustomSelect
                 value={roleFilter}
                 onChange={setRoleFilter}
@@ -537,8 +555,24 @@ export const Admin: React.FC = () => {
                   { value: "VOLUNTEER", label: "VOLUNTEER" },
                 ]}
                 placeholder="All Roles"
-                style={{ minWidth: "180px" }}
+                style={{ width: "100%" }}
               />
+            </div>
+            {(userSearch || roleFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setUserSearch("");
+                  setRoleFilter("");
+                }}
+                className="btn-secondary-sm"
+                style={{ height: "40px", fontSize: "0.85rem", padding: "0 0.85rem" }}
+              >
+                Reset
+              </button>
+            )}
+            <div style={{ marginLeft: "auto", fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+              Showing {filteredUsers.length} of {users.length} users
             </div>
           </div>
 
