@@ -74,6 +74,18 @@ export const Admin: React.FC = () => {
   const [newRole, setNewRole] = useState("VOLUNTEER");
   const [updatingRole, setUpdatingRole] = useState(false);
 
+  // User creation modal
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState("VOLUNTEER");
+  const [newUserStatus, setNewUserStatus] = useState("ACTIVE");
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserError, setCreateUserError] = useState<string | null>(null);
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+
   // Audit filter
   const [auditSearch, setAuditSearch] = useState("");
 
@@ -162,6 +174,47 @@ export const Admin: React.FC = () => {
       alert("Failed to update role: " + apiErr.message);
     } finally {
       setUpdatingRole(false);
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim()) {
+      setCreateUserError("Name and official email are required.");
+      return;
+    }
+
+    setCreatingUser(true);
+    setCreateUserError(null);
+
+    try {
+      await apiRequest<UserDirectoryItem>("/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newUserName.trim(),
+          email: newUserEmail.trim(),
+          phone: newUserPhone.trim() || undefined,
+          password: newUserPassword.trim() || undefined,
+          role: newUserRole,
+          status: newUserStatus,
+        }),
+      });
+
+      setSuccessNotice(`User account for ${newUserEmail} created successfully.`);
+      setShowCreateUserModal(false);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPhone("");
+      setNewUserPassword("");
+      setNewUserRole("VOLUNTEER");
+      setNewUserStatus("ACTIVE");
+
+      await loadAdminData();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setCreateUserError(apiErr.message || "Failed to create user account.");
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -454,13 +507,24 @@ export const Admin: React.FC = () => {
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setCreateUserError(null);
+                  setShowCreateUserModal(true);
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", height: "42px", padding: "0 1.25rem", whiteSpace: "nowrap" }}
+              >
+                + Create User
+              </button>
               <input
                 type="text"
                 placeholder="Search user by name or email..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                style={{ minWidth: "240px" }}
+                style={{ minWidth: "220px", height: "42px" }}
               />
               <CustomSelect
                 value={roleFilter}
@@ -473,7 +537,7 @@ export const Admin: React.FC = () => {
                   { value: "VOLUNTEER", label: "VOLUNTEER" },
                 ]}
                 placeholder="All Roles"
-                style={{ minWidth: "200px" }}
+                style={{ minWidth: "180px" }}
               />
             </div>
           </div>
@@ -764,6 +828,160 @@ export const Admin: React.FC = () => {
                 </button>
                 <button type="submit" className="btn-primary" disabled={updatingRole}>
                   {updatingRole ? "Updating..." : "Update Role"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateUserModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2>Create New User Account</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateUserModal(false)}
+                className="btn-close"
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            {createUserError && (
+              <div className="alert alert-error">
+                <strong>Error:</strong> {createUserError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser} className="form-stack">
+              <div className="form-group">
+                <label htmlFor="newUserName">Full Name *</label>
+                <input
+                  id="newUserName"
+                  type="text"
+                  required
+                  placeholder="e.g. Dr. Rajesh Sharma"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="newUserEmail">Official Email Address *</label>
+                <input
+                  id="newUserEmail"
+                  type="email"
+                  required
+                  placeholder="e.g. rsharma@raghunss.edu"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="newUserPhone">Phone Number</label>
+                <input
+                  id="newUserPhone"
+                  type="tel"
+                  placeholder="e.g. +91 9876543210"
+                  value={newUserPhone}
+                  onChange={(e) => setNewUserPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="newUserPassword">Initial Password</label>
+                <div className="password-input-wrapper">
+                  <input
+                    id="newUserPassword"
+                    type={showNewUserPassword ? "text" : "password"}
+                    placeholder="Leave blank for default (NSSUser@123)"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                    aria-label={showNewUserPassword ? "Hide password" : "Show password"}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      {showNewUserPassword ? (
+                        <>
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </>
+                      )}
+                    </svg>
+                  </button>
+                </div>
+                <small className="form-hint">
+                  Minimum 6 characters. If left empty, default password is NSSUser@123.
+                </small>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="newUserRole">System Role *</label>
+                  <CustomSelect
+                    id="newUserRole"
+                    value={newUserRole}
+                    onChange={setNewUserRole}
+                    options={[
+                      { value: "VOLUNTEER", label: "VOLUNTEER" },
+                      { value: "PROGRAMME_OFFICER", label: "PROGRAMME_OFFICER" },
+                      { value: "FACULTY_COORDINATOR", label: "FACULTY_COORDINATOR" },
+                      { value: "ADMIN", label: "ADMIN" },
+                    ]}
+                    placeholder="Select role"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="newUserStatus">Account Status *</label>
+                  <CustomSelect
+                    id="newUserStatus"
+                    value={newUserStatus}
+                    onChange={setNewUserStatus}
+                    options={[
+                      { value: "ACTIVE", label: "ACTIVE" },
+                      { value: "PENDING", label: "PENDING" },
+                      { value: "SUSPENDED", label: "SUSPENDED" },
+                    ]}
+                    placeholder="Select status"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateUserModal(false)}
+                  className="btn-secondary"
+                  disabled={creatingUser}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={creatingUser}>
+                  {creatingUser ? "Creating Account..." : "Create User"}
                 </button>
               </div>
             </form>

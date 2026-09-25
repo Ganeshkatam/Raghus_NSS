@@ -7,9 +7,13 @@ import edu.college.nss.repository.UnitTransferHistoryRepository;
 import edu.college.nss.repository.UserRepository;
 import edu.college.nss.repository.VolunteerStatusHistoryRepository;
 import edu.college.nss.web.dto.AuditLogItem;
+import edu.college.nss.web.dto.CreateUserRequest;
 import edu.college.nss.web.dto.UserDto;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,15 +28,52 @@ public class UserController {
     private final RoleRepository roleRepository;
     private final VolunteerStatusHistoryRepository statusHistoryRepository;
     private final UnitTransferHistoryRepository transferHistoryRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserController(UserRepository userRepository,
                           RoleRepository roleRepository,
                           VolunteerStatusHistoryRepository statusHistoryRepository,
-                          UnitTransferHistoryRepository transferHistoryRepository) {
+                          UnitTransferHistoryRepository transferHistoryRepository,
+                          PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.statusHistoryRepository = statusHistoryRepository;
         this.transferHistoryRepository = transferHistoryRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @PostMapping
+    @Transactional
+    public ResponseEntity<UserDto> createUser(@Valid @RequestBody CreateUserRequest request) {
+        String email = request.email().toLowerCase().trim();
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("User with email " + email + " already exists.");
+        }
+
+        String rawPassword = (request.password() != null && !request.password().isBlank())
+            ? request.password()
+            : "NSSUser@123";
+
+        String roleName = request.role().toUpperCase().trim();
+        String fullRoleName = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
+        Role role = roleRepository.findByName(fullRoleName)
+            .orElseGet(() -> roleRepository.save(new Role(fullRoleName, roleName + " System Role")));
+
+        User user = new User(
+            request.name().trim(),
+            email,
+            passwordEncoder.encode(rawPassword),
+            request.phone() != null ? request.phone().trim() : null
+        );
+
+        if (request.status() != null && !request.status().isBlank()) {
+            user.setStatus(request.status().toUpperCase().trim());
+        }
+
+        user.setRoles(new HashSet<>(Set.of(role)));
+        user = userRepository.save(user);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(UserDto.fromEntity(user));
     }
 
     @GetMapping
