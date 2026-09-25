@@ -171,30 +171,22 @@ export const Announcements: React.FC = () => {
   });
 
   return (
-    <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div className="page-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 700, color: "var(--text-main, #0f172a)" }}>
-            Announcements & Notices
-          </h1>
-          <p style={{ margin: "0.25rem 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.95rem" }}>
+          <h1>Announcements &amp; Notices</h1>
+          <p className="subtitle">
             College-wide bulletins, unit circulars, and instant activity updates
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           {/* Notifications Toggle */}
           <button
             onClick={() => setShowNotifications(!showNotifications)}
+            className="btn-secondary"
             style={{
-              padding: "0.625rem 1rem",
-              borderRadius: "0.5rem",
-              border: "1px solid var(--border-color, #e2e8f0)",
-              backgroundColor: showNotifications ? "#f1f5f9" : "#ffffff",
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: "0.875rem",
               display: "flex",
               alignItems: "center",
               gap: "0.5rem"
@@ -212,16 +204,7 @@ export const Announcements: React.FC = () => {
           {isOfficerOrAdmin && (
             <button
               onClick={() => setShowCreateModal(true)}
-              style={{
-                backgroundColor: "var(--primary, #1e40af)",
-                color: "#ffffff",
-                padding: "0.625rem 1.25rem",
-                borderRadius: "0.5rem",
-                border: "none",
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-              }}
+              className="btn-primary"
             >
               + Post Announcement
             </button>
@@ -316,7 +299,7 @@ export const Announcements: React.FC = () => {
                             textDecoration: "none",
                           }}
                         >
-                          View Details &rarr;
+                          View Details
                         </a>
                       )}
                     </div>

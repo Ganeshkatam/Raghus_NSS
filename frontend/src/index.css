@@ -2062,6 +2062,18 @@ select option[value=""] {
   border: 1px solid var(--border-subtle);
 }
 
+.badge-info {
+  background-color: var(--status-info-bg, #eff6ff);
+  color: var(--status-info-text, #1d4ed8);
+  border: 1px solid var(--status-info-border, #bfdbfe);
+}
+
+.badge-secondary {
+  background-color: var(--bg-muted, #f1f5f9);
+  color: var(--text-secondary, #475569);
+  border: 1px solid var(--border-strong, #cbd5e1);
+}
+
 /* -------------------------------------------------------------
    Alerts & Notifications
 ------------------------------------------------------------- */
@@ -2478,16 +2490,76 @@ select option[value=""] {
 /* -------------------------------------------------------------
    Grid Layouts & Details Cards
 ------------------------------------------------------------- */
-.grid-2-col {
+.grid-2-col,
+.dashboard-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
 @media (min-width: 860px) {
-  .grid-2-col {
+  .grid-2-col,
+  .dashboard-grid {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.card-header h2,
+.card-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--nss-navy);
+  margin: 0;
+}
+
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--nss-navy, #1e3a8a);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.btn-link:hover {
+  color: var(--nss-navy-hover, #1e40af);
+  text-decoration: underline;
+}
+
+.activity-list,
+.volunteer-list,
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-item:last-child,
+.volunteer-list > div:last-child,
+.announcement-list > div:last-child {
+  border-bottom: none !important;
 }
 
 .details-list {
@@ -2570,9 +2642,11 @@ select option[value=""] {
   margin: 0.25rem 0;
 }
 
-.stat-desc {
+.stat-desc,
+.stat-meta {
   font-size: 0.78rem;
   color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 .filters-card {

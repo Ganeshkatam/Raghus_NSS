@@ -250,33 +250,22 @@ export const ServiceHours: React.FC = () => {
   });
 
   return (
-    <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div className="page-container">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 700, color: "var(--text-main, #0f172a)" }}>
-            Service Hours Ledger
-          </h1>
-          <p style={{ margin: "0.25rem 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.95rem" }}>
+          <h1>Service Hours Ledger</h1>
+          <p className="subtitle">
             Institutional verified hours accumulation, milestone certifications, and audit tracking
           </p>
         </div>
 
         {/* Action button */}
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
           {(user?.roles?.includes("VOLUNTEER") || hasCapability("SERVICE_HOURS_LOG")) && (
             <button
               onClick={() => setShowClaimModal(true)}
-              style={{
-                backgroundColor: "var(--primary, #1e40af)",
-                color: "#ffffff",
-                padding: "0.625rem 1.25rem",
-                borderRadius: "0.5rem",
-                border: "none",
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-              }}
+              className="btn-primary"
             >
               + Log Service Hours Claim
             </button>

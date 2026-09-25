@@ -241,7 +241,7 @@ export const InstitutionalDashboard: React.FC = () => {
                             {isAdmin && (
                               <div style={{ marginTop: "0.25rem" }}>
                                 <Link to={`/units/${u.unitId}`} className="table-action-link" style={{ fontSize: "0.75rem" }}>
-                                  Assign Officer &rarr;
+                                  Assign Officer
                                 </Link>
                               </div>
                             )}

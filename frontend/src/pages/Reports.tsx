@@ -215,15 +215,15 @@ export const Reports: React.FC = () => {
   });
 
   return (
-    <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <div className="page-container">
       {/* Page Header */}
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 700, color: "var(--text-main, #0f172a)" }}>
-          Reports &amp; Institutional Analytics
-        </h1>
-        <p style={{ margin: "0.25rem 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.95rem" }}>
-          Accreditation compliance lists, NSS unit comparative matrices, and filtered audit exports.
-        </p>
+      <div className="page-header">
+        <div>
+          <h1>Reports &amp; Institutional Analytics</h1>
+          <p className="subtitle">
+            Accreditation compliance lists, NSS unit comparative matrices, and filtered audit exports.
+          </p>
+        </div>
       </div>
 
       {error && (
