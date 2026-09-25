@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface UnitData {
   unitId: string;
@@ -460,20 +462,21 @@ export const UnitDetail: React.FC = () => {
             <form onSubmit={handleAddMember} className="form-stack">
               <div className="form-group">
                 <label htmlFor="volunteerSelect">Select Registered Volunteer *</label>
-                <select
+                <CustomSelect
                   id="volunteerSelect"
                   value={selectedVolunteerId}
-                  onChange={(e) => setSelectedVolunteerId(e.target.value)}
-                  required
-                >
-                  <option value="">-- Choose a volunteer --</option>
-                  {availableVolunteers.map((v) => (
-                    <option key={v.volunteerId} value={v.volunteerId}>
-                      {v.name} ({v.collegeId}) - {v.department}{" "}
-                      {v.activeUnitName ? `[Currently in: ${v.activeUnitName}]` : "[Unassigned]"}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedVolunteerId}
+                  options={[
+                    { value: "", label: "-- Choose a volunteer --" },
+                    ...availableVolunteers.map((v) => ({
+                      value: v.volunteerId,
+                      label: `${v.name} (${v.collegeId}) - ${v.department} ${
+                        v.activeUnitName ? `[Currently in: ${v.activeUnitName}]` : "[Unassigned]"
+                      }`,
+                    })),
+                  ]}
+                  placeholder="-- Choose a volunteer --"
+                />
                 <small className="form-hint">
                   Note: If the volunteer belongs to another unit, their previous
                   membership will be archived to preserve history.
@@ -523,20 +526,21 @@ export const UnitDetail: React.FC = () => {
             <form onSubmit={handleTransferVolunteer} className="form-stack">
               <div className="form-group">
                 <label htmlFor="transferVolunteerSelect">Select Volunteer to Transfer *</label>
-                <select
+                <CustomSelect
                   id="transferVolunteerSelect"
                   value={transferVolunteerId}
-                  onChange={(e) => setTransferVolunteerId(e.target.value)}
-                  required
-                >
-                  <option value="">-- Choose a volunteer --</option>
-                  {availableVolunteers.map((v) => (
-                    <option key={v.volunteerId} value={v.volunteerId}>
-                      {v.name} ({v.collegeId}) - {v.department}{" "}
-                      {v.activeUnitName ? `[From: ${v.activeUnitName}]` : "[Unassigned]"}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTransferVolunteerId}
+                  options={[
+                    { value: "", label: "-- Choose a volunteer --" },
+                    ...availableVolunteers.map((v) => ({
+                      value: v.volunteerId,
+                      label: `${v.name} (${v.collegeId}) - ${v.department} ${
+                        v.activeUnitName ? `[From: ${v.activeUnitName}]` : "[Unassigned]"
+                      }`,
+                    })),
+                  ]}
+                  placeholder="-- Choose a volunteer --"
+                />
               </div>
 
               <div className="form-group">
@@ -598,18 +602,19 @@ export const UnitDetail: React.FC = () => {
                 {loadingCandidates ? (
                   <p className="cell-sub">Loading available faculty officers...</p>
                 ) : (
-                  <select
+                  <CustomSelect
                     id="officerSelect"
                     value={selectedOfficerId}
-                    onChange={(e) => setSelectedOfficerId(e.target.value)}
-                  >
-                    <option value="">-- No Officer Assigned (Unassigned) --</option>
-                    {officerCandidates.map((c) => (
-                      <option key={c.userId} value={c.userId}>
-                        {c.name} ({c.email}) {c.roles?.length ? `[${c.roles.join(", ")}]` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedOfficerId}
+                    options={[
+                      { value: "", label: "-- No Officer Assigned (Unassigned) --" },
+                      ...officerCandidates.map((c) => ({
+                        value: c.userId,
+                        label: `${c.name} (${c.email})${c.roles?.length ? ` [${c.roles.join(", ")}]` : ""}`,
+                      })),
+                    ]}
+                    placeholder="-- No Officer Assigned (Unassigned) --"
+                  />
                 )}
               </div>
 

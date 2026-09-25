@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface ServiceHourEntry {
   entryId: string;
@@ -576,16 +578,17 @@ export const ServiceHours: React.FC = () => {
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Hour Category *
                 </label>
-                <select
+                <CustomSelect
                   value={claimCategory}
-                  onChange={(e) => setClaimCategory(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                >
-                  <option value="REGULAR_ACTIVITY">Regular Activity (Campus & Institutional Drives)</option>
-                  <option value="COMMUNITY_OUTREACH">Community Outreach (Village & Field Work)</option>
-                  <option value="BLOOD_DONATION">Blood Donation Camp</option>
-                  <option value="SPECIAL_PROJECT">Special Project / State Initiative</option>
-                </select>
+                  onChange={setClaimCategory}
+                  options={[
+                    { value: "REGULAR_ACTIVITY", label: "Regular Activity (Campus & Institutional Drives)" },
+                    { value: "COMMUNITY_OUTREACH", label: "Community Outreach (Village & Field Work)" },
+                    { value: "BLOOD_DONATION", label: "Blood Donation Camp" },
+                    { value: "SPECIAL_PROJECT", label: "Special Project / State Initiative" },
+                  ]}
+                  placeholder="Select category"
+                />
               </div>
 
               <div style={{ marginBottom: "1rem" }}>
@@ -604,18 +607,18 @@ export const ServiceHours: React.FC = () => {
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Associated Event (Optional)
                 </label>
-                <select
+                <CustomSelect
                   value={claimEventId}
-                  onChange={(e) => setClaimEventId(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                >
-                  <option value="">Independent Community Service Activity</option>
-                  {events.map((ev) => (
-                    <option key={ev.eventId} value={ev.eventId}>
-                      {ev.title} ({new Date(ev.startAt).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setClaimEventId}
+                  options={[
+                    { value: "", label: "Independent Community Service Activity" },
+                    ...events.map((ev) => ({
+                      value: ev.eventId,
+                      label: `${ev.title} (${new Date(ev.startAt).toLocaleDateString()})`,
+                    })),
+                  ]}
+                  placeholder="Independent Community Service Activity"
+                />
               </div>
 
               <div style={{ marginBottom: "1rem" }}>

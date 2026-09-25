@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface Announcement {
   announcementId: string;
@@ -500,33 +502,34 @@ export const Announcements: React.FC = () => {
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Target Audience / Unit
                 </label>
-                <select
+                <CustomSelect
                   value={newUnitId}
-                  onChange={(e) => setNewUnitId(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                >
-                  <option value="">College-Wide (Broadcast to all students & units)</option>
-                  {units.map((u) => (
-                    <option key={u.unitId} value={u.unitId}>
-                      {u.unitName} ({u.unitNumber})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setNewUnitId}
+                  options={[
+                    { value: "", label: "College-Wide (Broadcast to all students & units)" },
+                    ...units.map((u) => ({
+                      value: u.unitId,
+                      label: `${u.unitName} (${u.unitNumber})`,
+                    })),
+                  ]}
+                  placeholder="College-Wide (Broadcast to all students & units)"
+                />
               </div>
 
               <div style={{ marginBottom: "1rem" }}>
                 <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
                   Priority Level *
                 </label>
-                <select
+                <CustomSelect
                   value={newPriority}
-                  onChange={(e) => setNewPriority(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                >
-                  <option value="NORMAL">Normal Priority</option>
-                  <option value="HIGH">High Priority</option>
-                  <option value="URGENT">Urgent Notice</option>
-                </select>
+                  onChange={setNewPriority}
+                  options={[
+                    { value: "NORMAL", label: "Normal Priority" },
+                    { value: "HIGH", label: "High Priority" },
+                    { value: "URGENT", label: "Urgent Notice" },
+                  ]}
+                  placeholder="Select priority"
+                />
               </div>
 
               <div style={{ marginBottom: "1rem" }}>

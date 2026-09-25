@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface UnitSummary {
   unitId: string;
@@ -460,13 +462,19 @@ export const Admin: React.FC = () => {
                 onChange={(e) => setUserSearch(e.target.value)}
                 style={{ minWidth: "240px" }}
               />
-              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                <option value="">All Roles</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="FACULTY_COORDINATOR">FACULTY_COORDINATOR</option>
-                <option value="PROGRAMME_OFFICER">PROGRAMME_OFFICER</option>
-                <option value="VOLUNTEER">VOLUNTEER</option>
-              </select>
+              <CustomSelect
+                value={roleFilter}
+                onChange={setRoleFilter}
+                options={[
+                  { value: "", label: "All Roles" },
+                  { value: "ADMIN", label: "ADMIN" },
+                  { value: "FACULTY_COORDINATOR", label: "FACULTY_COORDINATOR" },
+                  { value: "PROGRAMME_OFFICER", label: "PROGRAMME_OFFICER" },
+                  { value: "VOLUNTEER", label: "VOLUNTEER" },
+                ]}
+                placeholder="All Roles"
+                style={{ minWidth: "200px" }}
+              />
             </div>
           </div>
 
@@ -733,12 +741,17 @@ export const Admin: React.FC = () => {
               </p>
               <div className="form-group">
                 <label>System Role *</label>
-                <select value={newRole} onChange={(e) => setNewRole(e.target.value)} required>
-                  <option value="VOLUNTEER">VOLUNTEER</option>
-                  <option value="PROGRAMME_OFFICER">PROGRAMME_OFFICER</option>
-                  <option value="FACULTY_COORDINATOR">FACULTY_COORDINATOR</option>
-                  <option value="ADMIN">ADMIN</option>
-                </select>
+                <CustomSelect
+                  value={newRole}
+                  onChange={setNewRole}
+                  options={[
+                    { value: "VOLUNTEER", label: "VOLUNTEER" },
+                    { value: "PROGRAMME_OFFICER", label: "PROGRAMME_OFFICER" },
+                    { value: "FACULTY_COORDINATOR", label: "FACULTY_COORDINATOR" },
+                    { value: "ADMIN", label: "ADMIN" },
+                  ]}
+                  placeholder="Select a role"
+                />
               </div>
               <div className="modal-actions">
                 <button

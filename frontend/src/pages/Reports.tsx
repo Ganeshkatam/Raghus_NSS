@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiRequest, API_BASE_URL, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface UnitPerformance {
   unitId: string;
@@ -305,14 +307,18 @@ export const Reports: React.FC = () => {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
           <div className="form-group" style={{ margin: 0 }}>
             <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>NSS Operational Unit</label>
-            <select value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-              <option value="">All Institutional Units</option>
-              {units.map((u) => (
-                <option key={u.unitId} value={u.unitId}>
-                  {u.unitNumber} - {u.unitName}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              value={unitId}
+              onChange={setUnitId}
+              options={[
+                { value: "", label: "All Institutional Units" },
+                ...units.map((u) => ({
+                  value: u.unitId,
+                  label: `${u.unitNumber} - ${u.unitName}`,
+                })),
+              ]}
+              placeholder="All Institutional Units"
+            />
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
@@ -335,13 +341,18 @@ export const Reports: React.FC = () => {
 
           <div className="form-group" style={{ margin: 0 }}>
             <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>Status Filter</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="OPEN">OPEN</option>
-            </select>
+            <CustomSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: "", label: "All Statuses" },
+                { value: "ACTIVE", label: "ACTIVE" },
+                { value: "PENDING_APPROVAL", label: "PENDING_APPROVAL" },
+                { value: "COMPLETED", label: "COMPLETED" },
+                { value: "OPEN", label: "OPEN" },
+              ]}
+              placeholder="All Statuses"
+            />
           </div>
         </div>
       </div>

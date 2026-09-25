@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface VolunteerItem {
   volunteerId: string;
@@ -240,41 +242,45 @@ export const Volunteers: React.FC = () => {
 
               <div className="filter-item">
                 <label htmlFor="department">Department</label>
-                <select
+                <CustomSelect
                   id="department"
                   value={department}
-                  onChange={(e) => {
-                    setDepartment(e.target.value);
+                  onChange={(val) => {
+                    setDepartment(val);
                     setPage(0);
                   }}
-                >
-                  <option value="">All Departments</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Information Technology">Information Technology</option>
-                  <option value="Mechanical Engineering">Mechanical Engineering</option>
-                  <option value="Electronics & Communication">Electronics & Communication</option>
-                  <option value="Electrical Engineering">Electrical Engineering</option>
-                  <option value="Civil Engineering">Civil Engineering</option>
-                </select>
+                  options={[
+                    { value: "", label: "All Departments" },
+                    { value: "Computer Science", label: "Computer Science" },
+                    { value: "Information Technology", label: "Information Technology" },
+                    { value: "Mechanical Engineering", label: "Mechanical Engineering" },
+                    { value: "Electronics & Communication", label: "Electronics & Communication" },
+                    { value: "Electrical Engineering", label: "Electrical Engineering" },
+                    { value: "Civil Engineering", label: "Civil Engineering" },
+                  ]}
+                  placeholder="All Departments"
+                />
               </div>
 
               <div className="filter-item">
                 <label htmlFor="status">Status</label>
-                <select
+                <CustomSelect
                   id="status"
                   value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
+                  onChange={(val) => {
+                    setStatus(val);
                     setPage(0);
                   }}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
-                  <option value="ALUMNI">ALUMNI</option>
-                </select>
+                  options={[
+                    { value: "", label: "All Statuses" },
+                    { value: "ACTIVE", label: "ACTIVE" },
+                    { value: "PENDING_APPROVAL", label: "PENDING_APPROVAL" },
+                    { value: "INACTIVE", label: "INACTIVE" },
+                    { value: "SUSPENDED", label: "SUSPENDED" },
+                    { value: "ALUMNI", label: "ALUMNI" },
+                  ]}
+                  placeholder="All Statuses"
+                />
               </div>
             </div>
           </div>
@@ -548,33 +554,35 @@ export const Volunteers: React.FC = () => {
 
                 <div className="form-group">
                   <label htmlFor="modal-year">Year of Study *</label>
-                  <select
+                  <CustomSelect
                     id="modal-year"
-                    value={newYear}
-                    onChange={(e) => setNewYear(Number(e.target.value))}
-                  >
-                    <option value={1}>1st Year</option>
-                    <option value={2}>2nd Year</option>
-                    <option value={3}>3rd Year</option>
-                    <option value={4}>4th Year</option>
-                  </select>
+                    value={String(newYear)}
+                    onChange={(val) => setNewYear(Number(val))}
+                    options={[
+                      { value: "1", label: "1st Year" },
+                      { value: "2", label: "2nd Year" },
+                      { value: "3", label: "3rd Year" },
+                      { value: "4", label: "4th Year" },
+                    ]}
+                  />
                 </div>
               </div>
 
               <div className="form-group">
                 <label htmlFor="modal-dept">Department *</label>
-                <select
+                <CustomSelect
                   id="modal-dept"
                   value={newDept}
-                  onChange={(e) => setNewDept(e.target.value)}
-                >
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Information Technology">Information Technology</option>
-                  <option value="Mechanical Engineering">Mechanical Engineering</option>
-                  <option value="Electronics & Communication">Electronics & Communication</option>
-                  <option value="Electrical Engineering">Electrical Engineering</option>
-                  <option value="Civil Engineering">Civil Engineering</option>
-                </select>
+                  onChange={(val) => setNewDept(val)}
+                  options={[
+                    { value: "Computer Science", label: "Computer Science" },
+                    { value: "Information Technology", label: "Information Technology" },
+                    { value: "Mechanical Engineering", label: "Mechanical Engineering" },
+                    { value: "Electronics & Communication", label: "Electronics & Communication" },
+                    { value: "Electrical Engineering", label: "Electrical Engineering" },
+                    { value: "Civil Engineering", label: "Civil Engineering" },
+                  ]}
+                />
               </div>
 
               <div className="form-group">

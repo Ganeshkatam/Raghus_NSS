@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface Unit {
   unitId: string;
@@ -275,14 +277,19 @@ export const Events: React.FC = () => {
         </div>
         <div className="form-group" style={{ minWidth: "240px" }}>
           <label htmlFor="eventUnit">NSS Unit</label>
-          <select id="eventUnit" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-            <option value="">All NSS Units</option>
-            {units.map((u) => (
-              <option key={u.unitId} value={u.unitId}>
-                {u.unitNumber} - {u.unitName}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            id="eventUnit"
+            value={unitId}
+            onChange={setUnitId}
+            options={[
+              { value: "", label: "All NSS Units" },
+              ...units.map((u) => ({
+                value: u.unitId,
+                label: `${u.unitNumber} - ${u.unitName}`,
+              })),
+            ]}
+            placeholder="All NSS Units"
+          />
         </div>
       </div>
 
@@ -449,18 +456,18 @@ export const Events: React.FC = () => {
               <div className="form-grid">
                 <div className="form-group">
                   <label>NSS Unit *</label>
-                  <select
-                    required
+                  <CustomSelect
                     value={form.unitId}
-                    onChange={(e) => setForm({ ...form, unitId: e.target.value })}
-                  >
-                    <option value="">Choose unit</option>
-                    {units.map((u) => (
-                      <option key={u.unitId} value={u.unitId}>
-                        {u.unitNumber} - {u.unitName}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setForm({ ...form, unitId: val })}
+                    options={[
+                      { value: "", label: "Choose unit" },
+                      ...units.map((u) => ({
+                        value: u.unitId,
+                        label: `${u.unitNumber} - ${u.unitName}`,
+                      })),
+                    ]}
+                    placeholder="Choose unit"
+                  />
                 </div>
                 <div className="form-group">
                   <label>Event Type *</label>

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface UnitItem {
   unitId: string;
@@ -273,18 +275,19 @@ export const Units: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="unitOfficer">Assign Programme Officer (Optional)</label>
-                <select
+                <CustomSelect
                   id="unitOfficer"
                   value={selectedOfficerId}
-                  onChange={(e) => setSelectedOfficerId(e.target.value)}
-                >
-                  <option value="">-- Assign Later (Unassigned) --</option>
-                  {officerCandidates.map((c) => (
-                    <option key={c.userId} value={c.userId}>
-                      {c.name} ({c.email}) {c.roles?.length ? `[${c.roles.join(", ")}]` : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedOfficerId}
+                  options={[
+                    { value: "", label: "-- Assign Later (Unassigned) --" },
+                    ...officerCandidates.map((c) => ({
+                      value: c.userId,
+                      label: `${c.name} (${c.email})${c.roles?.length ? ` [${c.roles.join(", ")}]` : ""}`,
+                    })),
+                  ]}
+                  placeholder="-- Assign Later (Unassigned) --"
+                />
               </div>
 
               <div className="modal-actions">

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface SessionData {
   sessionId: string;
@@ -588,19 +590,20 @@ export const Attendance: React.FC = () => {
                     Refresh List
                   </button>
                 </div>
-                <select
+                <CustomSelect
                   id="eventSelect"
-                  className="attendance-select"
                   value={selectedEventId || ""}
-                  onChange={(e) => setSelectedEventId(e.target.value || null)}
-                >
-                  {events.length === 0 && <option value="">No active events found</option>}
-                  {events.map((ev) => (
-                    <option key={ev.eventId} value={ev.eventId}>
-                      {ev.title} {ev.unitName ? `(${ev.unitName})` : ""} &mdash; {ev.status}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedEventId(val || null)}
+                  options={
+                    events.length === 0
+                      ? [{ value: "", label: "No active events found" }]
+                      : events.map((ev) => ({
+                          value: ev.eventId,
+                          label: `${ev.title}${ev.unitName ? ` (${ev.unitName})` : ""} - ${ev.status}`,
+                        }))
+                  }
+                  placeholder="Select an event..."
+                />
               </div>
 
               <div className="attendance-action-group">
@@ -787,15 +790,16 @@ export const Attendance: React.FC = () => {
                   <form onSubmit={handleAuditCorrection} className="form-stack" style={{ padding: 0 }}>
                     <div className="form-group">
                       <label htmlFor="statusSelect">New Attendance Status *</label>
-                      <select
+                      <CustomSelect
                         id="statusSelect"
                         value={correctionStatus}
-                        onChange={(e) => setCorrectionStatus(e.target.value)}
-                      >
-                        <option value="PRESENT">PRESENT</option>
-                        <option value="ABSENT">ABSENT</option>
-                        <option value="EXCUSED">EXCUSED</option>
-                      </select>
+                        onChange={(val) => setCorrectionStatus(val)}
+                        options={[
+                          { value: "PRESENT", label: "PRESENT" },
+                          { value: "ABSENT", label: "ABSENT" },
+                          { value: "EXCUSED", label: "EXCUSED" },
+                        ]}
+                      />
                     </div>
 
                     <div className="form-group">

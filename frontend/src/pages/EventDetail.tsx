@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface EventItem {
   eventId: string;
@@ -1284,20 +1286,19 @@ export const EventDetail: React.FC = () => {
               </p>
               <div className="form-group">
                 <label>Cancellation Reason *</label>
-                <select
+                <CustomSelect
                   value={cancelCategory}
-                  onChange={(e) => setCancelCategory(e.target.value)}
-                  required
-                >
-                  <option value="Academic schedule conflict">Academic schedule conflict</option>
-                  <option value="Exam / Internal assessment preparation">
-                    Exam / Internal assessment preparation
-                  </option>
-                  <option value="Health / Medical reason">Health / Medical reason</option>
-                  <option value="Family or personal emergency">Family or personal emergency</option>
-                  <option value="Transportation issue">Transportation issue</option>
-                  <option value="Other">Other</option>
-                </select>
+                  onChange={setCancelCategory}
+                  options={[
+                    { value: "Academic schedule conflict", label: "Academic schedule conflict" },
+                    { value: "Exam / Internal assessment preparation", label: "Exam / Internal assessment preparation" },
+                    { value: "Health / Medical reason", label: "Health / Medical reason" },
+                    { value: "Family or personal emergency", label: "Family or personal emergency" },
+                    { value: "Transportation issue", label: "Transportation issue" },
+                    { value: "Other", label: "Other" },
+                  ]}
+                  placeholder="Select reason"
+                />
               </div>
               <div className="form-group">
                 <label>Additional Remarks (Optional)</label>

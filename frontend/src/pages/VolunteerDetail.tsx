@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
+import { CustomSelect } from "../components/CustomSelect";
+
 
 interface VolunteerData {
   volunteerId: string;
@@ -406,17 +408,18 @@ export const VolunteerDetail: React.FC = () => {
               <form onSubmit={handleUpdateStatus} className="form-stack" style={{ padding: 0 }}>
                 <div className="form-group">
                   <label htmlFor="newStatusSelect">Status Transition *</label>
-                  <select
+                  <CustomSelect
                     id="newStatusSelect"
                     value={selectedNewStatus}
-                    onChange={(e) => setSelectedNewStatus(e.target.value)}
-                  >
-                    <option value="ACTIVE">ACTIVE &mdash; Fully Approved Volunteer</option>
-                    <option value="PENDING_APPROVAL">PENDING_APPROVAL &mdash; Under Verification</option>
-                    <option value="INACTIVE">INACTIVE &mdash; Suspended Participation</option>
-                    <option value="ALUMNI">ALUMNI &mdash; Graduated NSS Member</option>
-                    <option value="SUSPENDED">SUSPENDED &mdash; Disciplinary Hold</option>
-                  </select>
+                    onChange={setSelectedNewStatus}
+                    options={[
+                      { value: "ACTIVE", label: "ACTIVE - Fully Approved Volunteer" },
+                      { value: "PENDING_APPROVAL", label: "PENDING_APPROVAL - Under Verification" },
+                      { value: "INACTIVE", label: "INACTIVE - Suspended Participation" },
+                      { value: "ALUMNI", label: "ALUMNI - Graduated NSS Member" },
+                      { value: "SUSPENDED", label: "SUSPENDED - Disciplinary Hold" },
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group">
