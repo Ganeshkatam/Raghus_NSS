@@ -22,7 +22,7 @@ interface UnitStats {
   unitName: string;
   unitNumber: string;
   capacity?: number | null;
-  activeMembers: number;
+  activeVolunteers: number;
   totalEvents: number;
   totalServiceHours: number;
 }
@@ -357,7 +357,7 @@ export const UnitDetail: React.FC = () => {
           <div className="section-card" style={{ padding: "1.25rem" }}>
             <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Enrolled Volunteers</div>
             <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#1e3a8a", marginTop: "0.25rem" }}>
-              {stats.activeMembers} {(stats.capacity ?? unit?.capacity) ? <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {stats.capacity ?? unit?.capacity}</span> : null}
+              {stats.activeVolunteers} {(stats.capacity ?? unit?.capacity) ? <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {stats.capacity ?? unit?.capacity}</span> : null}
             </div>
           </div>
           <div className="section-card" style={{ padding: "1.25rem" }}>
