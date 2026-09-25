@@ -43,7 +43,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
     if (!isAuthenticated || !token || !user) return;
     let isSubscribed = true;
     const fetchUnread = () => {
-      apiRequest<{ unreadCount: number }>("/notifications/unread-count")
+      apiRequest<{ unreadCount: number }>("/notifications/unread-count", {
+        retries: 0,
+      })
         .then((res) => {
           if (isSubscribed && res && typeof res.unreadCount === "number") {
             setUnreadCount(res.unreadCount);

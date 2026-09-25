@@ -259,11 +259,27 @@ export async function apiRequest<T>(
         isRefreshing = true;
 
         try {
-          const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken }),
-          });
+          let refreshResp: Response;
+          try {
+            refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refreshToken }),
+            });
+          } catch {
+            // Transient network failure / offline / server connection closed
+            // Keep session credentials in localStorage; do not log out
+            isRefreshing = false;
+            const netErr: ApiError = {
+              code: "NETWORK_ERROR",
+              message: "Unable to reach server to refresh session. Please check your connection.",
+              status: 0,
+              category: "NETWORK_OFFLINE",
+              retryable: true,
+            };
+            processRefreshQueue(netErr, null);
+            throw netErr;
+          }
 
           if (refreshResp.ok) {
             const refreshData = await refreshResp.json();
@@ -288,30 +304,32 @@ export async function apiRequest<T>(
                 Authorization: `Bearer ${newAccessToken}`,
               },
             });
-          } else {
-            // Refresh token has expired or is invalid
-            isRefreshing = false;
-            processRefreshQueue(new Error("Session expired"), null);
-            localStorage.removeItem("nss_token");
-            localStorage.removeItem("nss_refresh_token");
-            localStorage.removeItem("nss_user");
-
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("nss:auth:expired"));
-            }
-
-            const error: ApiError = {
-              code: "AUTHENTICATION_EXPIRED",
-              message: "Your login session has expired. Please sign in again.",
-              status: 401,
-              category: "AUTH_EXPIRED",
-              retryable: false,
-            };
-            throw error;
           }
-        } catch (refreshErr) {
+
+          // Check for transient server errors (502, 503, 504, 429)
+          const isTransientServerError =
+            refreshResp.status === 429 ||
+            refreshResp.status === 502 ||
+            refreshResp.status === 503 ||
+            refreshResp.status === 504;
+
+          if (isTransientServerError) {
+            isRefreshing = false;
+            const transientErr: ApiError = {
+              code: "SERVER_UNAVAILABLE",
+              message: "Authentication service temporarily unavailable. Please try again shortly.",
+              status: refreshResp.status,
+              category: "SERVER_WARMUP",
+              retryable: true,
+            };
+            processRefreshQueue(transientErr, null);
+            throw transientErr;
+          }
+
+          // Definitive authentication failure (e.g. 401 Unauthorized, 403 Forbidden, 400 Bad Request)
+          // Refresh token has expired or is invalid -> clear session and notify app
           isRefreshing = false;
-          processRefreshQueue(refreshErr, null);
+          processRefreshQueue(new Error("Session expired"), null);
           localStorage.removeItem("nss_token");
           localStorage.removeItem("nss_refresh_token");
           localStorage.removeItem("nss_user");
@@ -328,6 +346,9 @@ export async function apiRequest<T>(
             retryable: false,
           };
           throw error;
+        } catch (refreshErr) {
+          isRefreshing = false;
+          throw refreshErr;
         }
       } else {
         // No refresh token available to rescue session
