@@ -9,7 +9,7 @@ interface TopbarProps {
 }
 
 export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
-  const { user, roleDisplayName, logout, isOfficer, isVolunteer } = useAuth();
+  const { user, token, isAuthenticated, roleDisplayName, logout, isOfficer, isVolunteer } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [assignedUnitText, setAssignedUnitText] = useState<string | null>(null);
@@ -30,11 +30,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated || !token || !user) return;
+    let isSubscribed = true;
     const fetchUnread = () => {
       apiRequest<{ unreadCount: number }>("/notifications/unread-count")
         .then((res) => {
-          if (res && typeof res.unreadCount === "number") {
+          if (isSubscribed && res && typeof res.unreadCount === "number") {
             setUnreadCount(res.unreadCount);
           }
         })
@@ -42,15 +43,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
     };
     fetchUnread();
     const timer = setInterval(fetchUnread, 30000);
-    return () => clearInterval(timer);
-  }, [user]);
+    return () => {
+      isSubscribed = false;
+      clearInterval(timer);
+    };
+  }, [isAuthenticated, token, user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated || !token || !user) return;
+    let isSubscribed = true;
     if (isVolunteer) {
       apiRequest<{ activeUnitName: string | null; activeUnitNumber: string | null }>("/volunteers/me")
         .then((vol) => {
-          if (vol && (vol.activeUnitNumber || vol.activeUnitName)) {
+          if (isSubscribed && vol && (vol.activeUnitNumber || vol.activeUnitName)) {
             setAssignedUnitText(vol.activeUnitNumber ? `Unit ${vol.activeUnitNumber}` : vol.activeUnitName);
           }
         })
@@ -58,7 +63,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
     } else if (isOfficer) {
       apiRequest<any[]>("/units")
         .then((units) => {
-          if (Array.isArray(units) && units.length > 0) {
+          if (isSubscribed && Array.isArray(units) && units.length > 0) {
             const myUnit = units.find((u) => u.officerEmail === user.email || u.officerId === user.userId);
             if (myUnit) {
               setAssignedUnitText(`Unit ${myUnit.unitNumber}`);
@@ -67,7 +72,10 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
         })
         .catch(() => {});
     }
-  }, [user, isVolunteer, isOfficer]);
+    return () => {
+      isSubscribed = false;
+    };
+  }, [isAuthenticated, token, user, isVolunteer, isOfficer]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

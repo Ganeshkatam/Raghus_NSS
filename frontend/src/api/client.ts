@@ -138,27 +138,63 @@ export interface ApiRequestOptions extends RequestInit {
   retryDelayMs?: number;
 }
 
+let isRefreshing = false;
+let refreshQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}> = [];
+
+function processRefreshQueue(error: any, newToken: string | null = null) {
+  refreshQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (newToken) {
+      prom.resolve(newToken);
+    }
+  });
+  refreshQueue = [];
+}
+
 export async function apiRequest<T>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
+  const isPublicEndpoint =
+    endpoint.startsWith("/auth/login") ||
+    endpoint.startsWith("/auth/refresh") ||
+    endpoint.startsWith("/actuator");
+
+  let token = localStorage.getItem("nss_token");
+
+  // Prevent protected endpoints from hitting the network without an authenticated token
+  if (!token && !isPublicEndpoint) {
+    const error: ApiError = {
+      code: "AUTHENTICATION_REQUIRED",
+      message: "You must be signed in to perform this action.",
+      status: 401,
+      category: "AUTH_INVALID",
+      retryable: false,
+    };
+    return Promise.reject(error);
+  }
+
   const method = (options.method || "GET").toUpperCase();
   const isIdempotent = method === "GET" || method === "HEAD";
-  const defaultRetries = isIdempotent ? 3 : 2;
+  const defaultRetries = isIdempotent ? 3 : 1;
   const { retries = defaultRetries, retryDelayMs = 2000, ...fetchOptions } = options;
-  const token = localStorage.getItem("nss_token");
-
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(fetchOptions.headers || {}),
-  };
-
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-  }
 
   let attempt = 0;
   while (true) {
+    token = localStorage.getItem("nss_token");
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(fetchOptions.headers || {}),
+    };
+
+    if (token) {
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    }
+
     let response: Response | null = null;
     let networkError = false;
 
@@ -171,7 +207,10 @@ export async function apiRequest<T>(
       networkError = true;
     }
 
-    const isServerWarmup = response && (response.status === 502 || response.status === 503 || response.status === 504);
+    const isServerWarmup =
+      response &&
+      (response.status === 502 || response.status === 503 || response.status === 504);
+
     if ((networkError || isServerWarmup) && attempt < retries) {
       attempt++;
       const waitTime = retryDelayMs * attempt;
@@ -182,7 +221,7 @@ export async function apiRequest<T>(
     if (networkError || !response) {
       const err: ApiError = {
         code: "NETWORK_ERROR",
-        message: "Unable to connect to the NSS server. Please check your internet connection.",
+        message: "Unable to connect to the NSS server. The backend is starting up or temporarily offline.",
         status: 0,
         category: "NETWORK_OFFLINE",
         retryable: true,
@@ -194,6 +233,122 @@ export async function apiRequest<T>(
       return {} as T;
     }
 
+    // Handle 401 Unauthorized with automatic refresh token rotation
+    if (response.status === 401 && !endpoint.startsWith("/auth/login") && !endpoint.startsWith("/auth/refresh")) {
+      const refreshToken = localStorage.getItem("nss_refresh_token");
+
+      if (refreshToken) {
+        if (isRefreshing) {
+          try {
+            const freshToken = await new Promise<string>((resolve, reject) => {
+              refreshQueue.push({ resolve, reject });
+            });
+            // Retry original request with newly issued access token
+            return apiRequest<T>(endpoint, {
+              ...options,
+              headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${freshToken}`,
+              },
+            });
+          } catch (refreshErr) {
+            throw refreshErr;
+          }
+        }
+
+        isRefreshing = true;
+
+        try {
+          const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          });
+
+          if (refreshResp.ok) {
+            const refreshData = await refreshResp.json();
+            const newAccessToken = refreshData.accessToken;
+            const newRefreshToken = refreshData.refreshToken;
+
+            if (newAccessToken) {
+              localStorage.setItem("nss_token", newAccessToken);
+            }
+            if (newRefreshToken) {
+              localStorage.setItem("nss_refresh_token", newRefreshToken);
+            }
+
+            isRefreshing = false;
+            processRefreshQueue(null, newAccessToken);
+
+            // Retry original request with new token
+            return apiRequest<T>(endpoint, {
+              ...options,
+              headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${newAccessToken}`,
+              },
+            });
+          } else {
+            // Refresh token has expired or is invalid
+            isRefreshing = false;
+            processRefreshQueue(new Error("Session expired"), null);
+            localStorage.removeItem("nss_token");
+            localStorage.removeItem("nss_refresh_token");
+            localStorage.removeItem("nss_user");
+
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+            }
+
+            const error: ApiError = {
+              code: "AUTHENTICATION_EXPIRED",
+              message: "Your login session has expired. Please sign in again.",
+              status: 401,
+              category: "AUTH_EXPIRED",
+              retryable: false,
+            };
+            throw error;
+          }
+        } catch (refreshErr) {
+          isRefreshing = false;
+          processRefreshQueue(refreshErr, null);
+          localStorage.removeItem("nss_token");
+          localStorage.removeItem("nss_refresh_token");
+          localStorage.removeItem("nss_user");
+
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+          }
+
+          const error: ApiError = {
+            code: "AUTHENTICATION_EXPIRED",
+            message: "Your login session has expired. Please sign in again.",
+            status: 401,
+            category: "AUTH_EXPIRED",
+            retryable: false,
+          };
+          throw error;
+        }
+      } else {
+        // No refresh token available to rescue session
+        localStorage.removeItem("nss_token");
+        localStorage.removeItem("nss_user");
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("nss:auth:expired"));
+        }
+
+        const error: ApiError = {
+          code: "AUTHENTICATION_EXPIRED",
+          message: "Your login session has expired. Please sign in again.",
+          status: 401,
+          category: "AUTH_EXPIRED",
+          retryable: false,
+        };
+        throw error;
+      }
+    }
+
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -202,7 +357,8 @@ export async function apiRequest<T>(
       const sanitizedMsg = sanitizeErrorMessage(rawMessage, response.status);
       const { category, retryable } = classifyError(response.status, endpoint);
 
-      if (category === "AUTH_EXPIRED" && typeof window !== "undefined") {
+      // Do NOT log user out on 5xx or server warmup
+      if (category === "AUTH_EXPIRED" && typeof window !== "undefined" && !isServerWarmup) {
         window.dispatchEvent(new CustomEvent("nss:auth:expired"));
       }
 
@@ -220,3 +376,4 @@ export async function apiRequest<T>(
     return data as T;
   }
 }
+

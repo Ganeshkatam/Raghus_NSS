@@ -33,9 +33,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("nss_token"));
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("nss_token"));
   const [user, setUser] = useState<User | null>(() => {
     try {
+      const storedToken = localStorage.getItem("nss_token");
+      if (!storedToken) return null; // Prevent ghost user if token is absent
       const stored = localStorage.getItem("nss_user");
       return stored ? JSON.parse(stored) : null;
     } catch {
@@ -47,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const handleAuthExpired = () => {
       localStorage.removeItem("nss_token");
+      localStorage.removeItem("nss_refresh_token");
       localStorage.removeItem("nss_user");
       setToken(null);
       setUser(null);
@@ -70,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const apiErr = err as { status?: number; category?: string };
         if (apiErr?.status === 401 || apiErr?.category === "AUTH_EXPIRED" || apiErr?.category === "AUTH_INVALID") {
           localStorage.removeItem("nss_token");
+          localStorage.removeItem("nss_refresh_token");
           localStorage.removeItem("nss_user");
           setToken(null);
           setUser(null);
@@ -82,13 +86,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const login = async (email: string, password: string) => {
-    const data = await apiRequest<{ accessToken: string; user: User }>("/auth/login", {
+    const data = await apiRequest<{ accessToken: string; refreshToken?: string; user: User }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
       retries: 2,
     });
 
     localStorage.setItem("nss_token", data.accessToken);
+    if (data.refreshToken) {
+      localStorage.setItem("nss_refresh_token", data.refreshToken);
+    }
     localStorage.setItem("nss_user", JSON.stringify(data.user));
     setToken(data.accessToken);
     setUser(data.user);
@@ -99,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       apiRequest("/auth/logout", { method: "POST" }).catch(() => {});
     }
     localStorage.removeItem("nss_token");
+    localStorage.removeItem("nss_refresh_token");
     localStorage.removeItem("nss_user");
     setToken(null);
     setUser(null);
@@ -134,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         token,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(token && user),
         isAdmin,
         isCoordinator,
         isOfficer,

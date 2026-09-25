@@ -60,10 +60,9 @@ interface PendingCorrection {
 }
 
 export const Attendance: React.FC = () => {
-  const { user, isCoordinatorOrOfficer } = useAuth();
-  const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
-    ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
-  ));
+  const { user, isAuthenticated, isAdmin, isCoordinator, isOfficer } = useAuth();
+  const isManager = isAuthenticated && (isAdmin || isCoordinator || isOfficer);
+
 
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -135,12 +134,13 @@ export const Attendance: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     if (isManager) {
       loadEvents();
     } else {
       loadVolunteerHistory();
     }
-  }, [isManager, loadEvents, loadVolunteerHistory]);
+  }, [isAuthenticated, isManager, loadEvents, loadVolunteerHistory]);
 
   useEffect(() => {
     if (selectedEventId && isManager) {
