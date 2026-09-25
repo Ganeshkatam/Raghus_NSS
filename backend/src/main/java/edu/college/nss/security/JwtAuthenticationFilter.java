@@ -20,10 +20,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final RedisTokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(
+        JwtTokenProvider tokenProvider,
+        CustomUserDetailsService userDetailsService,
+        RedisTokenBlacklistService tokenBlacklistService
+    ) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -36,15 +42,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String email = tokenProvider.getEmailFromToken(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                if (!tokenBlacklistService.isTokenBlacklisted(jwt)) {
+                    String email = tokenProvider.getEmailFromToken(jwt);
+                    java.util.Date issuedAt = tokenProvider.getIssuedAtFromToken(jwt);
+                    if (!tokenBlacklistService.isUserRevokedBefore(email, issuedAt != null ? issuedAt.toInstant() : null)) {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                if (userDetails.isEnabled()) {
-                    UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        if (userDetails.isEnabled()) {
+                            UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
+                    }
                 }
             }
         } catch (Exception ex) {

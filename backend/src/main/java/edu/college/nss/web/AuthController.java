@@ -47,4 +47,10 @@ public class AuthController {
         authService.changePassword(userDetails.getUsername(), request);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        authService.logout(authHeader);
+        return ResponseEntity.noContent().build();
+    }
 }

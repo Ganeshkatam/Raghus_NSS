@@ -32,6 +32,7 @@ public class AttendanceService {
     private final VolunteerRepository volunteerRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final RedisAttendanceSecurityService redisSecurityService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
@@ -42,7 +43,8 @@ public class AttendanceService {
                              EventRegistrationRepository registrationRepository,
                              VolunteerRepository volunteerRepository,
                              UserRepository userRepository,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             RedisAttendanceSecurityService redisSecurityService) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.correctionRepository = correctionRepository;
@@ -52,6 +54,7 @@ public class AttendanceService {
         this.volunteerRepository = volunteerRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.redisSecurityService = redisSecurityService;
     }
 
     @Transactional
@@ -148,46 +151,54 @@ public class AttendanceService {
         }
 
         ParsedToken parsed = parseAndVerifyToken(request.token());
-        AttendanceSession session = sessionRepository.findById(parsed.sessionId())
-            .orElseThrow(() -> new IllegalArgumentException("Session not found."));
-
-        if (!"OPEN".equals(session.getStatus())) {
-            throw new AttendanceSessionExpiredException("Attendance session is closed.");
-        }
-        Instant now = Instant.now();
-        if (now.isAfter(session.getExpiresAt())) {
-            session.expire();
-            sessionRepository.save(session);
-            throw new AttendanceSessionExpiredException("Attendance session has expired.");
-        }
-
-        EventRegistration registration = registrationRepository
-            .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
-            .orElseThrow(() -> new AccessDeniedException("You are not registered for this event."));
-
-        if (!"REGISTERED".equals(registration.getStatus()) && !"CONFIRMED".equals(registration.getStatus())) {
-            throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may check in.");
-        }
-
-        if (recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.getSessionId(), volunteer.getVolunteerId())) {
+        if (!redisSecurityService.acquireCheckInLock(parsed.sessionId(), volunteer.getVolunteerId())) {
             throw new DuplicateAttendanceException();
         }
 
-        AttendanceRecord record = new AttendanceRecord(session, volunteer, "QR", "PRESENT");
-        AttendanceRecord savedRecord = recordRepository.save(record);
+        try {
+            AttendanceSession session = sessionRepository.findById(parsed.sessionId())
+                .orElseThrow(() -> new IllegalArgumentException("Session not found."));
 
-        creditServiceHours(session.getEvent(), volunteer, savedRecord, null);
+            if (!"OPEN".equals(session.getStatus())) {
+                throw new AttendanceSessionExpiredException("Attendance session is closed.");
+            }
+            Instant now = Instant.now();
+            if (now.isAfter(session.getExpiresAt())) {
+                session.expire();
+                sessionRepository.save(session);
+                throw new AttendanceSessionExpiredException("Attendance session has expired.");
+            }
 
-        return new CheckInResponse(
-            savedRecord.getAttendanceId(),
-            volunteer.getVolunteerId(),
-            volunteer.getUser().getName(),
-            volunteer.getCollegeId(),
-            savedRecord.getCheckedInAt(),
-            savedRecord.getStatus(),
-            savedRecord.getCheckInMethod(),
-            "Attendance successfully verified for " + session.getEvent().getTitle()
-        );
+            EventRegistration registration = registrationRepository
+                .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
+                .orElseThrow(() -> new AccessDeniedException("You are not registered for this event."));
+
+            if (!"REGISTERED".equals(registration.getStatus()) && !"CONFIRMED".equals(registration.getStatus())) {
+                throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may check in.");
+            }
+
+            if (recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.getSessionId(), volunteer.getVolunteerId())) {
+                throw new DuplicateAttendanceException();
+            }
+
+            AttendanceRecord record = new AttendanceRecord(session, volunteer, "QR", "PRESENT");
+            AttendanceRecord savedRecord = recordRepository.save(record);
+
+            creditServiceHours(session.getEvent(), volunteer, savedRecord, null);
+
+            return new CheckInResponse(
+                savedRecord.getAttendanceId(),
+                volunteer.getVolunteerId(),
+                volunteer.getUser().getName(),
+                volunteer.getCollegeId(),
+                savedRecord.getCheckedInAt(),
+                savedRecord.getStatus(),
+                savedRecord.getCheckInMethod(),
+                "Attendance successfully verified for " + session.getEvent().getTitle()
+            );
+        } finally {
+            redisSecurityService.releaseCheckInLock(parsed.sessionId(), volunteer.getVolunteerId());
+        }
     }
 
     @Transactional

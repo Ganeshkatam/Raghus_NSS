@@ -27,17 +27,20 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final edu.college.nss.security.RedisTokenBlacklistService tokenBlacklistService;
 
     public AuthService(
         AuthenticationManager authenticationManager,
         JwtTokenProvider tokenProvider,
         UserRepository userRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        edu.college.nss.security.RedisTokenBlacklistService tokenBlacklistService
     ) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Transactional
@@ -52,6 +55,25 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);
+
+        // Revoke all previous active sessions in Redis upon password change
+        tokenBlacklistService.blacklistAllUserTokens(email);
+    }
+
+    public void logout(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                java.util.Date expiry = tokenProvider.getExpirationFromToken(token);
+                if (expiry != null) {
+                    long remainingMillis = expiry.getTime() - System.currentTimeMillis();
+                    if (remainingMillis > 0) {
+                        tokenBlacklistService.blacklistToken(token, java.time.Duration.ofMillis(remainingMillis));
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Transactional(readOnly = true)

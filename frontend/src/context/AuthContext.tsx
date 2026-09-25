@@ -95,6 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    if (token) {
+      apiRequest("/auth/logout", { method: "POST" }).catch(() => {});
+    }
     localStorage.removeItem("nss_token");
     localStorage.removeItem("nss_user");
     setToken(null);

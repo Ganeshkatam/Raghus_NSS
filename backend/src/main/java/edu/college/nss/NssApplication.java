@@ -7,7 +7,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class NssApplication {
     public static void main(String[] args) {
         normalizeCloudDatabaseUrl();
+        normalizeCloudRedisUrl();
         SpringApplication.run(NssApplication.class, args);
+    }
+
+    private static void normalizeCloudRedisUrl() {
+        String redisUrl = System.getenv("SPRING_DATA_REDIS_URL");
+        if (redisUrl == null || redisUrl.isBlank()) {
+            redisUrl = System.getenv("REDIS_URL");
+        }
+        if (redisUrl != null && !redisUrl.isBlank()) {
+            System.setProperty("spring.data.redis.url", redisUrl);
+        }
     }
 
     private static void normalizeCloudDatabaseUrl() {
