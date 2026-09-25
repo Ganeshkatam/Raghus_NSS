@@ -110,8 +110,22 @@ public class NssUnitService {
 
     @Transactional
     public UnitResponse updateUnit(UUID unitId, UnitUpdateRequest request) {
+        return updateUnit(unitId, request, null);
+    }
+
+    @Transactional
+    public UnitResponse updateUnit(UUID unitId, UnitUpdateRequest request, org.springframework.security.core.userdetails.UserDetails principal) {
         NssUnit unit = unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
+
+        if (principal != null) {
+            if (!unitSecurity.canManageUnit(principal, unitId)) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to update Unit " + unit.getUnitNumber());
+            }
+            if (!unitSecurity.isGlobalManager(principal) && (request.officerId() != null || Boolean.TRUE.equals(request.clearOfficer()))) {
+                throw new org.springframework.security.access.AccessDeniedException("Programme Officers are not authorized to reassign unit officers.");
+            }
+        }
 
         if (request.unitName() != null && !request.unitName().isBlank()) {
             unit.setUnitName(request.unitName());
@@ -278,6 +292,15 @@ public class NssUnitService {
 
     @Transactional(readOnly = true)
     public List<edu.college.nss.web.dto.UnitTransferHistoryResponse> getVolunteerTransferHistory(UUID volunteerId) {
+        return getVolunteerTransferHistory(volunteerId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<edu.college.nss.web.dto.UnitTransferHistoryResponse> getVolunteerTransferHistory(UUID volunteerId, org.springframework.security.core.userdetails.UserDetails principal) {
+        if (principal != null && !unitSecurity.canViewVolunteerTransferHistory(principal, volunteerId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to view this volunteer's transfer history.");
+        }
+
         return transferHistoryRepository.findByVolunteer_VolunteerIdOrderByTransferredAtDesc(volunteerId)
             .stream()
             .map(edu.college.nss.web.dto.UnitTransferHistoryResponse::fromEntity)
@@ -286,8 +309,17 @@ public class NssUnitService {
 
     @Transactional(readOnly = true)
     public List<MembershipResponse> getUnitMembers(UUID unitId) {
+        return getUnitMembers(unitId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MembershipResponse> getUnitMembers(UUID unitId, org.springframework.security.core.userdetails.UserDetails principal) {
         unitRepository.findById(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
+
+        if (principal != null && !unitSecurity.canViewUnitMembers(principal, unitId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to view the member roster for this unit.");
+        }
 
         return membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId)
             .stream()

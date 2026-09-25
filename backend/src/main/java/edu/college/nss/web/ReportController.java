@@ -22,16 +22,19 @@ public class ReportController {
     }
 
     @GetMapping("/metrics")
-    public ResponseEntity<InstitutionalMetricsResponse> getMetrics() {
-        return ResponseEntity.ok(service.getInstitutionalMetrics());
+    public ResponseEntity<InstitutionalMetricsResponse> getMetrics(
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
+    ) {
+        return ResponseEntity.ok(service.getInstitutionalMetrics(principal));
     }
 
     @GetMapping("/export/volunteers")
     public ResponseEntity<byte[]> exportVolunteers(
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
-        @org.springframework.web.bind.annotation.RequestParam(required = false) String status
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        byte[] csv = service.exportVolunteersCsv(unitId, status);
+        byte[] csv = service.exportVolunteersCsv(unitId, status, principal);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_volunteers_roster.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
@@ -43,9 +46,10 @@ public class ReportController {
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
-        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        byte[] csv = service.exportEventsCsv(unitId, status, startDate, endDate);
+        byte[] csv = service.exportEventsCsv(unitId, status, startDate, endDate, principal);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_events_roster.csv")
             .contentType(MediaType.parseMediaType("text/csv"))
@@ -56,9 +60,10 @@ public class ReportController {
     public ResponseEntity<byte[]> exportServiceHours(
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
-        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate
+        @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        byte[] csv = service.exportServiceHoursCsv(unitId, startDate, endDate);
+        byte[] csv = service.exportServiceHoursCsv(unitId, startDate, endDate, principal);
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=nss_service_hours_accreditation.csv")
             .contentType(MediaType.parseMediaType("text/csv"))

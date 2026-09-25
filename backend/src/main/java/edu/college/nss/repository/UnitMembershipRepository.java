@@ -14,4 +14,5 @@ public interface UnitMembershipRepository extends JpaRepository<UnitMembership, 
     List<UnitMembership> findByVolunteer_VolunteerId(UUID volunteerId);
     Optional<UnitMembership> findByVolunteer_VolunteerIdAndIsActiveTrue(UUID volunteerId);
     Optional<UnitMembership> findByVolunteer_VolunteerIdAndUnit_UnitIdAndIsActiveTrue(UUID volunteerId, UUID unitId);
+    Optional<UnitMembership> findByVolunteer_User_EmailIgnoreCaseAndUnit_UnitIdAndIsActiveTrue(String email, UUID unitId);
 }

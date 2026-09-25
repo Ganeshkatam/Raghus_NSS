@@ -21,37 +21,55 @@ public class ReportService {
     private final ServiceHourEntryRepository serviceHourRepository;
     private final UnitMembershipRepository membershipRepository;
     private final EventRegistrationRepository registrationRepository;
+    private final edu.college.nss.security.UnitSecurityService unitSecurity;
 
     public ReportService(VolunteerRepository volunteerRepository,
                          NssUnitRepository unitRepository,
                          EventRepository eventRepository,
                          ServiceHourEntryRepository serviceHourRepository,
                          UnitMembershipRepository membershipRepository,
-                         EventRegistrationRepository registrationRepository) {
+                         EventRegistrationRepository registrationRepository,
+                         edu.college.nss.security.UnitSecurityService unitSecurity) {
         this.volunteerRepository = volunteerRepository;
         this.unitRepository = unitRepository;
         this.eventRepository = eventRepository;
         this.serviceHourRepository = serviceHourRepository;
         this.membershipRepository = membershipRepository;
         this.registrationRepository = registrationRepository;
+        this.unitSecurity = unitSecurity;
     }
 
     @Transactional(readOnly = true)
     public InstitutionalMetricsResponse getInstitutionalMetrics() {
-        long totalVolunteers = volunteerRepository.count();
-        long activeVolunteers = volunteerRepository.countByStatus("ACTIVE");
-        long totalUnits = unitRepository.count();
-        long totalEvents = eventRepository.count();
-        long completedEvents = eventRepository.countByStatus("COMPLETED");
-        BigDecimal totalHours = serviceHourRepository.sumAllApprovedHours();
+        return getInstitutionalMetrics(null);
+    }
 
+    @Transactional(readOnly = true)
+    public InstitutionalMetricsResponse getInstitutionalMetrics(org.springframework.security.core.userdetails.UserDetails principal) {
         List<NssUnit> units = unitRepository.findAll();
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
+            units = units.stream().filter(u -> managedIds.contains(u.getUnitId())).toList();
+        }
+
         List<UnitPerformanceMetric> unitMetrics = new ArrayList<>();
+        long totalVolunteersCount = 0;
+        long totalEventsCount = 0;
+        long completedEventsCount = 0;
+        BigDecimal totalHoursSum = BigDecimal.ZERO;
 
         for (NssUnit u : units) {
             long volCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(u.getUnitId()).size();
             long evCount = eventRepository.countByUnit_UnitId(u.getUnitId());
             BigDecimal unitHours = serviceHourRepository.sumApprovedHoursForUnit(u.getUnitId());
+            if (unitHours != null) {
+                totalHoursSum = totalHoursSum.add(unitHours);
+            }
+            totalVolunteersCount += volCount;
+            totalEventsCount += evCount;
+            completedEventsCount += eventRepository.findAll().stream()
+                .filter(e -> u.getUnitId().equals(e.getUnit().getUnitId()) && "COMPLETED".equalsIgnoreCase(e.getStatus()))
+                .count();
 
             unitMetrics.add(new UnitPerformanceMetric(
                 u.getUnitId(),
@@ -60,17 +78,28 @@ public class ReportService {
                 u.getOfficer() != null ? u.getOfficer().getName() : "Unassigned",
                 volCount,
                 evCount,
-                unitHours
+                unitHours != null ? unitHours : BigDecimal.ZERO
             ));
         }
 
+        long totalUnits = units.size();
+        long activeVolunteers = totalVolunteersCount;
+        if (principal == null || unitSecurity.isGlobalManager(principal)) {
+            totalVolunteersCount = volunteerRepository.count();
+            activeVolunteers = volunteerRepository.countByStatus("ACTIVE");
+            totalEventsCount = eventRepository.count();
+            completedEventsCount = eventRepository.countByStatus("COMPLETED");
+            BigDecimal allApproved = serviceHourRepository.sumAllApprovedHours();
+            totalHoursSum = allApproved != null ? allApproved : BigDecimal.ZERO;
+        }
+
         return new InstitutionalMetricsResponse(
-            totalVolunteers,
+            totalVolunteersCount,
             activeVolunteers,
             totalUnits,
-            totalEvents,
-            completedEvents,
-            totalHours,
+            totalEventsCount,
+            completedEventsCount,
+            totalHoursSum,
             unitMetrics
         );
     }
@@ -82,7 +111,28 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportVolunteersCsv(UUID unitId, String status) {
+        return exportVolunteersCsv(unitId, status, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportVolunteersCsv(UUID unitId, String status, org.springframework.security.core.userdetails.UserDetails principal) {
         List<Volunteer> list = volunteerRepository.findAll();
+
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
+            if (unitId != null) {
+                if (!managedIds.contains(unitId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export roster for this unit.");
+                }
+            } else {
+                if (managedIds.isEmpty()) return new byte[0];
+                list = list.stream().filter(v -> {
+                    UnitMembership m = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(v.getVolunteerId()).orElse(null);
+                    return m != null && m.getUnit() != null && managedIds.contains(m.getUnit().getUnitId());
+                }).toList();
+            }
+        }
+
         if (status != null && !status.isBlank()) {
             list = list.stream().filter(v -> status.equalsIgnoreCase(v.getStatus())).toList();
         }
@@ -115,12 +165,30 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportEventsCsv() {
-        return exportEventsCsv(null, null, null, null);
+        return exportEventsCsv(null, null, null, null, null);
     }
 
     @Transactional(readOnly = true)
     public byte[] exportEventsCsv(UUID unitId, String status, String startDate, String endDate) {
+        return exportEventsCsv(unitId, status, startDate, endDate, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportEventsCsv(UUID unitId, String status, String startDate, String endDate, org.springframework.security.core.userdetails.UserDetails principal) {
         List<Event> list = eventRepository.findAll();
+
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
+            if (unitId != null) {
+                if (!managedIds.contains(unitId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export events for this unit.");
+                }
+            } else {
+                if (managedIds.isEmpty()) return new byte[0];
+                list = list.stream().filter(e -> managedIds.contains(e.getUnit().getUnitId())).toList();
+            }
+        }
+
         if (unitId != null) {
             list = list.stream().filter(e -> unitId.equals(e.getUnit().getUnitId())).toList();
         }
@@ -162,12 +230,33 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public byte[] exportServiceHoursCsv() {
-        return exportServiceHoursCsv(null, null, null);
+        return exportServiceHoursCsv(null, null, null, null);
     }
 
     @Transactional(readOnly = true)
     public byte[] exportServiceHoursCsv(UUID unitId, String startDate, String endDate) {
+        return exportServiceHoursCsv(unitId, startDate, endDate, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportServiceHoursCsv(UUID unitId, String startDate, String endDate, org.springframework.security.core.userdetails.UserDetails principal) {
         List<ServiceHourEntry> list = serviceHourRepository.findByStatusOrderByCreatedAtDesc("APPROVED");
+
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
+            if (unitId != null) {
+                if (!managedIds.contains(unitId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export service hours for this unit.");
+                }
+            } else {
+                if (managedIds.isEmpty()) return new byte[0];
+                list = list.stream().filter(s -> {
+                    UnitMembership m = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(s.getVolunteer().getVolunteerId()).orElse(null);
+                    return m != null && m.getUnit() != null && managedIds.contains(m.getUnit().getUnitId());
+                }).toList();
+            }
+        }
+
         if (unitId != null) {
             list = list.stream().filter(s -> {
                 UnitMembership m = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(s.getVolunteer().getVolunteerId()).orElse(null);

@@ -33,6 +33,8 @@ public class AttendanceService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final RedisAttendanceSecurityService redisSecurityService;
+    private final UnitMembershipRepository membershipRepository;
+    private final edu.college.nss.security.UnitSecurityService unitSecurity;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
@@ -44,7 +46,9 @@ public class AttendanceService {
                              VolunteerRepository volunteerRepository,
                              UserRepository userRepository,
                              NotificationService notificationService,
-                             RedisAttendanceSecurityService redisSecurityService) {
+                             RedisAttendanceSecurityService redisSecurityService,
+                             UnitMembershipRepository membershipRepository,
+                             edu.college.nss.security.UnitSecurityService unitSecurity) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.correctionRepository = correctionRepository;
@@ -55,6 +59,8 @@ public class AttendanceService {
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.redisSecurityService = redisSecurityService;
+        this.membershipRepository = membershipRepository;
+        this.unitSecurity = unitSecurity;
     }
 
     @Transactional
@@ -68,6 +74,11 @@ public class AttendanceService {
         }
         if (!req.expiresAt().isAfter(req.startsAt())) {
             throw new IllegalArgumentException("Expiration time must be strictly after start time.");
+        }
+
+        List<AttendanceSession> activeSessions = sessionRepository.findActiveSessionsForEvent(eventId);
+        if (!activeSessions.isEmpty()) {
+            throw new IllegalStateException("An active attendance session is already open for this event. Please close the active session first.");
         }
 
         byte[] secretBytes = new byte[32];
@@ -163,6 +174,9 @@ public class AttendanceService {
                 throw new AttendanceSessionExpiredException("Attendance session is closed.");
             }
             Instant now = Instant.now();
+            if (now.isBefore(session.getStartsAt())) {
+                throw new AttendanceSessionExpiredException("Attendance session has not started yet.");
+            }
             if (now.isAfter(session.getExpiresAt())) {
                 session.expire();
                 sessionRepository.save(session);
@@ -207,8 +221,24 @@ public class AttendanceService {
             .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         assertManagerForUnit(principal, session.getEvent().getUnit());
 
+        if (!"OPEN".equals(session.getStatus())) {
+            throw new AttendanceSessionExpiredException("Attendance session is not open.");
+        }
+
         Volunteer volunteer = volunteerRepository.findById(req.volunteerId())
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found: " + req.volunteerId()));
+
+        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) || !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus())) {
+            throw new AccessDeniedException("Volunteer status must be ACTIVE to record attendance.");
+        }
+
+        EventRegistration registration = registrationRepository
+            .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
+            .orElseThrow(() -> new AccessDeniedException("Volunteer is not registered for this event."));
+
+        if (!"REGISTERED".equals(registration.getStatus()) && !"CONFIRMED".equals(registration.getStatus())) {
+            throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may receive attendance.");
+        }
 
         Optional<AttendanceRecord> existing = recordRepository.findBySession_SessionIdAndVolunteer_VolunteerId(sessionId, volunteer.getVolunteerId());
         AttendanceRecord record;
@@ -253,24 +283,27 @@ public class AttendanceService {
             throw new IllegalArgumentException("Invalid status. Allowed values: PRESENT, ABSENT, EXCUSED.");
         }
 
-        record.setStatus(newStatus);
-        recordRepository.save(record);
-
         User officer = currentUser(principal);
         AttendanceCorrection correction = new AttendanceCorrection(
             record, officer, prevStatus, newStatus, req.reason().trim()
         );
         AttendanceCorrection savedCorrection = correctionRepository.save(correction);
 
-        syncServiceHoursOnCorrection(record, newStatus, officer);
-
         return toCorrectionResponse(savedCorrection);
     }
 
     @Transactional(readOnly = true)
     public List<CorrectionResponse> getPendingCorrections(UserDetails principal) {
-        return correctionRepository.findByStatusOrderByCorrectedAtDesc("PENDING")
-            .stream()
+        List<AttendanceCorrection> pending = correctionRepository.findByStatusOrderByCorrectedAtDesc("PENDING");
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
+            pending = pending.stream().filter(c -> {
+                NssUnit unit = c.getAttendanceRecord().getSession().getEvent().getUnit();
+                return unit != null && managedIds.contains(unit.getUnitId());
+            }).toList();
+        }
+
+        return pending.stream()
             .map(this::toCorrectionResponse)
             .collect(Collectors.toList());
     }
@@ -446,6 +479,11 @@ public class AttendanceService {
         if (hasRole(principal, "PROGRAMME_OFFICER")) {
             User user = currentUser(principal);
             if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
+        }
+        if (hasRole(principal, "STUDENT_LEADER")) {
+            boolean isMember = membershipRepository.findByVolunteer_User_EmailIgnoreCaseAndUnit_UnitIdAndIsActiveTrue(principal.getUsername(), unit.getUnitId())
+                .isPresent();
+            if (isMember) return;
         }
         throw new AccessDeniedException("You do not have permission to manage attendance for this NSS unit.");
     }

@@ -30,7 +30,7 @@ public class AttendanceCorrection {
     private String reason;
 
     @Column(length = 20, nullable = false)
-    private String status = "APPROVED";
+    private String status = "PENDING";
 
     @Column(name = "review_remarks", length = 255)
     private String reviewRemarks;

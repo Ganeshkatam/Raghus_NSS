@@ -140,7 +140,7 @@ class AttendanceIntegrationTest {
     }
 
     @Test
-    void correctAttendance_shouldCreateImmutableAuditRecord() {
+    void correctAttendance_shouldLeaveOriginalUnchangedUntilApproved() {
         registrationRepository.save(new EventRegistration(event, volunteer));
 
         CreateSessionRequest sessionReq = new CreateSessionRequest(
@@ -154,12 +154,59 @@ class AttendanceIntegrationTest {
             adminPrincipal
         );
 
+        assertEquals("PENDING", correction.status());
         assertEquals("PRESENT", correction.previousStatus());
         assertEquals("EXCUSED", correction.newStatus());
-        assertEquals(admin.getName(), correction.correctedByName());
 
-        var list = correctionRepository.findByAttendanceRecord_AttendanceIdOrderByCorrectedAtDesc(checkIn.attendanceId());
-        assertEquals(1, list.size());
-        assertEquals("Medical certificate submitted to NSS Unit Officer.", list.get(0).getReason());
+        // Invariant: AttendanceRecord status MUST NOT change while correction is PENDING
+        AttendanceRecord pendingRecord = recordRepository.findById(checkIn.attendanceId()).orElseThrow();
+        assertEquals("PRESENT", pendingRecord.getStatus());
+
+        // Reject correction -> original status MUST remain PRESENT
+        attendanceService.reviewCorrection(correction.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(false, "Rejected by PO"), adminPrincipal);
+        AttendanceRecord rejectedRecord = recordRepository.findById(checkIn.attendanceId()).orElseThrow();
+        assertEquals("PRESENT", rejectedRecord.getStatus());
+
+        // New correction -> approve it -> status must now update to EXCUSED
+        CorrectionResponse correction2 = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("EXCUSED", "Valid document resubmitted"),
+            adminPrincipal
+        );
+        attendanceService.reviewCorrection(correction2.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Approved"), adminPrincipal);
+        AttendanceRecord approvedRecord = recordRepository.findById(checkIn.attendanceId()).orElseThrow();
+        assertEquals("EXCUSED", approvedRecord.getStatus());
+    }
+
+    @Test
+    void openSession_whenActiveSessionAlreadyOpen_shouldThrowIllegalState() {
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(10), Instant.now().plusSeconds(300));
+        attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        assertThrows(IllegalStateException.class, () ->
+            attendanceService.openSession(event.getEventId(), req, adminPrincipal));
+    }
+
+    @Test
+    void checkIn_beforeSessionStarts_shouldThrowSessionNotStarted() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().plusSeconds(60), Instant.now().plusSeconds(600));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        assertThrows(AttendanceSessionExpiredException.class, () ->
+            attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal));
+    }
+
+    @Test
+    void manualCheckIn_unregisteredVolunteer_shouldBeDenied() {
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(10), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        assertThrows(AccessDeniedException.class, () ->
+            attendanceService.manualCheckIn(session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal));
     }
 }

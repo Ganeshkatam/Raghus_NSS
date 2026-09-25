@@ -42,8 +42,7 @@ public class EventController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public EventResponse get(@PathVariable UUID id) { return service.get(id); }
-
+    public EventResponse get(@PathVariable UUID id, @AuthenticationPrincipal UserDetails principal) { return service.get(id, principal); }
     @PatchMapping("/{id}")
     @PreAuthorize("hasAuthority('EVENTS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
     public EventResponse update(@PathVariable UUID id, @Valid @RequestBody EventUpdateRequest request,
@@ -73,7 +72,7 @@ public class EventController {
 
     @GetMapping("/{id}/stats")
     @PreAuthorize("isAuthenticated()")
-    public edu.college.nss.web.dto.EventStatsResponse stats(@PathVariable UUID id) { return service.getEventStats(id); }
+    public edu.college.nss.web.dto.EventStatsResponse stats(@PathVariable UUID id, @AuthenticationPrincipal UserDetails principal) { return service.getEventStats(id, principal); }
 
     @PostMapping("/{id}/registrations")
     @PreAuthorize("isAuthenticated()")

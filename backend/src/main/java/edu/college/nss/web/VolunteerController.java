@@ -43,11 +43,12 @@ public class VolunteerController {
         @RequestParam(required = false) String status,
         @RequestParam(required = false) String department,
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "15") int size
+        @RequestParam(defaultValue = "15") int size,
+        @AuthenticationPrincipal UserDetails principal
     ) {
         int safeSize = Math.min(Math.max(size, 1), 100);
         PageRequest pageRequest = PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<VolunteerResponse> results = volunteerService.searchVolunteers(search, status, department, pageRequest);
+        Page<VolunteerResponse> results = volunteerService.searchVolunteers(search, status, department, pageRequest, principal);
         return ResponseEntity.ok(results);
     }
 

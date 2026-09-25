@@ -13,4 +13,5 @@ public interface NssUnitRepository extends JpaRepository<NssUnit, UUID> {
     Optional<NssUnit> findByUnitNumber(String unitNumber);
     boolean existsByUnitNumber(String unitNumber);
     List<NssUnit> findByOfficer_UserId(UUID officerId);
+    List<NssUnit> findByOfficer_EmailIgnoreCase(String email);
 }

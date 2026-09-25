@@ -119,6 +119,18 @@ public class VolunteerAndUnitIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "po@raghunss.edu", roles = {"PROGRAMME_OFFICER"})
+    public void createUnit_asProgrammeOfficer_shouldReturnForbidden() throws Exception {
+        UnitRequest request = new UnitRequest("PO Unit", "UNIT-02", null);
+
+        mockMvc.perform(post("/api/v1/units")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
     @WithMockUser(username = "jane@raghunss.edu", roles = {"VOLUNTEER"})
     public void getUnitMembers_asVolunteer_shouldReturnOk() throws Exception {
         UUID unitId = UUID.randomUUID();
@@ -126,7 +138,7 @@ public class VolunteerAndUnitIntegrationTest {
             UUID.randomUUID(), UUID.randomUUID(), "Jane Doe", "2026CS001", "Computer Science",
             unitId, "NSS Unit 1", "UNIT-01", Instant.now(), null, true
         );
-        when(unitService.getUnitMembers(unitId)).thenReturn(List.of(response));
+        when(unitService.getUnitMembers(eq(unitId), any())).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/units/" + unitId + "/members"))
             .andExpect(status().isOk())

@@ -21,17 +21,23 @@ public class ServiceHourService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final UnitMembershipRepository membershipRepository;
+    private final edu.college.nss.security.UnitSecurityService unitSecurity;
 
     public ServiceHourService(ServiceHourEntryRepository serviceHourRepository,
                               VolunteerRepository volunteerRepository,
                               EventRepository eventRepository,
                               UserRepository userRepository,
-                              NotificationService notificationService) {
+                              NotificationService notificationService,
+                              UnitMembershipRepository membershipRepository,
+                              edu.college.nss.security.UnitSecurityService unitSecurity) {
         this.serviceHourRepository = serviceHourRepository;
         this.volunteerRepository = volunteerRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.membershipRepository = membershipRepository;
+        this.unitSecurity = unitSecurity;
     }
 
     @Transactional(readOnly = true)
@@ -87,10 +93,37 @@ public class ServiceHourService {
             throw new AccessDeniedException("Volunteer status must be ACTIVE to claim service hours.");
         }
 
+        if (req.hours() == null || req.hours().compareTo(BigDecimal.ZERO) <= 0 || req.hours().compareTo(BigDecimal.valueOf(60)) > 0) {
+            throw new IllegalArgumentException("Claimed hours must be strictly positive and cannot exceed 60 hours per submission.");
+        }
+
+        if (req.activityDate() != null && req.activityDate().isAfter(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("Activity date cannot be in the future.");
+        }
+
         Event event = null;
         if (req.eventId() != null) {
             event = eventRepository.findById(req.eventId())
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + req.eventId()));
+
+            if (event.getStartAt().isAfter(java.time.Instant.now())) {
+                throw new IllegalArgumentException("Cannot claim service hours for an event that has not taken place yet.");
+            }
+
+            UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+                .orElseThrow(() -> new AccessDeniedException("Volunteer must be enrolled in an active unit to claim event hours."));
+
+            if (!activeMembership.getUnit().getUnitId().equals(event.getUnit().getUnitId())) {
+                throw new AccessDeniedException("You can only claim hours for events organized by your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ").");
+            }
+
+            boolean duplicate = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId())
+                .stream()
+                .anyMatch(e -> e.getEvent() != null && e.getEvent().getEventId().equals(req.eventId()) &&
+                               ("PENDING".equals(e.getStatus()) || "APPROVED".equals(e.getStatus())));
+            if (duplicate) {
+                throw new IllegalStateException("An active or approved service hour claim already exists for this event.");
+            }
         }
 
         String cat = (req.category() != null && !req.category().isBlank()) ? req.category().trim().toUpperCase() : "REGULAR_ACTIVITY";
@@ -117,6 +150,14 @@ public class ServiceHourService {
         assertOfficerOrAdmin(principal);
 
         List<ServiceHourEntry> pending = serviceHourRepository.findByStatusOrderByCreatedAtDesc("PENDING");
+        if (!unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedUnitIds = unitSecurity.getManagedUnitIds(principal);
+            pending = pending.stream().filter(entry -> {
+                UnitMembership mem = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(entry.getVolunteer().getVolunteerId()).orElse(null);
+                return mem != null && mem.getUnit() != null && managedUnitIds.contains(mem.getUnit().getUnitId());
+            }).toList();
+        }
+
         return pending.stream().map(this::toResponse).toList();
     }
 
@@ -129,6 +170,13 @@ public class ServiceHourService {
 
         if (!"PENDING".equals(entry.getStatus())) {
             throw new IllegalStateException("Only PENDING claims can be reviewed.");
+        }
+
+        if (!unitSecurity.isGlobalManager(principal)) {
+            UnitMembership mem = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(entry.getVolunteer().getVolunteerId()).orElse(null);
+            if (mem == null || !unitSecurity.canManageUnit(principal, mem.getUnit().getUnitId())) {
+                throw new AccessDeniedException("You are not authorized to review claims for volunteers outside your assigned unit.");
+            }
         }
 
         String action = req.action().trim().toUpperCase();

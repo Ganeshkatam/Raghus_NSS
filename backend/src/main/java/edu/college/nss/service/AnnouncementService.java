@@ -21,19 +21,22 @@ public class AnnouncementService {
     private final UserRepository userRepository;
     private final VolunteerRepository volunteerRepository;
     private final UnitMembershipRepository membershipRepository;
+    private final edu.college.nss.security.UnitSecurityService unitSecurity;
 
     public AnnouncementService(AnnouncementRepository announcementRepository,
                                NotificationService notificationService,
                                NssUnitRepository unitRepository,
                                UserRepository userRepository,
                                VolunteerRepository volunteerRepository,
-                               UnitMembershipRepository membershipRepository) {
+                               UnitMembershipRepository membershipRepository,
+                               edu.college.nss.security.UnitSecurityService unitSecurity) {
         this.announcementRepository = announcementRepository;
         this.notificationService = notificationService;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.volunteerRepository = volunteerRepository;
         this.membershipRepository = membershipRepository;
+        this.unitSecurity = unitSecurity;
     }
 
     @Transactional
@@ -45,6 +48,13 @@ public class AnnouncementService {
         if (req.unitId() != null) {
             unit = unitRepository.findById(req.unitId())
                 .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + req.unitId()));
+            if (principal != null && !unitSecurity.isGlobalManager(principal) && !unitSecurity.canManageUnit(principal, req.unitId())) {
+                throw new AccessDeniedException("You are not authorized to publish announcements for Unit " + unit.getUnitNumber());
+            }
+        } else {
+            if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+                throw new AccessDeniedException("Programme Officers can only publish announcements for their assigned unit.");
+            }
         }
 
         Announcement announcement = new Announcement(

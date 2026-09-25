@@ -27,7 +27,7 @@ public class NssUnitController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR')")
     public ResponseEntity<UnitResponse> createUnit(@Valid @RequestBody UnitRequest request) {
         UnitResponse response = unitService.createUnit(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -41,7 +41,7 @@ public class NssUnitController {
     }
 
     @GetMapping("/officer-candidates")
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_COORDINATOR')")
     public ResponseEntity<List<UserDto>> getOfficerCandidates() {
         List<UserDto> response = unitService.getEligibleOfficers();
         return ResponseEntity.ok(response);
@@ -58,9 +58,10 @@ public class NssUnitController {
     @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
     public ResponseEntity<UnitResponse> updateUnit(
         @PathVariable UUID id,
-        @Valid @RequestBody UnitUpdateRequest request
+        @Valid @RequestBody UnitUpdateRequest request,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
     ) {
-        UnitResponse response = unitService.updateUnit(id, request);
+        UnitResponse response = unitService.updateUnit(id, request, principal);
         return ResponseEntity.ok(response);
     }
 
@@ -77,8 +78,11 @@ public class NssUnitController {
 
     @GetMapping("/{id}/members")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<MembershipResponse>> getMembers(@PathVariable UUID id) {
-        List<MembershipResponse> responses = unitService.getUnitMembers(id);
+    public ResponseEntity<List<MembershipResponse>> getMembers(
+        @PathVariable UUID id,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
+    ) {
+        List<MembershipResponse> responses = unitService.getUnitMembers(id, principal);
         return ResponseEntity.ok(responses);
     }
 
@@ -112,7 +116,10 @@ public class NssUnitController {
 
     @GetMapping("/volunteers/{volunteerId}/transfers")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<edu.college.nss.web.dto.UnitTransferHistoryResponse>> getVolunteerTransferHistory(@PathVariable UUID volunteerId) {
-        return ResponseEntity.ok(unitService.getVolunteerTransferHistory(volunteerId));
+    public ResponseEntity<List<edu.college.nss.web.dto.UnitTransferHistoryResponse>> getVolunteerTransferHistory(
+        @PathVariable UUID volunteerId,
+        @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails principal
+    ) {
+        return ResponseEntity.ok(unitService.getVolunteerTransferHistory(volunteerId, principal));
     }
 }

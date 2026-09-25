@@ -20,6 +20,8 @@ import edu.college.nss.web.dto.VolunteerUpdateRequest;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -118,6 +120,20 @@ public class VolunteerService {
     public Page<VolunteerResponse> searchVolunteers(
         String search, String status, String department, Pageable pageable
     ) {
+        return searchVolunteers(search, status, department, pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<VolunteerResponse> searchVolunteers(
+        String search, String status, String department, Pageable pageable, UserDetails principal
+    ) {
+        if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+            List<UUID> managedUnitIds = unitSecurity.getManagedUnitIds(principal);
+            if (managedUnitIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+        }
+
         Specification<Volunteer> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (search != null && !search.isBlank()) {
@@ -133,6 +149,20 @@ public class VolunteerService {
             if (department != null && !department.isBlank()) {
                 predicates.add(cb.equal(root.get("department"), department.trim()));
             }
+
+            // Programme Officers can only search volunteers within their assigned NSS unit(s)
+            if (principal != null && !unitSecurity.isGlobalManager(principal)) {
+                List<UUID> managedUnitIds = unitSecurity.getManagedUnitIds(principal);
+                Subquery<UUID> subquery = query.subquery(UUID.class);
+                Root<UnitMembership> memRoot = subquery.from(UnitMembership.class);
+                subquery.select(memRoot.get("volunteer").get("volunteerId"))
+                    .where(
+                        cb.isTrue(memRoot.get("isActive")),
+                        memRoot.get("unit").get("unitId").in(managedUnitIds)
+                    );
+                predicates.add(root.get("volunteerId").in(subquery));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 

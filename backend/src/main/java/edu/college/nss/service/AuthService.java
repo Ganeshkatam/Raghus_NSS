@@ -113,6 +113,10 @@ public class AuthService {
             throw new BadCredentialsException("Invalid or expired refresh token.");
         }
 
+        if (!tokenProvider.isRefreshToken(token)) {
+            throw new BadCredentialsException("Supplied token is not a valid refresh token.");
+        }
+
         String email = tokenProvider.getEmailFromToken(token);
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new BadCredentialsException("User associated with token no longer exists."));

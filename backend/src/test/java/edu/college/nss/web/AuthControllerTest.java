@@ -94,4 +94,17 @@ public class AuthControllerTest {
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
     }
+
+    @Test
+    public void refresh_withInvalidToken_shouldReturnUnauthorized() throws Exception {
+        when(authService.refresh(any())).thenThrow(new BadCredentialsException("Supplied token is not a valid refresh token."));
+
+        edu.college.nss.web.dto.RefreshRequest req = new edu.college.nss.web.dto.RefreshRequest("mock-invalid-token");
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
 }

@@ -114,6 +114,19 @@ public class JwtTokenProvider {
         }
     }
 
+    public boolean isRefreshToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+            return "REFRESH".equals(claims.get("type"));
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
     public long getExpirationMs() {
         return expirationMs;
     }

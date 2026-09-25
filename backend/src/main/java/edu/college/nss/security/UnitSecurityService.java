@@ -12,6 +12,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service("unitSecurity")
@@ -70,12 +71,52 @@ public class UnitSecurityService {
         return canManageUnit(principal, active.getUnit().getUnitId());
     }
 
+    public boolean isProgrammeOfficer(UserDetails principal) {
+        if (principal == null) return false;
+        return principal.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(a -> a.equals("PROGRAMME_OFFICER") || a.equals("ROLE_PROGRAMME_OFFICER"));
+    }
+
+    public List<UUID> getManagedUnitIds(UserDetails principal) {
+        if (principal == null) return List.of();
+        if (isGlobalManager(principal)) {
+            return unitRepository.findAll().stream().map(NssUnit::getUnitId).toList();
+        }
+        if (isProgrammeOfficer(principal)) {
+            return unitRepository.findByOfficer_EmailIgnoreCase(principal.getUsername())
+                .stream().map(NssUnit::getUnitId).toList();
+        }
+        return List.of();
+    }
+
     public boolean canManageEvent(UserDetails principal, UUID eventId) {
         if (principal == null || eventId == null) return false;
         if (isGlobalManager(principal)) return true;
 
         return eventRepository.findById(eventId)
             .map(event -> event.getUnit() != null && canManageUnit(principal, event.getUnit().getUnitId()))
+            .orElse(false);
+    }
+
+    public boolean canViewUnitMembers(UserDetails principal, UUID unitId) {
+        if (principal == null || unitId == null) return false;
+        if (isGlobalManager(principal)) return true;
+        if (canManageUnit(principal, unitId)) return true;
+
+        // Active members (Volunteers / Student Leaders) can view the roster of their own unit
+        return membershipRepository.findByVolunteer_User_EmailIgnoreCaseAndUnit_UnitIdAndIsActiveTrue(principal.getUsername(), unitId)
+            .isPresent();
+    }
+
+    public boolean canViewVolunteerTransferHistory(UserDetails principal, UUID volunteerId) {
+        if (principal == null || volunteerId == null) return false;
+        if (isGlobalManager(principal)) return true;
+        if (canManageVolunteer(principal, volunteerId)) return true;
+
+        // Volunteer can view their own transfer history
+        return volunteerRepository.findById(volunteerId)
+            .map(v -> v.getUser() != null && v.getUser().getEmail().equalsIgnoreCase(principal.getUsername()))
             .orElse(false);
     }
 }

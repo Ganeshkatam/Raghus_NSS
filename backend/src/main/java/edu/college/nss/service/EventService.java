@@ -61,18 +61,70 @@ public class EventService {
         if ("ONGOING".equalsIgnoreCase(status)) {
             effectiveStatus = "OPEN";
         }
-        if (!isManager(principal)) {
+
+        if (principal == null) {
             if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
                 return Page.empty(pageable);
             }
             return eventRepository.searchPublic(unitId, effectiveStatus, pageable).map(this::toResponse);
         }
-        return eventRepository.search(unitId, effectiveStatus, pageable).map(this::toResponse);
+
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR")) {
+            return eventRepository.search(unitId, effectiveStatus, pageable).map(this::toResponse);
+        }
+
+        if (hasRole(principal, "PROGRAMME_OFFICER")) {
+            List<NssUnit> poUnits = unitRepository.findByOfficer_EmailIgnoreCase(principal.getUsername());
+            List<UUID> poUnitIds = poUnits.stream().map(NssUnit::getUnitId).toList();
+
+            if (unitId != null) {
+                if (poUnitIds.contains(unitId)) {
+                    return eventRepository.search(unitId, effectiveStatus, pageable).map(this::toResponse);
+                } else {
+                    if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+                        return Page.empty(pageable);
+                    }
+                    return eventRepository.searchPublic(unitId, effectiveStatus, pageable).map(this::toResponse);
+                }
+            } else {
+                if (!poUnitIds.isEmpty()) {
+                    return eventRepository.search(poUnitIds.get(0), effectiveStatus, pageable).map(this::toResponse);
+                } else {
+                    if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+                        return Page.empty(pageable);
+                    }
+                    return eventRepository.searchPublic(null, effectiveStatus, pageable).map(this::toResponse);
+                }
+            }
+        }
+
+        // Volunteers, Student Leaders, and others cannot see draft or cancelled events
+        if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+            return Page.empty(pageable);
+        }
+        return eventRepository.searchPublic(unitId, effectiveStatus, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public EventResponse get(UUID eventId) {
-        return toResponse(getEntity(eventId));
+        return get(eventId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public EventResponse get(UUID eventId, UserDetails principal) {
+        Event event = getEntity(eventId);
+        if ("DRAFT".equalsIgnoreCase(event.getStatus())) {
+            if (principal == null) {
+                throw new AccessDeniedException("Draft events are only visible to authorized unit officers.");
+            }
+            boolean canManage = hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR") ||
+                (hasRole(principal, "PROGRAMME_OFFICER") && event.getUnit().getOfficer() != null &&
+                 event.getUnit().getOfficer().getEmail().equalsIgnoreCase(principal.getUsername()));
+            if (!canManage) {
+                throw new AccessDeniedException("Draft events are only visible to authorized unit officers.");
+            }
+        }
+        return toResponse(event);
     }
 
     @Transactional
@@ -329,7 +381,21 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public EventStatsResponse getEventStats(UUID eventId) {
+        return getEventStats(eventId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public EventStatsResponse getEventStats(UUID eventId, UserDetails principal) {
         Event event = getEntity(eventId);
+        if (principal != null) {
+            boolean canManage = hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR") ||
+                (hasRole(principal, "PROGRAMME_OFFICER") && event.getUnit().getOfficer() != null &&
+                 event.getUnit().getOfficer().getEmail().equalsIgnoreCase(principal.getUsername()));
+            if (!canManage) {
+                throw new AccessDeniedException("You do not have permission to view detailed statistics for this event.");
+            }
+        }
+
         long registeredCount = registrationRepository.countRegistered(eventId);
         long waitlistCount = registrationRepository.countByEvent_EventIdAndStatus(eventId, "WAITLISTED");
         long presentCount = attendanceRecordRepository.countByEventIdAndStatus(eventId, "PRESENT");
