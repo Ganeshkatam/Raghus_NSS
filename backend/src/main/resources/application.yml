@@ -28,7 +28,7 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     clean-disabled: true
-    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:false}
+    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:true}
     locations: classpath:db/migration
   data:
     redis:
