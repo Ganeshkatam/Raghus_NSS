@@ -146,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>NSS Units Governance</h2>
-              <Link to="/units" className="btn-link">View Units</Link>
+              <Link to="/units" className="btn-secondary-sm">View Units</Link>
             </div>
             {units.length === 0 ? (
               <p className="empty-state">No unit records found.</p>
@@ -191,7 +191,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>Recent Audit Activity</h2>
-              <Link to="/admin" className="btn-link">Full Audit</Link>
+              <Link to="/admin" className="btn-secondary-sm">Full Audit</Link>
             </div>
             {recentAudits.length === 0 ? (
               <p className="empty-state">No recent audit log entries.</p>

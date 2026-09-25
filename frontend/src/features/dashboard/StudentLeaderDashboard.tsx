@@ -150,7 +150,7 @@ export const StudentLeaderDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>Upcoming Unit Activities</h2>
-              <Link to="/events" className="btn-link">View all</Link>
+              <Link to="/events" className="btn-secondary-sm">View all</Link>
             </div>
             {events.length === 0 ? (
               <p className="empty-state">No upcoming activities scheduled at this time.</p>
@@ -176,7 +176,7 @@ export const StudentLeaderDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>Attendance Operations</h2>
-              <Link to="/attendance" className="btn-link">Launch Scanner</Link>
+              <Link to="/attendance" className="btn-secondary-sm">Launch Scanner</Link>
             </div>
             <p style={{ fontSize: "0.875rem", color: "var(--text-secondary, #6b7280)", marginBottom: "1rem" }}>
               Assist Programme Officers with on-site volunteer attendance verification and entry checks during active camps and campus events.
@@ -197,7 +197,7 @@ export const StudentLeaderDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>Unit Volunteers</h2>
-              <Link to="/volunteers" className="btn-link">Directory</Link>
+              <Link to="/volunteers" className="btn-secondary-sm">Directory</Link>
             </div>
             {volunteers.length === 0 ? (
               <p className="empty-state">No volunteer records retrieved.</p>
@@ -221,7 +221,7 @@ export const StudentLeaderDashboard: React.FC = () => {
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2>Announcements</h2>
-              <Link to="/announcements" className="btn-link">All notices</Link>
+              <Link to="/announcements" className="btn-secondary-sm">All notices</Link>
             </div>
             {announcements.length === 0 ? (
               <p className="empty-state">No active announcements.</p>
