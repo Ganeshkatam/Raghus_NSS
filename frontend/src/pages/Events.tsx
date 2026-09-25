@@ -471,10 +471,21 @@ export const Events: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label>Event Type *</label>
-                  <input
-                    required
+                  <CustomSelect
                     value={form.eventType}
-                    onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+                    onChange={(val) => setForm({ ...form, eventType: val })}
+                    options={[
+                      { value: "SERVICE", label: "General Community Service" },
+                      { value: "COMMUNITY_OUTREACH", label: "Community Outreach & Field Work" },
+                      { value: "CAMPUS_DRIVE", label: "Campus Cleanliness & Drive" },
+                      { value: "BLOOD_DONATION", label: "Blood Donation Camp" },
+                      { value: "TREE_PLANTATION", label: "Tree Plantation & Environment" },
+                      { value: "AWARENESS_WORKSHOP", label: "Awareness Workshop & Seminar" },
+                      { value: "SPECIAL_CAMP", label: "7-Day Special Annual Camp" },
+                      { value: "NATIONAL_OBSERVANCE", label: "National Day Observance" },
+                      { value: "OTHER", label: "Other Institutional Activity" },
+                    ]}
+                    placeholder="Select event type"
                   />
                 </div>
               </div>

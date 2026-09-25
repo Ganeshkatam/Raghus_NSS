@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
-
+import { SearchBar } from "../components/SearchBar";
 
 interface Announcement {
   announcementId: string;
@@ -42,6 +42,7 @@ export const Announcements: React.FC = () => {
   // Filter
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>("ALL");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Create modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -156,6 +157,14 @@ export const Announcements: React.FC = () => {
     }
     if (selectedPriorityFilter !== "ALL") {
       if ((a.priority || "NORMAL") !== selectedPriorityFilter) return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = a.title.toLowerCase().includes(q);
+      const matchContent = a.content.toLowerCase().includes(q);
+      const matchAuthor = a.createdByName && a.createdByName.toLowerCase().includes(q);
+      const matchUnit = a.unitName && a.unitName.toLowerCase().includes(q);
+      if (!matchTitle && !matchContent && !matchAuthor && !matchUnit) return false;
     }
     return true;
   });
@@ -297,8 +306,16 @@ export const Announcements: React.FC = () => {
                         {new Date(n.createdAt).toLocaleString()}
                       </span>
                       {n.link && (
-                        <a href={n.link} style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>
-                          View Details
+                        <a
+                          href={n.link}
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--primary-color, #1e40af)",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          View Details &rarr;
                         </a>
                       )}
                     </div>
@@ -327,59 +344,69 @@ export const Announcements: React.FC = () => {
       )}
 
       {/* Filter Row */}
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", alignItems: "center" }}>
-        <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#475569" }}>Filter by Unit:</span>
-        <button
-          onClick={() => setSelectedUnitFilter("ALL")}
-          style={{
-            padding: "0.375rem 0.75rem",
-            borderRadius: "0.375rem",
-            border: "1px solid",
-            borderColor: selectedUnitFilter === "ALL" ? "var(--primary, #1e40af)" : "#cbd5e1",
-            backgroundColor: selectedUnitFilter === "ALL" ? "var(--primary, #1e40af)" : "#ffffff",
-            color: selectedUnitFilter === "ALL" ? "#ffffff" : "#475569",
-            fontSize: "0.8125rem",
-            fontWeight: 600,
-            cursor: "pointer"
-          }}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setSelectedUnitFilter("COLLEGE")}
-          style={{
-            padding: "0.375rem 0.75rem",
-            borderRadius: "0.375rem",
-            border: "1px solid",
-            borderColor: selectedUnitFilter === "COLLEGE" ? "var(--primary, #1e40af)" : "#cbd5e1",
-            backgroundColor: selectedUnitFilter === "COLLEGE" ? "var(--primary, #1e40af)" : "#ffffff",
-            color: selectedUnitFilter === "COLLEGE" ? "#ffffff" : "#475569",
-            fontSize: "0.8125rem",
-            fontWeight: 600,
-            cursor: "pointer"
-          }}
-        >
-          College-Wide
-        </button>
-        {units.map((u) => (
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#475569" }}>Filter by Unit:</span>
           <button
-            key={u.unitId}
-            onClick={() => setSelectedUnitFilter(u.unitId.toString())}
+            onClick={() => setSelectedUnitFilter("ALL")}
             style={{
               padding: "0.375rem 0.75rem",
               borderRadius: "0.375rem",
               border: "1px solid",
-              borderColor: selectedUnitFilter === u.unitId.toString() ? "var(--primary, #1e40af)" : "#cbd5e1",
-              backgroundColor: selectedUnitFilter === u.unitId.toString() ? "var(--primary, #1e40af)" : "#ffffff",
-              color: selectedUnitFilter === u.unitId.toString() ? "#ffffff" : "#475569",
+              borderColor: selectedUnitFilter === "ALL" ? "var(--primary, #1e40af)" : "#cbd5e1",
+              backgroundColor: selectedUnitFilter === "ALL" ? "var(--primary, #1e40af)" : "#ffffff",
+              color: selectedUnitFilter === "ALL" ? "#ffffff" : "#475569",
               fontSize: "0.8125rem",
               fontWeight: 600,
               cursor: "pointer"
             }}
           >
-            {u.unitName}
+            All
           </button>
-        ))}
+          <button
+            onClick={() => setSelectedUnitFilter("COLLEGE")}
+            style={{
+              padding: "0.375rem 0.75rem",
+              borderRadius: "0.375rem",
+              border: "1px solid",
+              borderColor: selectedUnitFilter === "COLLEGE" ? "var(--primary, #1e40af)" : "#cbd5e1",
+              backgroundColor: selectedUnitFilter === "COLLEGE" ? "var(--primary, #1e40af)" : "#ffffff",
+              color: selectedUnitFilter === "COLLEGE" ? "#ffffff" : "#475569",
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            College-Wide
+          </button>
+          {units.map((u) => (
+            <button
+              key={u.unitId}
+              onClick={() => setSelectedUnitFilter(u.unitId.toString())}
+              style={{
+                padding: "0.375rem 0.75rem",
+                borderRadius: "0.375rem",
+                border: "1px solid",
+                borderColor: selectedUnitFilter === u.unitId.toString() ? "var(--primary, #1e40af)" : "#cbd5e1",
+                backgroundColor: selectedUnitFilter === u.unitId.toString() ? "var(--primary, #1e40af)" : "#ffffff",
+                color: selectedUnitFilter === u.unitId.toString() ? "#ffffff" : "#475569",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              {u.unitName}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ minWidth: "260px", maxWidth: "380px" }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search circulars by title, topic..."
+          />
+        </div>
       </div>
 
       {loading && (
@@ -393,7 +420,7 @@ export const Announcements: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {filteredAnnouncements.length === 0 ? (
             <div style={{ background: "#ffffff", padding: "3rem", textAlign: "center", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", color: "#64748b" }}>
-              No announcements found for this filter.
+              {searchQuery ? "No announcements match your search query." : "No announcements found for this filter."}
             </div>
           ) : (
             filteredAnnouncements.map((a) => (
@@ -480,101 +507,105 @@ export const Announcements: React.FC = () => {
 
       {/* Post Modal */}
       {showCreateModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#ffffff", padding: "2rem", borderRadius: "0.75rem", width: "90%", maxWidth: "550px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.25rem", fontWeight: 700 }}>Post Announcement</h3>
-            <form onSubmit={handleCreateAnnouncement}>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Announcement Title *
-                </label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Schedule Update for Annual Camp"
-                  required
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2>Post Announcement</h2>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowCreateModal(false)}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleCreateAnnouncement} className="form-stack">
+                <div className="form-group">
+                  <label htmlFor="announcementTitle">Announcement Title *</label>
+                  <input
+                    id="announcementTitle"
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="e.g. Schedule Update for Annual Camp"
+                    required
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Target Audience / Unit
-                </label>
-                <CustomSelect
-                  value={newUnitId}
-                  onChange={setNewUnitId}
-                  options={[
-                    { value: "", label: "College-Wide (Broadcast to all students & units)" },
-                    ...units.map((u) => ({
-                      value: u.unitId,
-                      label: `${u.unitName} (${u.unitNumber})`,
-                    })),
-                  ]}
-                  placeholder="College-Wide (Broadcast to all students & units)"
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="announcementUnit">Target Audience / Unit</label>
+                  <CustomSelect
+                    id="announcementUnit"
+                    value={newUnitId}
+                    onChange={setNewUnitId}
+                    options={[
+                      { value: "", label: "College-Wide (Broadcast to all students & units)" },
+                      ...units.map((u) => ({
+                        value: u.unitId,
+                        label: `${u.unitName} (${u.unitNumber})`,
+                      })),
+                    ]}
+                    placeholder="College-Wide (Broadcast to all students & units)"
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Priority Level *
-                </label>
-                <CustomSelect
-                  value={newPriority}
-                  onChange={setNewPriority}
-                  options={[
-                    { value: "NORMAL", label: "Normal Priority" },
-                    { value: "HIGH", label: "High Priority" },
-                    { value: "URGENT", label: "Urgent Notice" },
-                  ]}
-                  placeholder="Select priority"
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="announcementPriority">Priority Level *</label>
+                  <CustomSelect
+                    id="announcementPriority"
+                    value={newPriority}
+                    onChange={setNewPriority}
+                    options={[
+                      { value: "NORMAL", label: "Normal Priority" },
+                      { value: "HIGH", label: "High Priority" },
+                      { value: "URGENT", label: "Urgent Notice" },
+                    ]}
+                    placeholder="Select priority"
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Content / Details *
-                </label>
-                <textarea
-                  value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
-                  rows={4}
-                  placeholder="Provide full text of the circular, timing instructions, or venue details..."
-                  required
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="announcementContent">Content / Details *</label>
+                  <textarea
+                    id="announcementContent"
+                    value={newContent}
+                    onChange={(e) => setNewContent(e.target.value)}
+                    rows={4}
+                    placeholder="Provide full text of the circular, timing instructions, or venue details..."
+                    required
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Notice Expiry Date (Optional)
-                </label>
-                <input
-                  type="date"
-                  value={newExpiresAt}
-                  onChange={(e) => setNewExpiresAt(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="announcementExpires">Notice Expiry Date (Optional)</label>
+                  <input
+                    id="announcementExpires"
+                    type="date"
+                    value={newExpiresAt}
+                    onChange={(e) => setNewExpiresAt(e.target.value)}
+                  />
+                </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "none", background: "#1e40af", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-                >
-                  {creating ? "Publishing..." : "Publish & Broadcast"}
-                </button>
-              </div>
-            </form>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="btn-primary"
+                  >
+                    {creating ? "Publishing..." : "Publish & Broadcast"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

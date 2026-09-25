@@ -185,9 +185,10 @@ export const Units: React.FC = () => {
                           {canManageUnits && (
                             <Link
                               to={`/units/${unit.unitId}`}
-                              style={{ fontSize: "0.75rem", color: "#2563eb", textDecoration: "underline" }}
+                              className="table-action-link"
+                              style={{ fontSize: "0.75rem" }}
                             >
-                              Assign
+                              Assign &rarr;
                             </Link>
                           )}
                         </div>

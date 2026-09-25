@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface EventItem {
@@ -105,6 +106,7 @@ export const EventDetail: React.FC = () => {
   // Registration sub-filter
   const [regFilter, setRegFilter] = useState<"ALL" | "CONFIRMED" | "WAITLIST" | "CANCELLED">("ALL");
   const [regSearch, setRegSearch] = useState("");
+  const [attSearch, setAttSearch] = useState("");
 
   // Cancellation modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -810,12 +812,11 @@ export const EventDetail: React.FC = () => {
 
               {/* Roster Search */}
               <div style={{ marginBottom: "1rem" }}>
-                <input
-                  type="text"
-                  placeholder="Filter roster by volunteer name or college ID..."
+                <SearchBar
                   value={regSearch}
-                  onChange={(e) => setRegSearch(e.target.value)}
-                  style={{ width: "100%", maxWidth: "400px" }}
+                  onChange={setRegSearch}
+                  placeholder="Filter roster by volunteer name or college ID..."
+                  style={{ width: "100%", maxWidth: "420px" }}
                 />
               </div>
 
@@ -1023,62 +1024,93 @@ export const EventDetail: React.FC = () => {
               </section>
 
               {/* Roster Table */}
-              <section className="section-card">
-                <div className="section-header">
-                  <h3>Attendance Roster</h3>
-                  <span className="results-count">{roster.length} participants</span>
-                </div>
+              {(() => {
+                const filteredAttendanceRoster = roster.filter((item) => {
+                  if (!attSearch.trim()) return true;
+                  const q = attSearch.toLowerCase();
+                  return (
+                    item.fullName.toLowerCase().includes(q) ||
+                    item.rollNumber.toLowerCase().includes(q) ||
+                    (item.department && item.department.toLowerCase().includes(q))
+                  );
+                });
 
-                {roster.length === 0 ? (
-                  <div className="empty-state">
-                    <p>No attendance records logged for this event yet.</p>
-                  </div>
-                ) : (
-                  <div className="units-table-wrapper">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Roll Number</th>
-                          <th>Full Name</th>
-                          <th>Department</th>
-                          <th>Registration</th>
-                          <th>Attendance</th>
-                          <th>Method</th>
-                          <th>Checked In</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {roster.map((item) => (
-                          <tr key={item.volunteerId}>
-                            <td style={{ fontWeight: 600 }}>{item.rollNumber}</td>
-                            <td>{item.fullName}</td>
-                            <td>{item.department}</td>
-                            <td>
-                              <span className="badge badge-muted">{item.registrationStatus}</span>
-                            </td>
-                            <td>
-                              <span
-                                className={`badge ${item.attendanceStatus === "PRESENT"
-                                  ? "badge-success"
-                                  : item.attendanceStatus === "ABSENT"
-                                    ? "badge-danger"
-                                    : "badge-muted"
-                                  }`}
-                              >
-                                {item.attendanceStatus}
-                              </span>
-                            </td>
-                            <td>{item.checkInMethod || "-"}</td>
-                            <td>
-                              {item.checkedInAt ? new Date(item.checkedInAt).toLocaleTimeString() : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
+                return (
+                  <section className="section-card">
+                    <div className="section-header" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+                      <div>
+                        <h3>Attendance Roster</h3>
+                        <span className="results-count">
+                          {filteredAttendanceRoster.length} of {roster.length} participants
+                        </span>
+                      </div>
+                      {roster.length > 0 && (
+                        <div style={{ marginLeft: "auto", minWidth: "260px", maxWidth: "360px" }}>
+                          <SearchBar
+                            value={attSearch}
+                            onChange={setAttSearch}
+                            placeholder="Search attendee by name, roll no..."
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {roster.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No attendance records logged for this event yet.</p>
+                      </div>
+                    ) : filteredAttendanceRoster.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No participants match your search query.</p>
+                      </div>
+                    ) : (
+                      <div className="units-table-wrapper">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Roll Number</th>
+                              <th>Full Name</th>
+                              <th>Department</th>
+                              <th>Registration</th>
+                              <th>Attendance</th>
+                              <th>Method</th>
+                              <th>Checked In</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredAttendanceRoster.map((item) => (
+                              <tr key={item.volunteerId}>
+                                <td style={{ fontWeight: 600 }}>{item.rollNumber}</td>
+                                <td>{item.fullName}</td>
+                                <td>{item.department}</td>
+                                <td>
+                                  <span className="badge badge-muted">{item.registrationStatus}</span>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`badge ${item.attendanceStatus === "PRESENT"
+                                      ? "badge-success"
+                                      : item.attendanceStatus === "ABSENT"
+                                        ? "badge-danger"
+                                        : "badge-muted"
+                                      }`}
+                                  >
+                                    {item.attendanceStatus}
+                                  </span>
+                                </td>
+                                <td>{item.checkInMethod || "-"}</td>
+                                <td>
+                                  {item.checkedInAt ? new Date(item.checkedInAt).toLocaleTimeString() : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
             </>
           ) : (
             <section className="section-card">

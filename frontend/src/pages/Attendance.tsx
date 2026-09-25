@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface SessionData {
@@ -68,6 +69,7 @@ export const Attendance: React.FC = () => {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
   const [roster, setRoster] = useState<RosterItem[]>([]);
+  const [rosterSearch, setRosterSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -430,13 +432,12 @@ export const Attendance: React.FC = () => {
                         </td>
                         <td>
                           <span
-                            className={`badge ${
-                              item.status === "APPROVED"
-                                ? "badge-success"
-                                : item.status === "PENDING"
+                            className={`badge ${item.status === "APPROVED"
+                              ? "badge-success"
+                              : item.status === "PENDING"
                                 ? "badge-warning"
                                 : "badge-muted"
-                            }`}
+                              }`}
                           >
                             {item.status === "APPROVED" ? "PRESENT (VERIFIED)" : item.status}
                           </span>
@@ -572,272 +573,299 @@ export const Attendance: React.FC = () => {
           ) : (
             <>
               <div className="section-card">
-            <div className="section-header" style={{ marginBottom: "1rem" }}>
-              <div>
-                <h2>Session Control &amp; Event Selector</h2>
-                <p className="subtitle">Choose an event to manage its live attendance session and roster.</p>
-              </div>
-            </div>
-            <div className="attendance-control-bar">
-              <div className="attendance-select-group">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label htmlFor="eventSelect" style={{ margin: 0 }}>Select Event</label>
-                  <button
-                    type="button"
-                    onClick={loadEvents}
-                    style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600, padding: 0 }}
-                  >
-                    Refresh List
-                  </button>
-                </div>
-                <CustomSelect
-                  id="eventSelect"
-                  value={selectedEventId || ""}
-                  onChange={(val) => setSelectedEventId(val || null)}
-                  options={
-                    events.length === 0
-                      ? [{ value: "", label: "No active events found" }]
-                      : events.map((ev) => ({
-                          value: ev.eventId,
-                          label: `${ev.title}${ev.unitName ? ` (${ev.unitName})` : ""} - ${ev.status}`,
-                        }))
-                  }
-                  placeholder="Select an event..."
-                />
-              </div>
-
-              <div className="attendance-action-group">
-                {activeSession ? (
-                  <button type="button" onClick={handleCloseSession} className="btn-danger">
-                    Close Attendance Session
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleOpenSession}
-                    className="btn-primary"
-                    disabled={!selectedEventId}
-                  >
-                    Open Attendance Session
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {activeSession && (
-            <div className="active-session-banner">
-              <div className="session-banner-header">
-                <div className="session-banner-info">
-                  <span className="session-pulse" />
+                <div className="section-header" style={{ marginBottom: "1rem" }}>
                   <div>
-                    <h3>Active Attendance Session: {activeSession.eventTitle}</h3>
-                    <p>
-                      Opened by <strong>{activeSession.openedByName}</strong> &bull; Valid until:{" "}
-                      <strong>{new Date(activeSession.expiresAt).toLocaleTimeString()}</strong>
-                    </p>
+                    <h2>Session Control &amp; Event Selector</h2>
+                    <p className="subtitle">Choose an event to manage its live attendance session and roster.</p>
                   </div>
                 </div>
+                <div className="attendance-control-bar">
+                  <div className="attendance-select-group">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <label htmlFor="eventSelect" style={{ margin: 0 }}>Select Event</label>
+                      <button
+                        type="button"
+                        onClick={loadEvents}
+                        style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600, padding: 0 }}
+                      >
+                        Refresh List
+                      </button>
+                    </div>
+                    <CustomSelect
+                      id="eventSelect"
+                      value={selectedEventId || ""}
+                      onChange={(val) => setSelectedEventId(val || null)}
+                      options={
+                        events.length === 0
+                          ? [{ value: "", label: "No active events found" }]
+                          : events.map((ev) => ({
+                            value: ev.eventId,
+                            label: `${ev.title}${ev.unitName ? ` (${ev.unitName})` : ""} - ${ev.status}`,
+                          }))
+                      }
+                      placeholder="Select an event..."
+                    />
+                  </div>
 
-                <div className="session-banner-stats">
-                  <div>
-                    <span className="session-stat-number">{activeSession.presentCount}</span>
-                    <span className="session-stat-divider">/</span>
-                    <span>{activeSession.totalRegistered}</span>
-                    <span className="session-stat-label">Present</span>
+                  <div className="attendance-action-group">
+                    {activeSession ? (
+                      <button type="button" onClick={handleCloseSession} className="btn-danger">
+                        Close Attendance Session
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleOpenSession}
+                        className="btn-primary"
+                        disabled={!selectedEventId}
+                      >
+                        Open Attendance Session
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {activeSession.qrToken && (
-                <div className="session-token-wrapper">
-                  <span className="token-label">Live Attendance Session Token (Project on screen for volunteers):</span>
-                  <div className="token-code-row">
-                    <span className="token-code">{activeSession.qrToken}</span>
-                    <button
-                      type="button"
-                      className="btn-secondary-sm"
-                      onClick={() => navigator.clipboard.writeText(activeSession.qrToken || "")}
-                    >
-                      Copy Token
-                    </button>
+              {activeSession && (
+                <div className="active-session-banner">
+                  <div className="session-banner-header">
+                    <div className="session-banner-info">
+                      <span className="session-pulse" />
+                      <div>
+                        <h3>Active Attendance Session: {activeSession.eventTitle}</h3>
+                        <p>
+                          Opened by <strong>{activeSession.openedByName}</strong> &bull; Valid until:{" "}
+                          <strong>{new Date(activeSession.expiresAt).toLocaleTimeString()}</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="session-banner-stats">
+                      <div>
+                        <span className="session-stat-number">{activeSession.presentCount}</span>
+                        <span className="session-stat-divider">/</span>
+                        <span>{activeSession.totalRegistered}</span>
+                        <span className="session-stat-label">Present</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeSession.qrToken && (
+                    <div className="session-token-wrapper">
+                      <span className="token-label">Live Attendance Session Token (Project on screen for volunteers):</span>
+                      <div className="token-code-row">
+                        <span className="token-code">{activeSession.qrToken}</span>
+                        <button
+                          type="button"
+                          className="btn-secondary-sm"
+                          onClick={() => navigator.clipboard.writeText(activeSession.qrToken || "")}
+                        >
+                          Copy Token
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(() => {
+                const filteredRoster = roster.filter((row) => {
+                  if (!rosterSearch.trim()) return true;
+                  const q = rosterSearch.toLowerCase();
+                  return (
+                    row.fullName.toLowerCase().includes(q) ||
+                    row.rollNumber.toLowerCase().includes(q) ||
+                    (row.department && row.department.toLowerCase().includes(q)) ||
+                    (row.nssUnitCode && row.nssUnitCode.toLowerCase().includes(q))
+                  );
+                });
+
+                return (
+                  <div className="section-card">
+                    <div className="section-header" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+                      <div>
+                        <h2>Event Roster &amp; Verification State</h2>
+                        <p className="subtitle">
+                          {filteredRoster.length} of {roster.length} Enrolled &bull; Filtered by registration
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
+                        <SearchBar
+                          value={rosterSearch}
+                          onChange={setRosterSearch}
+                          placeholder="Search attendee by name, roll no..."
+                          style={{ minWidth: "260px", maxWidth: "360px" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-secondary-sm"
+                          onClick={() => selectedEventId && loadSessionAndRoster(selectedEventId)}
+                        >
+                          Refresh Roster
+                        </button>
+                      </div>
+                    </div>
+
+                    {loading ? (
+                      <p className="loading-state">Loading roster records...</p>
+                    ) : roster.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No volunteers registered for this event.</p>
+                      </div>
+                    ) : filteredRoster.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No attendees match your search query.</p>
+                      </div>
+                    ) : (
+                      <div className="table-wrapper">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Volunteer</th>
+                              <th>College ID</th>
+                              <th>Dept &amp; Unit</th>
+                              <th>Registration</th>
+                              <th>Attendance State</th>
+                              <th>Check-in Method</th>
+                              <th>Checked-In At</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredRoster.map((row) => (
+                              <tr key={row.volunteerId}>
+                                <td>
+                                  <strong>{row.fullName}</strong>
+                                </td>
+                                <td>
+                                  <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{row.rollNumber}</span>
+                                </td>
+                                <td>
+                                  {row.department} {row.nssUnitCode ? `(${row.nssUnitCode})` : ""}
+                                </td>
+                                <td>
+                                  <span className={`badge ${row.registrationStatus === "REGISTERED" ? "badge-success" : "badge-muted"}`}>
+                                    {row.registrationStatus}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`badge ${row.attendanceStatus === "PRESENT"
+                                      ? "badge-success"
+                                      : row.attendanceStatus === "EXCUSED"
+                                        ? "badge-primary"
+                                        : row.attendanceStatus === "ABSENT"
+                                          ? "badge-danger"
+                                          : "badge-warning"
+                                      }`}
+                                  >
+                                    {row.attendanceStatus}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className="cell-sub">{row.checkInMethod || "\u2014"}</span>
+                                </td>
+                                <td>
+                                  <span className="cell-sub">
+                                    {row.checkedInAt ? new Date(row.checkedInAt).toLocaleTimeString() : "\u2014"}
+                                  </span>
+                                </td>
+                                <td>
+                                  {row.attendanceId ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCorrectingRecord(row);
+                                        setCorrectionStatus(row.attendanceStatus);
+                                      }}
+                                      className="btn-secondary-sm"
+                                    >
+                                      Audit Correct
+                                    </button>
+                                  ) : (
+                                    <span className="cell-sub">Unrecorded</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {correctingRecord && (
+                <div className="modal-backdrop">
+                  <div className="modal-card">
+                    <div className="modal-header">
+                      <h2>Audited Attendance Correction</h2>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setCorrectingRecord(null)}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    <div className="modal-body">
+                      <p className="subtitle" style={{ marginBottom: "1rem" }}>
+                        Updating attendance for <strong>{correctingRecord.fullName}</strong> ({correctingRecord.rollNumber}).
+                        Every adjustment is recorded in the institutional audit ledger.
+                      </p>
+                      <form onSubmit={handleAuditCorrection} className="form-stack" style={{ padding: 0 }}>
+                        <div className="form-group">
+                          <label htmlFor="statusSelect">New Attendance Status *</label>
+                          <CustomSelect
+                            id="statusSelect"
+                            value={correctionStatus}
+                            onChange={(val) => setCorrectionStatus(val)}
+                            options={[
+                              { value: "PRESENT", label: "PRESENT" },
+                              { value: "ABSENT", label: "ABSENT" },
+                              { value: "EXCUSED", label: "EXCUSED" },
+                            ]}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label htmlFor="reasonInput">Audit Justification / Reason *</label>
+                          <textarea
+                            id="reasonInput"
+                            rows={3}
+                            required
+                            placeholder="e.g., Medical certificate submitted to Programme Officer."
+                            value={correctionReason}
+                            onChange={(e) => setCorrectionReason(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="modal-actions">
+                          <button
+                            type="button"
+                            onClick={() => setCorrectingRecord(null)}
+                            className="btn-secondary"
+                            disabled={submittingCorrection}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="btn-primary"
+                            disabled={submittingCorrection || !correctionReason.trim()}
+                          >
+                            {submittingCorrection ? "Recording Audit..." : "Commit Correction"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          <div className="section-card">
-            <div className="section-header">
-              <div>
-                <h2>Event Roster &amp; Verification State</h2>
-                <p className="subtitle">
-                  {roster.length} Total Enrolled &bull; Filtered by registration
-                </p>
-              </div>
-              <button
-                type="button"
-                className="btn-secondary-sm"
-                onClick={() => selectedEventId && loadSessionAndRoster(selectedEventId)}
-              >
-                Refresh Roster
-              </button>
-            </div>
-
-            {loading ? (
-              <p className="loading-state">Loading roster records...</p>
-            ) : roster.length === 0 ? (
-              <div className="empty-state">
-                <p>No volunteers registered for this event.</p>
-              </div>
-            ) : (
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Volunteer</th>
-                      <th>College ID</th>
-                      <th>Dept &amp; Unit</th>
-                      <th>Registration</th>
-                      <th>Attendance State</th>
-                      <th>Check-in Method</th>
-                      <th>Checked-In At</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roster.map((row) => (
-                      <tr key={row.volunteerId}>
-                        <td>
-                          <strong>{row.fullName}</strong>
-                        </td>
-                        <td>
-                          <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{row.rollNumber}</span>
-                        </td>
-                        <td>
-                          {row.department} {row.nssUnitCode ? `(${row.nssUnitCode})` : ""}
-                        </td>
-                        <td>
-                          <span className={`badge ${row.registrationStatus === "REGISTERED" ? "badge-success" : "badge-muted"}`}>
-                            {row.registrationStatus}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              row.attendanceStatus === "PRESENT"
-                                ? "badge-success"
-                                : row.attendanceStatus === "EXCUSED"
-                                ? "badge-primary"
-                                : row.attendanceStatus === "ABSENT"
-                                ? "badge-danger"
-                                : "badge-warning"
-                            }`}
-                          >
-                            {row.attendanceStatus}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="cell-sub">{row.checkInMethod || "\u2014"}</span>
-                        </td>
-                        <td>
-                          <span className="cell-sub">
-                            {row.checkedInAt ? new Date(row.checkedInAt).toLocaleTimeString() : "\u2014"}
-                          </span>
-                        </td>
-                        <td>
-                          {row.attendanceId ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCorrectingRecord(row);
-                                setCorrectionStatus(row.attendanceStatus);
-                              }}
-                              className="btn-secondary-sm"
-                            >
-                              Audit Correct
-                            </button>
-                          ) : (
-                            <span className="cell-sub">Unrecorded</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {correctingRecord && (
-            <div className="modal-backdrop">
-              <div className="modal-card">
-                <div className="modal-header">
-                  <h2>Audited Attendance Correction</h2>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setCorrectingRecord(null)}
-                  >
-                    &times;
-                  </button>
-                </div>
-                <div className="modal-body">
-                  <p className="subtitle" style={{ marginBottom: "1rem" }}>
-                    Updating attendance for <strong>{correctingRecord.fullName}</strong> ({correctingRecord.rollNumber}).
-                    Every adjustment is recorded in the institutional audit ledger.
-                  </p>
-                  <form onSubmit={handleAuditCorrection} className="form-stack" style={{ padding: 0 }}>
-                    <div className="form-group">
-                      <label htmlFor="statusSelect">New Attendance Status *</label>
-                      <CustomSelect
-                        id="statusSelect"
-                        value={correctionStatus}
-                        onChange={(val) => setCorrectionStatus(val)}
-                        options={[
-                          { value: "PRESENT", label: "PRESENT" },
-                          { value: "ABSENT", label: "ABSENT" },
-                          { value: "EXCUSED", label: "EXCUSED" },
-                        ]}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="reasonInput">Audit Justification / Reason *</label>
-                      <textarea
-                        id="reasonInput"
-                        rows={3}
-                        required
-                        placeholder="e.g., Medical certificate submitted to Programme Officer."
-                        value={correctionReason}
-                        onChange={(e) => setCorrectionReason(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="modal-actions">
-                      <button
-                        type="button"
-                        onClick={() => setCorrectingRecord(null)}
-                        className="btn-secondary"
-                        disabled={submittingCorrection}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn-primary"
-                        disabled={submittingCorrection || !correctionReason.trim()}
-                      >
-                        {submittingCorrection ? "Recording Audit..." : "Commit Correction"}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-          </>
-          )}
+            </>
+          )
+          }
 
           {reviewModalCorrection && (
             <div className="modal-backdrop">
@@ -897,4 +925,3 @@ export const Attendance: React.FC = () => {
     </div>
   );
 };
-

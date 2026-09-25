@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
-
+import { SearchBar } from "../components/SearchBar";
 
 interface ServiceHourEntry {
   entryId: string;
@@ -44,6 +44,8 @@ export const ServiceHours: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"my" | "pending">(isOfficerOrAdmin ? "pending" : "my");
   const [personalSummary, setPersonalSummary] = useState<PersonalSummary | null>(null);
   const [pendingClaims, setPendingClaims] = useState<ServiceHourEntry[]>([]);
+  const [pendingSearch, setPendingSearch] = useState("");
+  const [ledgerSearch, setLedgerSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -107,8 +109,8 @@ export const ServiceHours: React.FC = () => {
       const safeList = Array.isArray(list)
         ? list
         : Array.isArray(list?.content)
-        ? list.content
-        : [];
+          ? list.content
+          : [];
       setPendingClaims(safeList);
     } catch (err: any) {
       setError(err.message || "Failed to load pending claims.");
@@ -123,8 +125,8 @@ export const ServiceHours: React.FC = () => {
       const safeEvents = Array.isArray(res)
         ? res
         : Array.isArray(res?.content)
-        ? res.content
-        : [];
+          ? res.content
+          : [];
       setEvents(safeEvents);
     } catch {
       // Optional background fetch
@@ -223,6 +225,28 @@ export const ServiceHours: React.FC = () => {
 
   const entriesList = Array.isArray(personalSummary?.entries) ? personalSummary.entries : [];
   const claimsList = Array.isArray(pendingClaims) ? pendingClaims : [];
+
+  const filteredEntries = entriesList.filter((entry) => {
+    if (!ledgerSearch.trim()) return true;
+    const q = ledgerSearch.toLowerCase();
+    return (
+      (entry.eventTitle && entry.eventTitle.toLowerCase().includes(q)) ||
+      (entry.description && entry.description.toLowerCase().includes(q)) ||
+      (entry.category && entry.category.toLowerCase().includes(q)) ||
+      (entry.approvedByName && entry.approvedByName.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredClaims = claimsList.filter((claim) => {
+    if (!pendingSearch.trim()) return true;
+    const q = pendingSearch.toLowerCase();
+    return (
+      claim.volunteerName.toLowerCase().includes(q) ||
+      claim.rollNumber.toLowerCase().includes(q) ||
+      (claim.eventTitle && claim.eventTitle.toLowerCase().includes(q)) ||
+      (claim.description && claim.description.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
@@ -381,14 +405,31 @@ export const ServiceHours: React.FC = () => {
 
               {/* Entries Table */}
               <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Activity Ledger Entries</h3>
-                  <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{entriesList.length} Total records</span>
+                <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Activity Ledger Entries</h3>
+                    <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                      {filteredEntries.length} of {entriesList.length} Total records
+                    </span>
+                  </div>
+                  {entriesList.length > 0 && (
+                    <div style={{ minWidth: "240px", maxWidth: "340px" }}>
+                      <SearchBar
+                        value={ledgerSearch}
+                        onChange={setLedgerSearch}
+                        placeholder="Search entries by title, note..."
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {entriesList.length === 0 ? (
                   <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
                     No service hour entries found on your ledger yet. Attend events or submit manual claims to accrue hours.
+                  </div>
+                ) : filteredEntries.length === 0 ? (
+                  <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
+                    No ledger entries match your search query.
                   </div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
@@ -403,7 +444,7 @@ export const ServiceHours: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {entriesList.map((entry) => (
+                        {filteredEntries.map((entry) => (
                           <tr key={entry.entryId} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "0.75rem 1rem", color: "#64748b", whiteSpace: "nowrap" }}>
                               {new Date(entry.createdAt).toLocaleDateString()}
@@ -428,14 +469,14 @@ export const ServiceHours: React.FC = () => {
                                     entry.status === "APPROVED"
                                       ? "#dcfce7"
                                       : entry.status === "PENDING"
-                                      ? "#fef3c7"
-                                      : "#fee2e2",
+                                        ? "#fef3c7"
+                                        : "#fee2e2",
                                   color:
                                     entry.status === "APPROVED"
                                       ? "#15803d"
                                       : entry.status === "PENDING"
-                                      ? "#b45309"
-                                      : "#b91c1c"
+                                        ? "#b45309"
+                                        : "#b91c1c"
                                 }}
                               >
                                 {entry.status}
@@ -463,14 +504,31 @@ export const ServiceHours: React.FC = () => {
       {/* TAB 2: Pending Claims Review Queue */}
       {!loading && activeTab === "pending" && isOfficerOrAdmin && (
         <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Pending Review Queue</h3>
-            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{claimsList.length} Claims awaiting action</span>
+          <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Pending Review Queue</h3>
+              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                {filteredClaims.length} of {claimsList.length} Claims awaiting action
+              </span>
+            </div>
+            {claimsList.length > 0 && (
+              <div style={{ minWidth: "260px", maxWidth: "360px" }}>
+                <SearchBar
+                  value={pendingSearch}
+                  onChange={setPendingSearch}
+                  placeholder="Search claims by volunteer, roll no..."
+                />
+              </div>
+            )}
           </div>
 
           {claimsList.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
               No pending service hour claims to review at this time.
+            </div>
+          ) : filteredClaims.length === 0 ? (
+            <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
+              No claims match your search query.
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -486,7 +544,7 @@ export const ServiceHours: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {claimsList.map((claim) => (
+                  {filteredClaims.map((claim) => (
                     <tr key={claim.entryId} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "#1e293b" }}>
                         {claim.volunteerName}
@@ -511,32 +569,14 @@ export const ServiceHours: React.FC = () => {
                           <button
                             onClick={() => handleApproveClaim(claim.entryId)}
                             disabled={reviewing}
-                            style={{
-                              padding: "0.375rem 0.75rem",
-                              backgroundColor: "#16a34a",
-                              color: "#ffffff",
-                              borderRadius: "0.375rem",
-                              border: "none",
-                              fontWeight: 600,
-                              fontSize: "0.8125rem",
-                              cursor: "pointer"
-                            }}
+                            className="btn-success-sm"
                           >
                             Approve
                           </button>
                           <button
                             onClick={() => setRejectingEntry(claim)}
                             disabled={reviewing}
-                            style={{
-                              padding: "0.375rem 0.75rem",
-                              backgroundColor: "#dc2626",
-                              color: "#ffffff",
-                              borderRadius: "0.375rem",
-                              border: "none",
-                              fontWeight: 600,
-                              fontSize: "0.8125rem",
-                              cursor: "pointer"
-                            }}
+                            className="btn-danger-sm"
                           >
                             Reject
                           </button>
@@ -553,164 +593,174 @@ export const ServiceHours: React.FC = () => {
 
       {/* Claim Submission Modal */}
       {showClaimModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#ffffff", padding: "2rem", borderRadius: "0.75rem", width: "90%", maxWidth: "500px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.25rem", fontWeight: 700 }}>Log Service Hours Claim</h3>
-            <form onSubmit={handleSubmitClaim}>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Hours to Claim *
-                </label>
-                <input
-                  type="number"
-                  step="0.25"
-                  min="0.25"
-                  max="24.0"
-                  value={claimHours}
-                  onChange={(e) => setClaimHours(e.target.value)}
-                  placeholder="e.g. 4.00"
-                  required
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2>Log Service Hours Claim</h2>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowClaimModal(false)}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleSubmitClaim} className="form-stack">
+                <div className="form-group">
+                  <label htmlFor="claimHours">Hours to Claim *</label>
+                  <input
+                    id="claimHours"
+                    type="number"
+                    step="0.25"
+                    min="0.25"
+                    max="24.0"
+                    value={claimHours}
+                    onChange={(e) => setClaimHours(e.target.value)}
+                    placeholder="e.g. 4.00"
+                    required
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Hour Category *
-                </label>
-                <CustomSelect
-                  value={claimCategory}
-                  onChange={setClaimCategory}
-                  options={[
-                    { value: "REGULAR_ACTIVITY", label: "Regular Activity (Campus & Institutional Drives)" },
-                    { value: "COMMUNITY_OUTREACH", label: "Community Outreach (Village & Field Work)" },
-                    { value: "BLOOD_DONATION", label: "Blood Donation Camp" },
-                    { value: "SPECIAL_PROJECT", label: "Special Project / State Initiative" },
-                  ]}
-                  placeholder="Select category"
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="claimCategory">Hour Category *</label>
+                  <CustomSelect
+                    id="claimCategory"
+                    value={claimCategory}
+                    onChange={setClaimCategory}
+                    options={[
+                      { value: "REGULAR_ACTIVITY", label: "Regular Activity (Campus & Institutional Drives)" },
+                      { value: "COMMUNITY_OUTREACH", label: "Community Outreach (Village & Field Work)" },
+                      { value: "BLOOD_DONATION", label: "Blood Donation Camp" },
+                      { value: "SPECIAL_PROJECT", label: "Special Project / State Initiative" },
+                    ]}
+                    placeholder="Select category"
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Activity Date
-                </label>
-                <input
-                  type="date"
-                  value={claimActivityDate}
-                  onChange={(e) => setClaimActivityDate(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="claimActivityDate">Activity Date</label>
+                  <input
+                    id="claimActivityDate"
+                    type="date"
+                    value={claimActivityDate}
+                    onChange={(e) => setClaimActivityDate(e.target.value)}
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Associated Event (Optional)
-                </label>
-                <CustomSelect
-                  value={claimEventId}
-                  onChange={setClaimEventId}
-                  options={[
-                    { value: "", label: "Independent Community Service Activity" },
-                    ...events.map((ev) => ({
-                      value: ev.eventId,
-                      label: `${ev.title} (${new Date(ev.startAt).toLocaleDateString()})`,
-                    })),
-                  ]}
-                  placeholder="Independent Community Service Activity"
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="claimEventId">Associated Event (Optional)</label>
+                  <CustomSelect
+                    id="claimEventId"
+                    value={claimEventId}
+                    onChange={setClaimEventId}
+                    options={[
+                      { value: "", label: "Independent Community Service Activity" },
+                      ...events.map((ev) => ({
+                        value: ev.eventId,
+                        label: `${ev.title} (${new Date(ev.startAt).toLocaleDateString()})`,
+                      })),
+                    ]}
+                    placeholder="Independent Community Service Activity"
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Activity Description & Role *
-                </label>
-                <textarea
-                  value={claimDescription}
-                  onChange={(e) => setClaimDescription(e.target.value)}
-                  rows={3}
-                  placeholder="Describe your role and activities undertaken during this service..."
-                  required
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="claimDescription">Activity Description &amp; Role *</label>
+                  <textarea
+                    id="claimDescription"
+                    value={claimDescription}
+                    onChange={(e) => setClaimDescription(e.target.value)}
+                    rows={3}
+                    placeholder="Describe your role and activities undertaken during this service..."
+                    required
+                  />
+                </div>
 
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Evidence / Verification Note (Optional)
-                </label>
-                <textarea
-                  value={claimEvidenceNote}
-                  onChange={(e) => setClaimEvidenceNote(e.target.value)}
-                  rows={2}
-                  placeholder="Reference contact, certificate ID, or supporting details..."
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="claimEvidenceNote">Evidence / Verification Note (Optional)</label>
+                  <textarea
+                    id="claimEvidenceNote"
+                    value={claimEvidenceNote}
+                    onChange={(e) => setClaimEvidenceNote(e.target.value)}
+                    rows={2}
+                    placeholder="Reference contact, certificate ID, or supporting details..."
+                  />
+                </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowClaimModal(false)}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingClaim}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "none", background: "#1e40af", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-                >
-                  {submittingClaim ? "Submitting..." : "Submit Claim"}
-                </button>
-              </div>
-            </form>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setShowClaimModal(false)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingClaim}
+                    className="btn-primary"
+                  >
+                    {submittingClaim ? "Submitting..." : "Submit Claim"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
       {/* Reject Modal */}
       {rejectingEntry && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#ffffff", padding: "2rem", borderRadius: "0.75rem", width: "90%", maxWidth: "450px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.25rem", fontWeight: 700, color: "#991b1b" }}>
-              Reject Claim
-            </h3>
-            <p style={{ margin: "0 0 1rem", fontSize: "0.875rem", color: "#64748b" }}>
-              Reject claim for <strong>{rejectingEntry.volunteerName}</strong> ({rejectingEntry.hours} hrs). Please state the audit rationale.
-            </p>
-            <form onSubmit={handleRejectClaim}>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.25rem" }}>
-                  Rejection Reason *
-                </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                  placeholder="e.g. Activity not eligible under NSS guidelines..."
-                  required
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1" }}
-                />
-              </div>
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h2 style={{ color: "#991b1b" }}>Reject Claim</h2>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setRejectingEntry(null)}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: "0 0 1rem", fontSize: "0.875rem", color: "#64748b" }}>
+                Reject claim for <strong>{rejectingEntry.volunteerName}</strong> ({rejectingEntry.hours} hrs). Please state the audit rationale.
+              </p>
+              <form onSubmit={handleRejectClaim} className="form-stack">
+                <div className="form-group">
+                  <label htmlFor="rejectionReason">Rejection Reason *</label>
+                  <textarea
+                    id="rejectionReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                    placeholder="e.g. Activity not eligible under NSS guidelines..."
+                    required
+                  />
+                </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button
-                  type="button"
-                  onClick={() => setRejectingEntry(null)}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={reviewing}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "0.375rem", border: "none", background: "#dc2626", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-                >
-                  {reviewing ? "Processing..." : "Confirm Rejection"}
-                </button>
-              </div>
-            </form>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setRejectingEntry(null)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={reviewing}
+                    className="btn-danger"
+                  >
+                    {reviewing ? "Processing..." : "Confirm Rejection"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

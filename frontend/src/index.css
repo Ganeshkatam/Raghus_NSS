@@ -1001,6 +1001,49 @@ button:active {
   text-decoration: none !important;
 }
 
+.btn-success {
+  background-color: var(--status-success);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.15rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-success:hover:not(:disabled) {
+  filter: brightness(0.92);
+  text-decoration: none !important;
+}
+
+.btn-success-sm {
+  background-color: var(--status-success);
+  color: #ffffff !important;
+  border: none;
+  border-radius: 5px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-success-sm:hover:not(:disabled) {
+  filter: brightness(0.92);
+  text-decoration: none !important;
+}
+
 .table-action-link {
   color: var(--nss-navy) !important;
   font-weight: 600;

@@ -240,8 +240,8 @@ export const InstitutionalDashboard: React.FC = () => {
                             <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>Unassigned</span>
                             {isAdmin && (
                               <div style={{ marginTop: "0.25rem" }}>
-                                <Link to={`/units/${u.unitId}`} style={{ fontSize: "0.75rem", color: "#2563eb", textDecoration: "underline" }}>
-                                  Assign Officer
+                                <Link to={`/units/${u.unitId}`} className="table-action-link" style={{ fontSize: "0.75rem" }}>
+                                  Assign Officer &rarr;
                                 </Link>
                               </div>
                             )}

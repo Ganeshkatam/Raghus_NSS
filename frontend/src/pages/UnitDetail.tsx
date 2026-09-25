@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
+import { SearchBar } from "../components/SearchBar";
 
 
 interface UnitData {
@@ -72,6 +73,7 @@ export const UnitDetail: React.FC = () => {
   const [unit, setUnit] = useState<UnitData | null>(null);
   const [stats, setStats] = useState<UnitStats | null>(null);
   const [members, setMembers] = useState<MemberItem[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
   const [allUnits, setAllUnits] = useState<UnitSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -458,36 +460,65 @@ export const UnitDetail: React.FC = () => {
         </div>
       )}
 
-      <div className="section-card">
-        <div className="section-header">
-          <h3>Unit Member Roster</h3>
-          <span className="results-count">{members.length} Active Volunteers</span>
-        </div>
+      {(() => {
+        const filteredMembers = members.filter((m) => {
+          if (!memberSearch.trim()) return true;
+          const q = memberSearch.toLowerCase();
+          return (
+            m.volunteerName.toLowerCase().includes(q) ||
+            m.collegeId.toLowerCase().includes(q) ||
+            (m.department && m.department.toLowerCase().includes(q))
+          );
+        });
 
-        {members.length === 0 ? (
-          <div className="empty-state">
-            <p>No volunteers are currently assigned to this unit.</p>
-            {isCoordinatorOrOfficer && (
-              <button onClick={openAddModal} className="btn-primary-sm">
-                Allot First Volunteer
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="units-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>College ID</th>
-                  <th>Volunteer Name</th>
-                  <th>Department</th>
-                  <th>Joined Unit On</th>
-                  <th>Status</th>
-                  {isCoordinatorOrOfficer && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
+        return (
+          <div className="section-card">
+            <div className="section-header" style={{ flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+              <div>
+                <h3>Unit Member Roster</h3>
+                <span className="results-count">
+                  {filteredMembers.length} of {members.length} Active Volunteers
+                </span>
+              </div>
+              {members.length > 0 && (
+                <div style={{ marginLeft: "auto", minWidth: "260px", maxWidth: "360px" }}>
+                  <SearchBar
+                    value={memberSearch}
+                    onChange={setMemberSearch}
+                    placeholder="Search member by name, ID, dept..."
+                  />
+                </div>
+              )}
+            </div>
+
+            {members.length === 0 ? (
+              <div className="empty-state">
+                <p>No volunteers are currently assigned to this unit.</p>
+                {isCoordinatorOrOfficer && (
+                  <button onClick={openAddModal} className="btn-primary-sm">
+                    Allot First Volunteer
+                  </button>
+                )}
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="empty-state">
+                <p>No unit members match your search query.</p>
+              </div>
+            ) : (
+              <div className="units-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>College ID</th>
+                      <th>Volunteer Name</th>
+                      <th>Department</th>
+                      <th>Joined Unit On</th>
+                      <th>Status</th>
+                      {isCoordinatorOrOfficer && <th>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMembers.map((m) => (
                   <tr key={m.membershipId}>
                     <td>
                       <strong>{m.collegeId}</strong>
@@ -534,6 +565,8 @@ export const UnitDetail: React.FC = () => {
           </div>
         )}
       </div>
+    );
+  })()}
 
       {/* ALLOT VOLUNTEER MODAL */}
       {showAddModal && (
