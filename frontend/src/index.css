@@ -10,6 +10,7 @@
   --nss-crimson: #b91c1c;
   --nss-crimson-hover: #991b1b;
   --nss-gold: #d97706;
+  --topbar-height: 64px;
 
   /* Surfaces & Backgrounds */
   --bg-app: #ffffff;
@@ -111,24 +112,34 @@ button:active {
 }
 
 /* -------------------------------------------------------------
-   Topbar Component
+   Topbar Component & Responsive Viewport Breakpoints
 ------------------------------------------------------------- */
 .topbar {
-  height: 64px;
+  flex-shrink: 0;
+  position: relative;
   background-color: var(--nss-navy);
   color: var(--text-inverse);
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 40;
+}
+
+.topbar-main {
+  height: var(--topbar-height, 64px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 40;
+  width: 100%;
+  transition: height 0.2s ease, padding 0.2s ease;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .topbar-brand {
@@ -137,6 +148,7 @@ button:active {
   gap: 0.75rem;
   text-decoration: none;
   color: inherit;
+  flex-shrink: 0;
 }
 
 .brand-crest {
@@ -153,6 +165,8 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   letter-spacing: 0.5px;
+  flex-shrink: 0;
+  transition: width 0.2s ease, height 0.2s ease;
 }
 
 .brand-text {
@@ -165,26 +179,39 @@ button:active {
   font-size: 0.98rem;
   letter-spacing: 0.2px;
   color: #ffffff;
+  white-space: nowrap;
+}
+
+.brand-college-short {
+  display: none;
+}
+
+.brand-college-full {
+  display: inline;
 }
 
 .brand-sub {
   font-size: 0.76rem;
   color: #94a3b8;
   letter-spacing: 0.4px;
+  white-space: nowrap;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 1.25rem;
+  flex-shrink: 0;
+  transition: gap 0.2s ease;
 }
 
+/* Desktop Search */
 .topbar-search {
   position: relative;
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .topbar-search {
     display: block;
   }
@@ -197,19 +224,107 @@ button:active {
   padding: 0.45rem 0.85rem;
   color: #fff;
   font-size: 0.85rem;
-  width: 260px;
-  transition: all 0.15s ease;
+  width: 220px;
+  transition: all 0.2s ease;
+}
+
+@media (min-width: 1280px) {
+  .search-input {
+    width: 280px;
+  }
+  .search-input:focus {
+    width: 340px;
+  }
 }
 
 .search-input:focus {
   outline: none;
   border-color: #60a5fa;
   background-color: #1e3a5f;
-  width: 320px;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
 }
 
 .search-input::placeholder {
   color: #94a3b8;
+}
+
+/* Mobile Search Toggle Icon */
+.topbar-mobile-search-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .topbar-mobile-search-toggle {
+    display: none;
+  }
+}
+
+/* Collapsible Mobile Search Row */
+.topbar-mobile-search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1rem 0.75rem 1rem;
+  background-color: #08162b;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 0.5rem;
+  animation: slideDownMobileSearch 0.2s ease-out;
+}
+
+@keyframes slideDownMobileSearch {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.topbar-mobile-search-icon {
+  position: absolute;
+  left: 1.65rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.topbar-mobile-search-input {
+  flex: 1;
+  height: 38px;
+  background-color: var(--nss-navy-light);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem 0.4rem 2.2rem;
+  color: #ffffff;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.topbar-mobile-search-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+.topbar-mobile-search-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar-mobile-search-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .topbar-action-btn {
@@ -223,6 +338,7 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .topbar-action-btn:hover {
@@ -257,6 +373,7 @@ button:active {
   color: #ffffff;
   cursor: pointer;
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 
 .user-pill-btn:hover {
@@ -274,6 +391,7 @@ button:active {
   justify-content: center;
   font-weight: 700;
   font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 .user-pill-name {
@@ -285,11 +403,16 @@ button:active {
   text-overflow: ellipsis;
 }
 
+.user-pill-arrow {
+  flex-shrink: 0;
+}
+
 .profile-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 260px;
+  max-width: calc(100vw - 1.5rem);
   background-color: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -513,9 +636,17 @@ button:active {
     display: block;
   }
 
+  .topbar-main {
+    padding: 0 1.25rem;
+  }
+
+  .brand-sub {
+    display: none;
+  }
+
   .app-sidebar {
     position: fixed;
-    top: 64px;
+    top: var(--topbar-height, 64px);
     bottom: 0;
     left: 0;
     z-index: 30;
@@ -530,7 +661,7 @@ button:active {
   .mobile-backdrop {
     display: block;
     position: fixed;
-    top: 64px;
+    top: var(--topbar-height, 64px);
     left: 0;
     right: 0;
     bottom: 0;
@@ -540,6 +671,111 @@ button:active {
 
   .app-content {
     padding: 1.5rem 1rem 5rem 1rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar-unit-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 840px) {
+  .user-pill-name,
+  .user-pill-arrow {
+    display: none;
+  }
+
+  .user-pill-btn {
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    justify-content: center;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .topbar-right {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --topbar-height: 60px;
+  }
+
+  .topbar-main {
+    padding: 0 1rem;
+    height: var(--topbar-height, 60px);
+  }
+
+  .brand-college-full {
+    display: none;
+  }
+
+  .brand-college-short {
+    display: inline;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .topbar-left {
+    gap: 0.65rem;
+  }
+
+  .brand-crest {
+    width: 34px;
+    height: 34px;
+    font-size: 0.88rem;
+  }
+
+  .topbar-right {
+    gap: 0.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --topbar-height: 56px;
+  }
+
+  .topbar-main {
+    padding: 0 0.75rem;
+    height: var(--topbar-height, 56px);
+  }
+
+  .brand-crest {
+    width: 32px;
+    height: 32px;
+    font-size: 0.82rem;
+  }
+
+  .user-pill-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
+  }
+
+  .topbar-right {
+    gap: 0.35rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.25rem;
   }
 }
 

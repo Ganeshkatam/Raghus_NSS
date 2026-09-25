@@ -25,9 +25,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const handleGlobalSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (globalSearch.trim()) {
+      navigate(`/volunteers?search=${encodeURIComponent(globalSearch.trim())}`);
+      setMobileSearchOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated || !token || !user) return;
@@ -136,55 +146,72 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
 
   return (
     <header className="topbar">
-      <div className="topbar-left">
-        <button
-          type="button"
-          className="btn-icon mobile-menu-toggle"
-          aria-label={isMobileMenuOpen ? "Close menu" : "Open navigation menu"}
-          onClick={onToggleMobileMenu}
-        >
-          <span className="hamburger-icon">
-            <span className="bar"></span>
-            <span className="bar"></span>
-            <span className="bar"></span>
-          </span>
-        </button>
+      <div className="topbar-main">
+        <div className="topbar-left">
+          <button
+            type="button"
+            className="btn-icon mobile-menu-toggle"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open navigation menu"}
+            onClick={onToggleMobileMenu}
+          >
+            <span className="hamburger-icon">
+              <span className="bar"></span>
+              <span className="bar"></span>
+              <span className="bar"></span>
+            </span>
+          </button>
 
-        <Link to="/dashboard" className="topbar-brand">
-          <div className="brand-crest">NSS</div>
-          <div className="brand-text">
-            <span className="brand-college">Raghu Engineering College</span>
-            <span className="brand-sub">National Service Scheme</span>
-          </div>
-        </Link>
-      </div>
-
-      <div className="topbar-right">
-        <div className="topbar-search">
-          <input
-            type="search"
-            placeholder="Search NSS (volunteers, events, units)..."
-            className="search-input"
-            aria-label="Search NSS"
-          />
+          <Link to="/dashboard" className="topbar-brand">
+            <div className="brand-crest">NSS</div>
+            <div className="brand-text">
+              <span className="brand-college brand-college-full">Raghu Engineering College</span>
+              <span className="brand-college brand-college-short">REC NSS</span>
+              <span className="brand-sub">National Service Scheme</span>
+            </div>
+          </Link>
         </div>
 
-        {assignedUnitText && (
-          <span
-            className="badge badge-primary"
-            style={{
-              padding: "0.25rem 0.6rem",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              letterSpacing: "0.02em",
-              display: "inline-flex",
-              alignItems: "center",
-            }}
-            title="Assigned Unit Scope"
+        <div className="topbar-right">
+          <form onSubmit={handleGlobalSearch} className="topbar-search" role="search">
+            <input
+              type="search"
+              placeholder="Search NSS (volunteers, events, units)..."
+              className="search-input"
+              aria-label="Search NSS"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+            />
+          </form>
+
+          <button
+            type="button"
+            className="topbar-action-btn topbar-mobile-search-toggle"
+            title="Search"
+            aria-label="Toggle search"
+            aria-expanded={mobileSearchOpen}
+            onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
           >
-            {assignedUnitText}
-          </span>
-        )}
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+
+          {assignedUnitText && (
+            <span
+              className="topbar-unit-badge badge badge-primary"
+              style={{
+                padding: "0.25rem 0.6rem",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                letterSpacing: "0.02em",
+                alignItems: "center",
+              }}
+              title="Assigned Unit Scope"
+            >
+              {assignedUnitText}
+            </span>
+          )}
 
         <Link to="/announcements" className="topbar-action-btn" title="Announcements & Notifications" aria-label="Notifications" style={{ position: "relative" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -221,12 +248,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
               onClick={() => setProfileOpen(!profileOpen)}
               aria-expanded={profileOpen}
               aria-haspopup="true"
+              aria-label={`User menu for ${user.name}`}
             >
               <span className="user-avatar" aria-hidden="true">
                 {user.name.charAt(0).toUpperCase()}
               </span>
               <span className="user-pill-name">{user.name}</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="user-pill-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
@@ -287,6 +315,37 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
           </div>
         )}
       </div>
+    </div>
+
+    {/* Collapsible Mobile Search Row */}
+    {mobileSearchOpen && (
+      <form onSubmit={handleGlobalSearch} className="topbar-mobile-search-row" role="search">
+        <svg className="topbar-mobile-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="search"
+          placeholder="Search NSS (volunteers, events, units)..."
+          className="topbar-mobile-search-input"
+          aria-label="Search NSS"
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          autoFocus
+        />
+        <button
+          type="button"
+          className="topbar-mobile-search-close"
+          onClick={() => setMobileSearchOpen(false)}
+          aria-label="Close search"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </form>
+    )}
 
       {showPasswordModal && (
         <div className="modal-backdrop">
