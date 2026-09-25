@@ -13,13 +13,19 @@ import java.util.UUID;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, UUID> {
+    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Event e where e.eventId = :eventId")
     Optional<Event> findByIdWithLock(@Param("eventId") UUID eventId);
 
+    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
+    @Override
+    Optional<Event> findById(UUID eventId);
+
     long countByStatus(String status);
     long countByUnit_UnitId(UUID unitId);
 
+    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
     @Query(
         value = """
             select distinct e from Event e
@@ -37,6 +43,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     )
     Page<Event> search(@Param("unitId") UUID unitId, @Param("status") String status, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
     @Query(
         value = """
             select distinct e from Event e

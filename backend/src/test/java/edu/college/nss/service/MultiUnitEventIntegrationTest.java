@@ -56,6 +56,7 @@ class MultiUnitEventIntegrationTest {
     private UserDetails adminPrincipal;
     private UserDetails po1Principal;
     private UserDetails po2Principal;
+    private UserDetails po3Principal;
 
     private Volunteer v1;
     private Volunteer v2;
@@ -96,6 +97,8 @@ class MultiUnitEventIntegrationTest {
             po1.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ROLE_PROGRAMME_OFFICER")));
         po2Principal = new org.springframework.security.core.userdetails.User(
             po2.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ROLE_PROGRAMME_OFFICER")));
+        po3Principal = new org.springframework.security.core.userdetails.User(
+            po3.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ROLE_PROGRAMME_OFFICER")));
 
         User vu1 = userRepository.save(new User("Vol One", "vol1-multi@raghunss.edu", "pass", "9100000001"));
         User vu2 = userRepository.save(new User("Vol Two", "vol2-multi@raghunss.edu", "pass", "9100000002"));
@@ -281,7 +284,56 @@ class MultiUnitEventIntegrationTest {
         assertTrue(po2PublishedResults.getContent().stream().anyMatch(e -> e.eventId().equals(created.eventId())));
 
         // PO for Unit 3 does not see this event when searching Unit 3
-        Page<EventResponse> po3Results = eventService.search(unit3.getUnitId(), "PUBLISHED", PageRequest.of(0, 10), po1Principal);
+        Page<EventResponse> po3Results = eventService.search(unit3.getUnitId(), "PUBLISHED", PageRequest.of(0, 10), po3Principal);
         assertTrue(po3Results.getContent().stream().noneMatch(e -> e.eventId().equals(created.eventId())));
+    }
+
+    @Test
+    void multiUnitEvent_update_enforcesAtLeastTwoParticipatingUnits() {
+        // 1. Create standard single UNIT event
+        EventCreateRequest req = new EventCreateRequest(
+            unit1.getUnitId(), unit1.getUnitId(), "UNIT",
+            null, null,
+            "Scope Upgrade Test", "Upgrading scope", "SERVICE",
+            Instant.now().plusSeconds(3600), Instant.now().plusSeconds(7200),
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(3500),
+            "Campus Ground", 30
+        );
+        EventResponse created = eventService.create(req, po1Principal);
+        assertEquals("UNIT", created.eventScope());
+        assertEquals(1, created.participatingUnits().size());
+
+        // 2. Attempt to update scope to MULTI_UNIT without participating units -> throws IllegalArgumentException
+        EventUpdateRequest invalidUpdate1 = new EventUpdateRequest(
+            null, null, null, null, null, null, null, null, null,
+            "MULTI_UNIT", null, null
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            eventService.update(created.eventId(), invalidUpdate1, po1Principal));
+
+        // 3. Attempt to update scope to MULTI_UNIT with only organizing unit -> throws IllegalArgumentException
+        EventUpdateRequest invalidUpdate2 = new EventUpdateRequest(
+            null, null, null, null, null, null, null, null, null,
+            "MULTI_UNIT", List.of(unit1.getUnitId()), List.of(unit1.getUnitId())
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            eventService.update(created.eventId(), invalidUpdate2, po1Principal));
+
+        // 4. Update scope to MULTI_UNIT with at least 2 distinct units -> succeeds
+        EventUpdateRequest validUpdate = new EventUpdateRequest(
+            null, null, null, null, null, null, null, null, null,
+            "MULTI_UNIT", List.of(unit1.getUnitId(), unit2.getUnitId()), List.of(unit1.getUnitId(), unit2.getUnitId())
+        );
+        EventResponse updated = eventService.update(created.eventId(), validUpdate, po1Principal);
+        assertEquals("MULTI_UNIT", updated.eventScope());
+        assertEquals(2, updated.participatingUnits().size());
+
+        // 5. Attempt to update existing MULTI_UNIT event to reduce participating units to 1 -> throws IllegalArgumentException
+        EventUpdateRequest invalidReduction = new EventUpdateRequest(
+            null, null, null, null, null, null, null, null, null,
+            null, List.of(unit1.getUnitId()), List.of(unit1.getUnitId())
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            eventService.update(created.eventId(), invalidReduction, po1Principal));
     }
 }

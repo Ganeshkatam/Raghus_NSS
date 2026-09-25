@@ -21,7 +21,7 @@ public class Event {
     @Column(name = "event_scope", nullable = false, length = 20)
     private String eventScope = "UNIT";
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "event_units",
         joinColumns = @JoinColumn(name = "event_id"),

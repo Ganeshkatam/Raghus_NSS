@@ -192,6 +192,10 @@ public class EventService {
 
         if (req.eventScope() != null && !req.eventScope().isBlank()) {
             String newScope = req.eventScope().trim().toUpperCase();
+            if (!Set.of("UNIT", "MULTI_UNIT", "COLLEGE_WIDE").contains(newScope)) {
+                throw new IllegalArgumentException("Invalid eventScope. Allowed values: UNIT, MULTI_UNIT, COLLEGE_WIDE");
+            }
+            String previousScope = e.getEventScope();
             e.setEventScope(newScope);
             if ("COLLEGE_WIDE".equals(newScope)) {
                 e.setParticipatingUnits(new HashSet<>(unitRepository.findAll()));
@@ -199,9 +203,9 @@ public class EventService {
                 e.setParticipatingUnits(Set.of(e.getUnit()));
             } else if ("MULTI_UNIT".equals(newScope)) {
                 List<UUID> partIds = req.resolvedParticipatingUnitIds();
-                if (partIds != null && !partIds.isEmpty()) {
-                    Set<NssUnit> partUnits = new HashSet<>();
-                    partUnits.add(e.getUnit());
+                Set<NssUnit> partUnits = new HashSet<>();
+                partUnits.add(e.getUnit());
+                if (partIds != null) {
                     for (UUID uid : partIds) {
                         if (!uid.equals(e.getUnit().getUnitId())) {
                             NssUnit pu = unitRepository.findById(uid)
@@ -209,11 +213,13 @@ public class EventService {
                             partUnits.add(pu);
                         }
                     }
-                    if (partUnits.size() < 2) {
-                        throw new IllegalArgumentException("Multi-unit events require at least two participating NSS units.");
-                    }
-                    e.setParticipatingUnits(partUnits);
+                } else if ("MULTI_UNIT".equals(previousScope) && e.getParticipatingUnits() != null && e.getParticipatingUnits().size() >= 2) {
+                    partUnits.addAll(e.getParticipatingUnits());
                 }
+                if (partUnits.size() < 2) {
+                    throw new IllegalArgumentException("Multi-unit events require at least two participating NSS units.");
+                }
+                e.setParticipatingUnits(partUnits);
             }
         } else if (req.resolvedParticipatingUnitIds() != null && "MULTI_UNIT".equals(e.getEventScope())) {
             Set<NssUnit> partUnits = new HashSet<>();
