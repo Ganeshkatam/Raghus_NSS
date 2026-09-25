@@ -2,23 +2,25 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AppShell } from "./components/AppShell";
-import { Login } from "./pages/Login";
-import { Dashboard } from "./pages/Dashboard";
-import { Volunteers } from "./pages/Volunteers";
-import { VolunteerDetail } from "./pages/VolunteerDetail";
-import { Units } from "./pages/Units";
-import { UnitDetail } from "./pages/UnitDetail";
-import { Events } from "./pages/Events";
-import { EventDetail } from "./pages/EventDetail";
-import { Attendance } from "./pages/Attendance";
-import { ServiceHours } from "./pages/ServiceHours";
-import { Announcements } from "./pages/Announcements";
-import { Reports } from "./pages/Reports";
-import { Admin } from "./pages/Admin";
-import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { API_BASE_URL } from "./api/client";
+
+// Dynamic route-based code splitting
+const Login = React.lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
+const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const Volunteers = React.lazy(() => import("./pages/Volunteers").then(m => ({ default: m.Volunteers })));
+const VolunteerDetail = React.lazy(() => import("./pages/VolunteerDetail").then(m => ({ default: m.VolunteerDetail })));
+const Units = React.lazy(() => import("./pages/Units").then(m => ({ default: m.Units })));
+const UnitDetail = React.lazy(() => import("./pages/UnitDetail").then(m => ({ default: m.UnitDetail })));
+const Events = React.lazy(() => import("./pages/Events").then(m => ({ default: m.Events })));
+const EventDetail = React.lazy(() => import("./pages/EventDetail").then(m => ({ default: m.EventDetail })));
+const Attendance = React.lazy(() => import("./pages/Attendance").then(m => ({ default: m.Attendance })));
+const ServiceHours = React.lazy(() => import("./pages/ServiceHours").then(m => ({ default: m.ServiceHours })));
+const Announcements = React.lazy(() => import("./pages/Announcements").then(m => ({ default: m.Announcements })));
+const Reports = React.lazy(() => import("./pages/Reports").then(m => ({ default: m.Reports })));
+const Admin = React.lazy(() => import("./pages/Admin").then(m => ({ default: m.Admin })));
+const ModulePlaceholder = React.lazy(() => import("./pages/ModulePlaceholder").then(m => ({ default: m.ModulePlaceholder })));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -93,8 +95,15 @@ export const AppContent: React.FC = () => {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
+    <React.Suspense
+      fallback={
+        <div className="page-container" style={{ padding: "2rem", textAlign: "center" }}>
+          <p className="loading-state">Loading view...</p>
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
       {/* Overview */}
       <Route
@@ -322,8 +331,9 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </React.Suspense>
   );
 }
 export const App: React.FC = () => {
