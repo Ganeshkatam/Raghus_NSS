@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     user_agent VARCHAR(500)
 );
 
+-- Ensure all columns exist if audit_logs table was already created in an earlier migration (e.g. V2)
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_name VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_email VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS previous_state VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS new_state VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS reason TEXT;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS before_json TEXT;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS after_json TEXT;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent VARCHAR(500);
+
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
