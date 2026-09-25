@@ -1,6 +1,7 @@
 package edu.college.nss.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,6 +22,7 @@ public class Event {
     @Column(name = "event_scope", nullable = false, length = 20)
     private String eventScope = "UNIT";
 
+    @BatchSize(size = 25)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "event_units",

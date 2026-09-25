@@ -25,7 +25,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     long countByStatus(String status);
     long countByUnit_UnitId(UUID unitId);
 
-    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
+    @EntityGraph(attributePaths = {"unit", "createdBy"})
     @Query(
         value = """
             select distinct e from Event e
@@ -43,7 +43,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     )
     Page<Event> search(@Param("unitId") UUID unitId, @Param("status") String status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
+    @EntityGraph(attributePaths = {"unit", "createdBy"})
     @Query(
         value = """
             select distinct e from Event e
