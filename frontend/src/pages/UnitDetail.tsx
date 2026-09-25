@@ -46,9 +46,18 @@ interface AvailableVolunteer {
   activeUnitName: string | null;
 }
 
+interface OfficerCandidate {
+  userId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  roles: string[];
+}
+
 export const UnitDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { isCoordinatorOrOfficer } = useAuth();
+  const { isCoordinatorOrOfficer, isAdmin, hasCapability } = useAuth();
+  const canManageUnits = isAdmin || isCoordinatorOrOfficer || hasCapability("UNITS_MANAGE");
 
   const [unit, setUnit] = useState<UnitData | null>(null);
   const [stats, setStats] = useState<UnitStats | null>(null);
@@ -56,6 +65,14 @@ export const UnitDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Programme Officer Modal
+  const [showOfficerModal, setShowOfficerModal] = useState(false);
+  const [officerCandidates, setOfficerCandidates] = useState<OfficerCandidate[]>([]);
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string>("");
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [assigningOfficer, setAssigningOfficer] = useState(false);
+  const [officerModalError, setOfficerModalError] = useState<string | null>(null);
 
   // Add Member Modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -95,6 +112,52 @@ export const UnitDetail: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const openOfficerModal = async () => {
+    setShowOfficerModal(true);
+    setOfficerModalError(null);
+    setSelectedOfficerId(unit?.officerId || "");
+    setLoadingCandidates(true);
+    try {
+      const candidates = await apiRequest<OfficerCandidate[]>("/units/officer-candidates");
+      setOfficerCandidates(candidates || []);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setOfficerModalError(apiErr.message || "Failed to load officer candidates.");
+    } finally {
+      setLoadingCandidates(false);
+    }
+  };
+
+  const handleAssignOfficer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setAssigningOfficer(true);
+    setOfficerModalError(null);
+
+    try {
+      await apiRequest<UnitData>(`/units/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          officerId: selectedOfficerId ? selectedOfficerId : null,
+          clearOfficer: !selectedOfficerId,
+        }),
+      });
+
+      setShowOfficerModal(false);
+      setSuccess(
+        selectedOfficerId
+          ? "Programme Officer assigned successfully."
+          : "Programme Officer unassigned successfully."
+      );
+      loadData();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setOfficerModalError(apiErr.message || "Failed to update Programme Officer assignment.");
+    } finally {
+      setAssigningOfficer(false);
+    }
+  };
 
   const openAddModal = async () => {
     setShowAddModal(true);
@@ -224,15 +287,40 @@ export const UnitDetail: React.FC = () => {
             {unit.unitName}{" "}
             <span className="badge badge-primary">{unit.unitNumber}</span>
           </h1>
-          <p className="subtitle">
-            Assigned Programme Officer:{" "}
-            <strong>{unit.officerName || "Unassigned"}</strong> &bull; Active
-            Roster: <strong>{members.length}</strong> / {unit.capacity || 100} capacity
+          <p className="subtitle" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+            <span>
+              Assigned Programme Officer:{" "}
+              <strong>{unit.officerName || "Unassigned"}</strong>
+            </span>
+            {canManageUnits && (
+              <button
+                type="button"
+                onClick={openOfficerModal}
+                style={{
+                  padding: "0.2rem 0.55rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  borderRadius: "4px",
+                  border: "1px solid #cbd5e1",
+                  backgroundColor: "#ffffff",
+                  color: "#2563eb",
+                }}
+              >
+                {unit.officerName ? "Change Officer" : "Assign Officer"}
+              </button>
+            )}
+            <span>
+              &bull; Active Roster: <strong>{members.length}</strong> / {unit.capacity || 100} capacity
+            </span>
           </p>
         </div>
 
-        {isCoordinatorOrOfficer && (
+        {canManageUnits && (
           <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button onClick={openOfficerModal} className="btn-secondary">
+              {unit.officerName ? "Change Officer" : "Assign Officer"}
+            </button>
             <button onClick={openTransferModal} className="btn-secondary">
               Transfer Volunteer In
             </button>
@@ -470,6 +558,69 @@ export const UnitDetail: React.FC = () => {
                   disabled={transferring || !transferVolunteerId}
                 >
                   {transferring ? "Processing Transfer..." : "Commit Transfer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showOfficerModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>{unit.officerName ? "Change Programme Officer" : "Assign Programme Officer"}</h3>
+              <button onClick={() => setShowOfficerModal(false)} className="btn-close">
+                &times;
+              </button>
+            </div>
+
+            {officerModalError && (
+              <div className="alert alert-error">
+                <strong>Error:</strong> {officerModalError}
+              </div>
+            )}
+
+            <form onSubmit={handleAssignOfficer} className="form-stack">
+              <p style={{ fontSize: "0.875rem", color: "#64748b" }}>
+                Select an active faculty officer or coordinator to administer <strong>{unit.unitName} ({unit.unitNumber})</strong>.
+              </p>
+
+              <div className="form-group">
+                <label htmlFor="officerSelect">Programme Officer *</label>
+                {loadingCandidates ? (
+                  <p className="cell-sub">Loading available faculty officers...</p>
+                ) : (
+                  <select
+                    id="officerSelect"
+                    value={selectedOfficerId}
+                    onChange={(e) => setSelectedOfficerId(e.target.value)}
+                  >
+                    <option value="">-- No Officer Assigned (Unassigned) --</option>
+                    {officerCandidates.map((c) => (
+                      <option key={c.userId} value={c.userId}>
+                        {c.name} ({c.email}) {c.roles?.length ? `[${c.roles.join(", ")}]` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowOfficerModal(false)}
+                  className="btn-secondary"
+                  disabled={assigningOfficer}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={assigningOfficer}
+                >
+                  {assigningOfficer ? "Saving Assignment..." : "Save Assignment"}
                 </button>
               </div>
             </form>

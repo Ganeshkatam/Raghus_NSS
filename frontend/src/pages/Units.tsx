@@ -27,6 +27,8 @@ export const Units: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [unitName, setUnitName] = useState("");
   const [unitNumber, setUnitNumber] = useState("");
+  const [officerCandidates, setOfficerCandidates] = useState<{ userId: string; name: string; email: string; roles: string[] }[]>([]);
+  const [selectedOfficerId, setSelectedOfficerId] = useState("");
   const [creating, setCreating] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -48,6 +50,20 @@ export const Units: React.FC = () => {
     loadUnits();
   }, []);
 
+  const openCreateModal = async () => {
+    setShowModal(true);
+    setModalError(null);
+    setUnitName("");
+    setUnitNumber("");
+    setSelectedOfficerId("");
+    try {
+      const candidates = await apiRequest<{ userId: string; name: string; email: string; roles: string[] }[]>("/units/officer-candidates");
+      setOfficerCandidates(candidates || []);
+    } catch {
+      // Fallback
+    }
+  };
+
   const handleCreateUnit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
@@ -68,12 +84,14 @@ export const Units: React.FC = () => {
         body: JSON.stringify({
           unitName: cleanName,
           unitNumber: cleanNumber,
+          officerId: selectedOfficerId ? selectedOfficerId : null,
         }),
       });
 
       setShowModal(false);
       setUnitName("");
       setUnitNumber("");
+      setSelectedOfficerId("");
       loadUnits();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
@@ -94,7 +112,7 @@ export const Units: React.FC = () => {
         </div>
 
         {canManageUnits && (
-          <button onClick={() => setShowModal(true)} className="btn-primary">
+          <button onClick={openCreateModal} className="btn-primary">
             + Create NSS Unit
           </button>
         )}
@@ -114,7 +132,7 @@ export const Units: React.FC = () => {
             <p>No units currently exist in this institution.</p>
             {canManageUnits && (
               <button
-                onClick={() => setShowModal(true)}
+                onClick={openCreateModal}
                 className="btn-primary-sm"
               >
                 Create First Unit
@@ -150,7 +168,17 @@ export const Units: React.FC = () => {
                           <small className="cell-sub">{unit.officerEmail}</small>
                         </div>
                       ) : (
-                        <span className="badge badge-muted">Unassigned</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span className="badge badge-muted">Unassigned</span>
+                          {canManageUnits && (
+                            <Link
+                              to={`/units/${unit.unitId}`}
+                              style={{ fontSize: "0.75rem", color: "#2563eb", textDecoration: "underline" }}
+                            >
+                              Assign
+                            </Link>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td>
@@ -217,6 +245,22 @@ export const Units: React.FC = () => {
                   placeholder="e.g. Community Welfare Unit A"
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="unitOfficer">Assign Programme Officer (Optional)</label>
+                <select
+                  id="unitOfficer"
+                  value={selectedOfficerId}
+                  onChange={(e) => setSelectedOfficerId(e.target.value)}
+                >
+                  <option value="">-- Assign Later (Unassigned) --</option>
+                  {officerCandidates.map((c) => (
+                    <option key={c.userId} value={c.userId}>
+                      {c.name} ({c.email}) {c.roles?.length ? `[${c.roles.join(", ")}]` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="modal-actions">

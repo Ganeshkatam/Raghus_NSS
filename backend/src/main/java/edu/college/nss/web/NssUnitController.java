@@ -6,6 +6,7 @@ import edu.college.nss.web.dto.MembershipResponse;
 import edu.college.nss.web.dto.UnitRequest;
 import edu.college.nss.web.dto.UnitResponse;
 import edu.college.nss.web.dto.UnitUpdateRequest;
+import edu.college.nss.web.dto.UserDto;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,13 @@ public class NssUnitController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<UnitResponse>> listUnits() {
         List<UnitResponse> response = unitService.getAllUnits();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/officer-candidates")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    public ResponseEntity<List<UserDto>> getOfficerCandidates() {
+        List<UserDto> response = unitService.getEligibleOfficers();
         return ResponseEntity.ok(response);
     }
 

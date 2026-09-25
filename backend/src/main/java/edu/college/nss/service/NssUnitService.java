@@ -12,10 +12,12 @@ import edu.college.nss.web.dto.MembershipResponse;
 import edu.college.nss.web.dto.UnitRequest;
 import edu.college.nss.web.dto.UnitResponse;
 import edu.college.nss.web.dto.UnitUpdateRequest;
+import edu.college.nss.web.dto.UserDto;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -92,6 +94,20 @@ public class NssUnitService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<UserDto> getEligibleOfficers() {
+        return userRepository.findAll().stream()
+            .filter(u -> "ACTIVE".equalsIgnoreCase(u.getStatus()))
+            .filter(u -> u.getRoles() != null && u.getRoles().stream()
+                .anyMatch(r -> {
+                    String name = r.getName().toUpperCase();
+                    return name.contains("OFFICER") || name.contains("COORDINATOR") || name.contains("ADMIN");
+                }))
+            .map(UserDto::fromEntity)
+            .sorted(Comparator.comparing(UserDto::name))
+            .collect(Collectors.toList());
+    }
+
     @Transactional
     public UnitResponse updateUnit(UUID unitId, UnitUpdateRequest request) {
         NssUnit unit = unitRepository.findById(unitId)
@@ -101,7 +117,9 @@ public class NssUnitService {
             unit.setUnitName(request.unitName());
         }
 
-        if (request.officerId() != null) {
+        if (Boolean.TRUE.equals(request.clearOfficer())) {
+            unit.setOfficer(null);
+        } else if (request.officerId() != null) {
             User officer = userRepository.findById(request.officerId())
                 .orElseThrow(() -> new IllegalArgumentException("Officer user not found with ID: " + request.officerId()));
             unit.setOfficer(officer);

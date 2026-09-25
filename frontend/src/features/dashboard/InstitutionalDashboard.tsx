@@ -64,6 +64,11 @@ export const InstitutionalDashboard: React.FC = () => {
     return <p className="loading-state">Loading central institutional dashboard...</p>;
   }
 
+  const assignedOfficersCount = units.filter(
+    (u) => u.officerName && u.officerName.trim() !== "" && u.officerName !== "Unassigned"
+  ).length;
+  const totalUnitsCount = metrics?.totalUnits ?? units.length;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       {/* Header */}
@@ -113,10 +118,18 @@ export const InstitutionalDashboard: React.FC = () => {
             Configured Units
           </div>
           <div style={{ fontSize: "2rem", fontWeight: 800, color: "#0f766e", marginTop: "0.25rem" }}>
-            {metrics?.totalUnits ?? units.length}
+            {totalUnitsCount}
           </div>
-          <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-            Active faculty officers assigned
+          <span
+            style={{
+              fontSize: "0.8rem",
+              color: assignedOfficersCount === totalUnitsCount && assignedOfficersCount > 0 ? "#16a34a" : "#dc2626",
+              fontWeight: 600,
+            }}
+          >
+            {assignedOfficersCount === 0
+              ? "0 active faculty officers assigned"
+              : `${assignedOfficersCount} of ${totalUnitsCount} units with assigned officer`}
           </span>
         </div>
 
@@ -212,8 +225,23 @@ export const InstitutionalDashboard: React.FC = () => {
                         <strong>{u.unitName}</strong>
                       </td>
                       <td>
-                        <div>{u.officerName || "Unassigned"}</div>
-                        <span className="cell-sub">{u.officerEmail || "\u2014"}</span>
+                        {u.officerName && u.officerName !== "Unassigned" ? (
+                          <div>
+                            <div>{u.officerName}</div>
+                            <span className="cell-sub">{u.officerEmail || "\u2014"}</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>Unassigned</span>
+                            {isAdmin && (
+                              <div style={{ marginTop: "0.25rem" }}>
+                                <Link to={`/units/${u.unitId}`} style={{ fontSize: "0.75rem", color: "#2563eb", textDecoration: "underline" }}>
+                                  Assign Officer
+                                </Link>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <strong>{u.activeMemberCount}</strong> / {cap}
