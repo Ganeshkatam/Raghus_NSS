@@ -524,8 +524,8 @@ export const Reports: React.FC = () => {
           {/* Unit Performance Breakdown Table */}
           <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>NSS Unit Comparative Matrix</h3>
-              <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{metrics.unitPerformance.length} Units Active</span>
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>NSS Unit Details</h3>
+              <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{(metrics?.unitPerformance || []).length} Units Active</span>
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -541,7 +541,7 @@ export const Reports: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {metrics.unitPerformance.map((u) => (
+                  {(metrics?.unitPerformance || []).map((u) => (
                     <tr key={u.unitId} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#1e40af" }}>
                         {u.unitNumber}
@@ -613,13 +613,12 @@ export const Reports: React.FC = () => {
                       <td>Year {v.yearOfStudy}</td>
                       <td>
                         <span
-                          className={`badge ${
-                            v.status === "ACTIVE"
+                          className={`badge ${v.status === "ACTIVE"
                               ? "badge-success"
                               : v.status === "PENDING_APPROVAL"
-                              ? "badge-warning"
-                              : "badge-muted"
-                          }`}
+                                ? "badge-warning"
+                                : "badge-muted"
+                            }`}
                         >
                           {v.status}
                         </span>

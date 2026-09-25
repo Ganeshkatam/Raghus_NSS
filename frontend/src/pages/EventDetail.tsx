@@ -133,8 +133,9 @@ export const EventDetail: React.FC = () => {
 
       if (isCoordinatorOrOfficer) {
         try {
-          const regList = await apiRequest<Registration[]>("/events/" + id + "/registrations");
-          setRegistrations(regList || []);
+          const regList = await apiRequest<any>("/events/" + id + "/registrations");
+          const safeRegs = Array.isArray(regList) ? regList : Array.isArray(regList?.content) ? regList.content : [];
+          setRegistrations(safeRegs);
         } catch {
           // Non-blocking
         }
@@ -145,8 +146,9 @@ export const EventDetail: React.FC = () => {
           setActiveSession(null);
         }
         try {
-          const ros = await apiRequest<AttendanceRosterItem[]>("/events/" + id + "/attendance/roster");
-          setRoster(ros || []);
+          const ros = await apiRequest<any>("/events/" + id + "/attendance/roster");
+          const safeRoster = Array.isArray(ros) ? ros : Array.isArray(ros?.content) ? ros.content : [];
+          setRoster(safeRoster);
         } catch {
           // Non-blocking
         }

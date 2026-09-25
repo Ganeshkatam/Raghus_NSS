@@ -93,10 +93,11 @@ export const Attendance: React.FC = () => {
 
   const loadEvents = useCallback(async () => {
     try {
-      const res = await apiRequest<{ content: any[] }>("/events?size=50");
-      setEvents(res.content || []);
-      if (res.content && res.content.length > 0 && !selectedEventId) {
-        setSelectedEventId(res.content[0].eventId);
+      const res = await apiRequest<any>("/events?size=50");
+      const safeEvents = Array.isArray(res) ? res : Array.isArray(res?.content) ? res.content : [];
+      setEvents(safeEvents);
+      if (safeEvents.length > 0 && !selectedEventId) {
+        setSelectedEventId(safeEvents[0].eventId);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load events.");
@@ -107,7 +108,7 @@ export const Attendance: React.FC = () => {
     try {
       const summary = await apiRequest<any>("/service-hours/my").catch(() => null);
       if (summary && summary.entries) {
-        setVolunteerHistory(summary.entries);
+        setVolunteerHistory(Array.isArray(summary.entries) ? summary.entries : []);
       }
     } catch {
       // Optional history fetch
@@ -121,8 +122,9 @@ export const Attendance: React.FC = () => {
       const session = await apiRequest<SessionData | null>(`/events/${eventId}/attendance/sessions/active`).catch(() => null);
       setActiveSession(session && session.status === "OPEN" ? session : null);
 
-      const rosterData = await apiRequest<RosterItem[]>(`/events/${eventId}/attendance/roster`);
-      setRoster(rosterData);
+      const rosterData = await apiRequest<any>(`/events/${eventId}/attendance/roster`);
+      const safeRoster = Array.isArray(rosterData) ? rosterData : Array.isArray(rosterData?.content) ? rosterData.content : [];
+      setRoster(safeRoster);
     } catch (err: any) {
       setError(err.message || "Error loading attendance session.");
     } finally {
@@ -230,8 +232,9 @@ export const Attendance: React.FC = () => {
   const loadPendingCorrections = useCallback(async () => {
     if (!isManager) return;
     try {
-      const list = await apiRequest<PendingCorrection[]>("/attendance/corrections/pending");
-      setPendingCorrections(list || []);
+      const list = await apiRequest<any>("/attendance/corrections/pending");
+      const safeList = Array.isArray(list) ? list : Array.isArray(list?.content) ? list.content : [];
+      setPendingCorrections(safeList);
     } catch {
       // Handled silently
     }

@@ -74,7 +74,14 @@ export const ServiceHours: React.FC = () => {
       setLoading(true);
       setError(null);
       const data = await apiRequest<PersonalSummary | null>("/service-hours/my");
-      setPersonalSummary(data);
+      if (data) {
+        setPersonalSummary({
+          ...data,
+          entries: Array.isArray(data.entries) ? data.entries : [],
+        });
+      } else {
+        setPersonalSummary(null);
+      }
     } catch (err: any) {
       const isExpectedNonVolunteer =
         err?.message?.includes("Only enrolled volunteers") ||
@@ -94,8 +101,13 @@ export const ServiceHours: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const list = await apiRequest<ServiceHourEntry[]>("/service-hours/pending");
-      setPendingClaims(list || []);
+      const list = await apiRequest<any>("/service-hours/pending");
+      const safeList = Array.isArray(list)
+        ? list
+        : Array.isArray(list?.content)
+        ? list.content
+        : [];
+      setPendingClaims(safeList);
     } catch (err: any) {
       setError(err.message || "Failed to load pending claims.");
     } finally {
@@ -105,8 +117,13 @@ export const ServiceHours: React.FC = () => {
 
   const loadEvents = useCallback(async () => {
     try {
-      const res = await apiRequest<{ content: any[] }>("/events?size=100");
-      setEvents(res.content || []);
+      const res = await apiRequest<any>("/events?size=100");
+      const safeEvents = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.content)
+        ? res.content
+        : [];
+      setEvents(safeEvents);
     } catch {
       // Optional background fetch
     }
@@ -202,6 +219,9 @@ export const ServiceHours: React.FC = () => {
     }
   };
 
+  const entriesList = Array.isArray(personalSummary?.entries) ? personalSummary.entries : [];
+  const claimsList = Array.isArray(pendingClaims) ? pendingClaims : [];
+
   return (
     <div className="container" style={{ padding: "2rem 1rem", maxWidth: "1200px", margin: "0 auto" }}>
       {/* Header */}
@@ -283,9 +303,9 @@ export const ServiceHours: React.FC = () => {
             }}
           >
             Review Claims Queue
-            {pendingClaims.length > 0 && (
+            {claimsList.length > 0 && (
               <span style={{ backgroundColor: "#ef4444", color: "#ffffff", borderRadius: "9999px", padding: "0.15rem 0.5rem", fontSize: "0.75rem", fontWeight: 700 }}>
-                {pendingClaims.length}
+                {claimsList.length}
               </span>
             )}
           </button>
@@ -361,10 +381,10 @@ export const ServiceHours: React.FC = () => {
               <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                 <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Activity Ledger Entries</h3>
-                  <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{personalSummary.entries.length} Total records</span>
+                  <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{entriesList.length} Total records</span>
                 </div>
 
-                {personalSummary.entries.length === 0 ? (
+                {entriesList.length === 0 ? (
                   <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
                     No service hour entries found on your ledger yet. Attend events or submit manual claims to accrue hours.
                   </div>
@@ -381,7 +401,7 @@ export const ServiceHours: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {personalSummary.entries.map((entry) => (
+                        {entriesList.map((entry) => (
                           <tr key={entry.entryId} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "0.75rem 1rem", color: "#64748b", whiteSpace: "nowrap" }}>
                               {new Date(entry.createdAt).toLocaleDateString()}
@@ -443,10 +463,10 @@ export const ServiceHours: React.FC = () => {
         <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Pending Review Queue</h3>
-            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{pendingClaims.length} Claims awaiting action</span>
+            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{claimsList.length} Claims awaiting action</span>
           </div>
 
-          {pendingClaims.length === 0 ? (
+          {claimsList.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
               No pending service hour claims to review at this time.
             </div>
@@ -464,7 +484,7 @@ export const ServiceHours: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingClaims.map((claim) => (
+                  {claimsList.map((claim) => (
                     <tr key={claim.entryId} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "#1e293b" }}>
                         {claim.volunteerName}
