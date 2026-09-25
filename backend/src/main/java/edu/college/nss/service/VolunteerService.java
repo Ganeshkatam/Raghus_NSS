@@ -248,8 +248,10 @@ public class VolunteerService {
 
     @Transactional(readOnly = true)
     public VolunteerResponse getCurrentVolunteer(UserDetails principal) {
-        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
-            .orElseThrow(() -> new IllegalArgumentException("Authenticated user is not registered as a volunteer."));
+        Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername()).orElse(null);
+        if (volunteer == null) {
+            return null;
+        }
         UnitMembership active = membershipRepository
             .findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
             .orElse(null);

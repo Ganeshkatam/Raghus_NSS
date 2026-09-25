@@ -86,9 +86,27 @@ export const VolunteerDashboard: React.FC = () => {
           setUnreadNotifications(vd.unreadNotifications || 0);
         }
 
-        setHoursSummary(hoursData);
-        setUpcomingEvents(eventsData.content || []);
-        setAnnouncements(annData.content || []);
+        const safeHours: ServiceHourSummary = {
+          totalApprovedHours: hoursData?.totalApprovedHours || 0,
+          approvedCount: hoursData?.approvedCount || 0,
+          pendingCount: hoursData?.pendingCount || 0,
+          entries: Array.isArray(hoursData?.entries) ? hoursData.entries : [],
+        };
+        setHoursSummary(safeHours);
+
+        const eventList = Array.isArray(eventsData)
+          ? eventsData
+          : Array.isArray((eventsData as any)?.content)
+          ? (eventsData as any).content
+          : [];
+        setUpcomingEvents(eventList);
+
+        const annList = Array.isArray(annData)
+          ? annData
+          : Array.isArray((annData as any)?.content)
+          ? (annData as any).content
+          : [];
+        setAnnouncements(annList);
       } finally {
         setLoading(false);
       }
@@ -231,7 +249,7 @@ export const VolunteerDashboard: React.FC = () => {
             </Link>
           </div>
 
-          {!hoursSummary || hoursSummary.entries.length === 0 ? (
+          {!hoursSummary || !Array.isArray(hoursSummary.entries) || hoursSummary.entries.length === 0 ? (
             <div className="empty-state">
               <p>No verified service hours recorded yet.</p>
             </div>
@@ -247,7 +265,7 @@ export const VolunteerDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {hoursSummary.entries.slice(0, 5).map((e) => (
+                  {(hoursSummary.entries || []).slice(0, 5).map((e) => (
                     <tr key={e.entryId}>
                       <td>
                         <strong>{e.eventTitle || e.description}</strong>
@@ -291,7 +309,7 @@ export const VolunteerDashboard: React.FC = () => {
           </div>
         </div>
 
-        {announcements.length === 0 ? (
+        {!Array.isArray(announcements) || announcements.length === 0 ? (
           <p className="empty-state">No announcements published.</p>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
@@ -321,7 +339,7 @@ export const VolunteerDashboard: React.FC = () => {
                 </div>
                 <strong style={{ display: "block", marginBottom: "0.35rem" }}>{ann.title}</strong>
                 <p style={{ margin: 0, fontSize: "0.85rem", color: "#475569", lineHeight: "1.4" }}>
-                  {ann.content.length > 140 ? `${ann.content.substring(0, 140)}...` : ann.content}
+                  {ann.content && ann.content.length > 140 ? `${ann.content.substring(0, 140)}...` : (ann.content || "")}
                 </p>
               </div>
             ))}

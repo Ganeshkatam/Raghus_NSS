@@ -63,7 +63,12 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           setPendingCorrectionsCount(od.pendingCorrections || 0);
         }
 
-        setEvents(eventsData.content || []);
+        const eventList = Array.isArray(eventsData)
+          ? eventsData
+          : Array.isArray((eventsData as any)?.content)
+          ? (eventsData as any).content
+          : [];
+        setEvents(eventList);
       } finally {
         setLoading(false);
       }

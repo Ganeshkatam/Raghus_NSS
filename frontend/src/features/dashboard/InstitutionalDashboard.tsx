@@ -52,7 +52,12 @@ export const InstitutionalDashboard: React.FC = () => {
           setPendingApprovals(id.pendingApprovals || 0);
           setPendingClaims(id.pendingClaims || 0);
         }
-        setUnits(unitsData || []);
+        const unitList = Array.isArray(unitsData)
+          ? unitsData
+          : Array.isArray((unitsData as any)?.content)
+          ? (unitsData as any).content
+          : [];
+        setUnits(unitList);
       } finally {
         setLoading(false);
       }

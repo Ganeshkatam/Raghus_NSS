@@ -56,7 +56,11 @@ public class VolunteerController {
     public ResponseEntity<VolunteerResponse> getCurrentVolunteer(
         @AuthenticationPrincipal UserDetails principal
     ) {
-        return ResponseEntity.ok(volunteerService.getCurrentVolunteer(principal));
+        VolunteerResponse response = volunteerService.getCurrentVolunteer(principal);
+        if (response == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")

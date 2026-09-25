@@ -318,7 +318,7 @@ export const UnitDetail: React.FC = () => {
               </button>
             )}
             <span>
-              &bull; Active Roster: <strong>{members.length}</strong> {unit.capacity ? `/ ${unit.capacity} capacity` : ""}
+              &bull; Active Roster: <strong>{members.length}</strong> {unit?.capacity ? `/ ${unit.capacity} capacity` : ""}
             </span>
           </p>
         </div>
@@ -355,7 +355,7 @@ export const UnitDetail: React.FC = () => {
           <div className="section-card" style={{ padding: "1.25rem" }}>
             <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Enrolled Volunteers</div>
             <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#1e3a8a", marginTop: "0.25rem" }}>
-              {stats.activeMembers} {unit.capacity ? <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {unit.capacity}</span> : null}
+              {stats.activeMembers} {(stats.capacity ?? unit?.capacity) ? <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {stats.capacity ?? unit?.capacity}</span> : null}
             </div>
           </div>
           <div className="section-card" style={{ padding: "1.25rem" }}>
