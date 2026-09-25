@@ -773,7 +773,7 @@ export const EventDetail: React.FC = () => {
                 }}
               >
                 <div>
-                  <h3 style={{ margin: 0 }}>Registered Volunteers Roster</h3>
+                  <h3 style={{ margin: 0 }}>Registered Volunteers List</h3>
                   <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>
                     {confirmedCount} Confirmed &bull; {waitlistCount} Waitlisted &bull;{" "}
                     {cancelledCount} Cancelled
