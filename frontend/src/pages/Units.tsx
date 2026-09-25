@@ -27,6 +27,7 @@ export const Units: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [unitName, setUnitName] = useState("");
   const [unitNumber, setUnitNumber] = useState("");
+  const [unitCapacity, setUnitCapacity] = useState("");
   const [officerCandidates, setOfficerCandidates] = useState<{ userId: string; name: string; email: string; roles: string[] }[]>([]);
   const [selectedOfficerId, setSelectedOfficerId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -55,6 +56,7 @@ export const Units: React.FC = () => {
     setModalError(null);
     setUnitName("");
     setUnitNumber("");
+    setUnitCapacity("");
     setSelectedOfficerId("");
     try {
       const candidates = await apiRequest<{ userId: string; name: string; email: string; roles: string[] }[]>("/units/officer-candidates");
@@ -76,6 +78,12 @@ export const Units: React.FC = () => {
       return;
     }
 
+    const parsedCapacity = unitCapacity.trim() ? parseInt(unitCapacity.trim(), 10) : null;
+    if (unitCapacity.trim() && (isNaN(parsedCapacity!) || parsedCapacity! <= 0)) {
+      setModalError("Unit capacity must be a positive number.");
+      return;
+    }
+
     setCreating(true);
 
     try {
@@ -85,12 +93,14 @@ export const Units: React.FC = () => {
           unitName: cleanName,
           unitNumber: cleanNumber,
           officerId: selectedOfficerId ? selectedOfficerId : null,
+          capacity: parsedCapacity,
         }),
       });
 
       setShowModal(false);
       setUnitName("");
       setUnitNumber("");
+      setUnitCapacity("");
       setSelectedOfficerId("");
       loadUnits();
     } catch (err: unknown) {
@@ -184,9 +194,11 @@ export const Units: React.FC = () => {
                     <td>
                       <div>
                         <strong>{unit.activeMemberCount}</strong>
-                        <span className="cell-sub" style={{ marginLeft: "0.25rem" }}>
-                          / {unit.capacity || 100} ({Math.round((unit.activeMemberCount / (unit.capacity || 100)) * 100)}%)
-                        </span>
+                        {unit.capacity ? (
+                          <span className="cell-sub" style={{ marginLeft: "0.25rem" }}>
+                            / {unit.capacity} ({Math.round((unit.activeMemberCount / unit.capacity) * 100)}%)
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     <td>{new Date(unit.createdAt).toLocaleDateString()}</td>
@@ -244,6 +256,18 @@ export const Units: React.FC = () => {
                   onChange={(e) => setUnitName(e.target.value)}
                   placeholder="e.g. Community Welfare Unit A"
                   required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="unitCapacity">Unit Capacity (Max Volunteers)</label>
+                <input
+                  id="unitCapacity"
+                  type="number"
+                  min="1"
+                  value={unitCapacity}
+                  onChange={(e) => setUnitCapacity(e.target.value)}
+                  placeholder="e.g. 50, 100, 150 (Leave blank for no limit)"
                 />
               </div>
 

@@ -25,8 +25,8 @@ public class NssUnit {
     @JoinColumn(name = "officer_id")
     private User officer;
 
-    @Column(name = "capacity", nullable = false)
-    private Integer capacity = 100;
+    @Column(name = "capacity")
+    private Integer capacity;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -43,6 +43,13 @@ public class NssUnit {
         this.unitName = unitName;
         this.unitNumber = unitNumber;
         this.officer = officer;
+    }
+
+    public NssUnit(String unitName, String unitNumber, User officer, Integer capacity) {
+        this.unitName = unitName;
+        this.unitNumber = unitNumber;
+        this.officer = officer;
+        this.capacity = capacity;
     }
 
     @PreUpdate
@@ -83,7 +90,7 @@ public class NssUnit {
     }
 
     public Integer getCapacity() {
-        return capacity != null ? capacity : 100;
+        return capacity;
     }
 
     public void setCapacity(Integer capacity) {

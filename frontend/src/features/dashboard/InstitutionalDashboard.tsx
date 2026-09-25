@@ -214,8 +214,8 @@ export const InstitutionalDashboard: React.FC = () => {
               </thead>
               <tbody>
                 {units.map((u) => {
-                  const cap = u.capacity || 100;
-                  const percent = Math.min(100, Math.round((u.activeMemberCount / cap) * 100));
+                  const cap = u.capacity;
+                  const percent = cap && cap > 0 ? Math.min(100, Math.round((u.activeMemberCount / cap) * 100)) : null;
                   return (
                     <tr key={u.unitId}>
                       <td>
@@ -244,21 +244,25 @@ export const InstitutionalDashboard: React.FC = () => {
                         )}
                       </td>
                       <td>
-                        <strong>{u.activeMemberCount}</strong> / {cap}
+                        <strong>{u.activeMemberCount}</strong> {cap ? `/ ${cap}` : ""}
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <div style={{ flex: 1, height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", maxWidth: "80px" }}>
-                            <div
-                              style={{
-                                width: `${percent}%`,
-                                height: "100%",
-                                backgroundColor: percent >= 90 ? "#e11d48" : "#2563eb",
-                              }}
-                            />
+                        {percent !== null ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <div style={{ flex: 1, height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", maxWidth: "80px" }}>
+                              <div
+                                style={{
+                                  width: `${percent}%`,
+                                  height: "100%",
+                                  backgroundColor: percent >= 90 ? "#e11d48" : "#2563eb",
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>{percent}%</span>
                           </div>
-                          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>{percent}%</span>
-                        </div>
+                        ) : (
+                          <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>&mdash;</span>
+                        )}
                       </td>
                       <td>
                         <Link to={`/units/${u.unitId}`} className="table-action-link">

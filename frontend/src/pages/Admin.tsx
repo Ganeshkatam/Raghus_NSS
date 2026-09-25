@@ -261,24 +261,20 @@ export const Admin: React.FC = () => {
       </div>
 
       {/* Administrative KPIs */}
-      <div className="metrics-grid" style={{ marginBottom: "1.5rem" }}>
+      <div className="metric-grid" style={{ marginBottom: "1.5rem" }}>
         <div className="metric-card">
-          <div className="metric-header">
-            <h3>Registered Volunteers</h3>
-          </div>
-          <div className="metric-value">
+          <div className="metric-label">Registered Volunteers</div>
+          <div className="metric-value" style={{ color: "#1e40af" }}>
             {loading ? "..." : metrics?.totalVolunteers ?? 0}
           </div>
           <div className="metric-subtext">
-            <span>{metrics?.activeVolunteers ?? 0} active in community units</span>
+            <span style={{ color: "#16a34a", fontWeight: 600 }}>{metrics?.activeVolunteers ?? 0} active in community units</span>
           </div>
         </div>
 
         <div className="metric-card">
-          <div className="metric-header">
-            <h3>Operational Units</h3>
-          </div>
-          <div className="metric-value">
+          <div className="metric-label">Operational Units</div>
+          <div className="metric-value" style={{ color: "#0f766e" }}>
             {loading ? "..." : units.length}
           </div>
           <div className="metric-subtext">
@@ -287,10 +283,8 @@ export const Admin: React.FC = () => {
         </div>
 
         <div className="metric-card">
-          <div className="metric-header">
-            <h3>System Users</h3>
-          </div>
-          <div className="metric-value">
+          <div className="metric-label">System Users</div>
+          <div className="metric-value" style={{ color: "#7c3aed" }}>
             {loading ? "..." : users.length}
           </div>
           <div className="metric-subtext">
@@ -299,10 +293,8 @@ export const Admin: React.FC = () => {
         </div>
 
         <div className="metric-card">
-          <div className="metric-header">
-            <h3>Audit Records</h3>
-          </div>
-          <div className="metric-value">
+          <div className="metric-label">Audit Records</div>
+          <div className="metric-value" style={{ color: "#ea580c" }}>
             {loading ? "..." : auditLogs.length}
           </div>
           <div className="metric-subtext">

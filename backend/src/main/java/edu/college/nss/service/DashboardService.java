@@ -103,7 +103,7 @@ public class DashboardService {
                 officerMap.put("unitId", myUnit.getUnitId());
                 officerMap.put("unitNumber", myUnit.getUnitNumber());
                 officerMap.put("unitName", myUnit.getUnitName());
-                officerMap.put("capacity", myUnit.getCapacity() != null ? myUnit.getCapacity() : 100);
+                officerMap.put("capacity", myUnit.getCapacity());
                 int activeMembers = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(myUnit.getUnitId()).size();
                 officerMap.put("activeMemberCount", activeMembers);
             }

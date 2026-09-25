@@ -6,7 +6,7 @@ public record UnitStatsResponse(
     UUID unitId,
     String unitName,
     String unitNumber,
-    int capacity,
+    Integer capacity,
     long activeVolunteers,
     long totalEvents,
     double totalServiceHours

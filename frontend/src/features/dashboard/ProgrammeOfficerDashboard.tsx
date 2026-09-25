@@ -10,7 +10,7 @@ interface UnitSummary {
   officerEmail: string | null;
   officerId: string | null;
   activeMemberCount: number;
-  capacity?: number;
+  capacity?: number | null;
 }
 
 interface EventItem {
@@ -55,7 +55,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
               officerEmail: user?.email || null,
               officerId: null,
               activeMemberCount: od.activeMemberCount || 0,
-              capacity: od.capacity || 100,
+              capacity: od.capacity ?? null,
             });
           }
           setPendingApprovalsCount(od.pendingApprovals || 0);
@@ -71,9 +71,11 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
     loadOfficerData();
   }, [user]);
 
-  const unitCapacity = assignedUnit?.capacity || 100;
+  const unitCapacity = assignedUnit?.capacity ?? null;
   const enrolledCount = assignedUnit?.activeMemberCount || 0;
-  const capacityPercent = Math.min(100, Math.round((enrolledCount / unitCapacity) * 100));
+  const capacityPercent = unitCapacity && unitCapacity > 0
+    ? Math.min(100, Math.round((enrolledCount / unitCapacity) * 100))
+    : null;
 
   if (loading) {
     return <p className="loading-state">Loading operational officer dashboard...</p>;
@@ -91,7 +93,16 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           </div>
           <h1>{assignedUnit ? `${assignedUnit.unitName} (Unit ${assignedUnit.unitNumber})` : "Programme Operations"}</h1>
           <p className="subtitle">
-            Officer in Charge: <strong>{user?.name}</strong> &bull; Capacity: <strong>{enrolledCount} / {unitCapacity} Enrolled Volunteers</strong> ({capacityPercent}%)
+            Officer in Charge: <strong>{user?.name}</strong>
+            {unitCapacity ? (
+              <>
+                {" "}&bull; Capacity: <strong>{enrolledCount} / {unitCapacity} Enrolled Volunteers</strong> ({capacityPercent}%)
+              </>
+            ) : (
+              <>
+                {" "}&bull; Active Roster: <strong>{enrolledCount} Enrolled Volunteers</strong>
+              </>
+            )}
           </p>
         </div>
         <div className="card-actions">
@@ -115,20 +126,28 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             Unit Enrolled Members
           </div>
           <div style={{ fontSize: "2rem", fontWeight: 800, color: "#1e40af", marginTop: "0.25rem" }}>
-            {enrolledCount} <span style={{ fontSize: "1rem", color: "#64748b", fontWeight: 500 }}>/ {unitCapacity}</span>
+            {enrolledCount} {unitCapacity ? <span style={{ fontSize: "1rem", color: "#64748b", fontWeight: 500 }}>/ {unitCapacity}</span> : null}
           </div>
-          <div style={{ height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", marginTop: "0.5rem" }}>
-            <div
-              style={{
-                width: `${capacityPercent}%`,
-                height: "100%",
-                backgroundColor: capacityPercent >= 90 ? "#e11d48" : "#2563eb",
-              }}
-            />
-          </div>
-          <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
-            {capacityPercent}% institutional quota occupied
-          </span>
+          {unitCapacity && capacityPercent !== null ? (
+            <>
+              <div style={{ height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", marginTop: "0.5rem" }}>
+                <div
+                  style={{
+                    width: `${capacityPercent}%`,
+                    height: "100%",
+                    backgroundColor: capacityPercent >= 90 ? "#e11d48" : "#2563eb",
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+                {capacityPercent}% institutional quota occupied
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+              No maximum capacity limit configured
+            </span>
+          )}
         </div>
 
         {/* Card 2: Pending Volunteer Onboarding */}

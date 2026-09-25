@@ -69,7 +69,7 @@ public class NssUnitService {
                 .orElseThrow(() -> new IllegalArgumentException("Officer user not found with ID: " + request.officerId()));
         }
 
-        NssUnit unit = new NssUnit(request.unitName(), request.unitNumber(), officer);
+        NssUnit unit = new NssUnit(request.unitName(), request.unitNumber(), officer, request.capacity());
         unit = unitRepository.save(unit);
 
         return UnitResponse.fromEntity(unit, 0);
@@ -117,6 +117,10 @@ public class NssUnitService {
             unit.setUnitName(request.unitName());
         }
 
+        if (request.capacity() != null) {
+            unit.setCapacity(request.capacity());
+        }
+
         if (Boolean.TRUE.equals(request.clearOfficer())) {
             unit.setOfficer(null);
         } else if (request.officerId() != null) {
@@ -136,7 +140,7 @@ public class NssUnitService {
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
         long currentCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
-        if (currentCount >= unit.getCapacity()) {
+        if (unit.getCapacity() != null && currentCount >= unit.getCapacity()) {
             throw new IllegalStateException("Unit " + unit.getUnitName() + " has reached maximum capacity of " + unit.getCapacity() + " volunteers.");
         }
 
@@ -169,7 +173,7 @@ public class NssUnitService {
         }
 
         long targetActiveCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(request.targetUnitId()).size();
-        if (targetActiveCount >= targetUnit.getCapacity()) {
+        if (targetUnit.getCapacity() != null && targetActiveCount >= targetUnit.getCapacity()) {
             throw new IllegalStateException("Target unit " + targetUnit.getUnitName() + " has reached capacity.");
         }
 

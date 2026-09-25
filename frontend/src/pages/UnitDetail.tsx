@@ -11,7 +11,7 @@ interface UnitData {
   officerName: string | null;
   officerEmail: string | null;
   activeMemberCount: number;
-  capacity?: number;
+  capacity?: number | null;
   createdAt: string;
 }
 
@@ -19,6 +19,7 @@ interface UnitStats {
   unitId: string;
   unitName: string;
   unitNumber: string;
+  capacity?: number | null;
   activeMembers: number;
   totalEvents: number;
   totalServiceHours: number;
@@ -70,6 +71,7 @@ export const UnitDetail: React.FC = () => {
   const [showOfficerModal, setShowOfficerModal] = useState(false);
   const [officerCandidates, setOfficerCandidates] = useState<OfficerCandidate[]>([]);
   const [selectedOfficerId, setSelectedOfficerId] = useState<string>("");
+  const [unitCapacity, setUnitCapacity] = useState<string>("");
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [assigningOfficer, setAssigningOfficer] = useState(false);
   const [officerModalError, setOfficerModalError] = useState<string | null>(null);
@@ -117,6 +119,7 @@ export const UnitDetail: React.FC = () => {
     setShowOfficerModal(true);
     setOfficerModalError(null);
     setSelectedOfficerId(unit?.officerId || "");
+    setUnitCapacity(unit?.capacity ? String(unit.capacity) : "");
     setLoadingCandidates(true);
     try {
       const candidates = await apiRequest<OfficerCandidate[]>("/units/officer-candidates");
@@ -135,25 +138,29 @@ export const UnitDetail: React.FC = () => {
     setAssigningOfficer(true);
     setOfficerModalError(null);
 
+    const parsedCapacity = unitCapacity.trim() ? parseInt(unitCapacity.trim(), 10) : null;
+    if (unitCapacity.trim() && (isNaN(parsedCapacity!) || parsedCapacity! <= 0)) {
+      setOfficerModalError("Unit capacity must be a positive number.");
+      setAssigningOfficer(false);
+      return;
+    }
+
     try {
       await apiRequest<UnitData>(`/units/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
           officerId: selectedOfficerId ? selectedOfficerId : null,
           clearOfficer: !selectedOfficerId,
+          capacity: parsedCapacity,
         }),
       });
 
       setShowOfficerModal(false);
-      setSuccess(
-        selectedOfficerId
-          ? "Programme Officer assigned successfully."
-          : "Programme Officer unassigned successfully."
-      );
+      setSuccess("Unit settings and officer assignment updated successfully.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setOfficerModalError(apiErr.message || "Failed to update Programme Officer assignment.");
+      setOfficerModalError(apiErr.message || "Failed to update unit settings.");
     } finally {
       setAssigningOfficer(false);
     }
@@ -311,7 +318,7 @@ export const UnitDetail: React.FC = () => {
               </button>
             )}
             <span>
-              &bull; Active Roster: <strong>{members.length}</strong> / {unit.capacity || 100} capacity
+              &bull; Active Roster: <strong>{members.length}</strong> {unit.capacity ? `/ ${unit.capacity} capacity` : ""}
             </span>
           </p>
         </div>
@@ -319,7 +326,7 @@ export const UnitDetail: React.FC = () => {
         {canManageUnits && (
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button onClick={openOfficerModal} className="btn-secondary">
-              {unit.officerName ? "Change Officer" : "Assign Officer"}
+              {unit.officerName ? "Configure Unit" : "Assign Officer"}
             </button>
             <button onClick={openTransferModal} className="btn-secondary">
               Transfer Volunteer In
@@ -348,7 +355,7 @@ export const UnitDetail: React.FC = () => {
           <div className="section-card" style={{ padding: "1.25rem" }}>
             <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Enrolled Volunteers</div>
             <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#1e3a8a", marginTop: "0.25rem" }}>
-              {stats.activeMembers} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {unit.capacity || 100}</span>
+              {stats.activeMembers} {unit.capacity ? <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>/ {unit.capacity}</span> : null}
             </div>
           </div>
           <div className="section-card" style={{ padding: "1.25rem" }}>
@@ -569,7 +576,7 @@ export const UnitDetail: React.FC = () => {
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>{unit.officerName ? "Change Programme Officer" : "Assign Programme Officer"}</h3>
+              <h3>{unit.officerName ? "Configure Unit & Officer" : "Assign Programme Officer"}</h3>
               <button onClick={() => setShowOfficerModal(false)} className="btn-close">
                 &times;
               </button>
@@ -583,11 +590,11 @@ export const UnitDetail: React.FC = () => {
 
             <form onSubmit={handleAssignOfficer} className="form-stack">
               <p style={{ fontSize: "0.875rem", color: "#64748b" }}>
-                Select an active faculty officer or coordinator to administer <strong>{unit.unitName} ({unit.unitNumber})</strong>.
+                Configure Programme Officer and volunteer capacity limit for <strong>{unit.unitName} ({unit.unitNumber})</strong>.
               </p>
 
               <div className="form-group">
-                <label htmlFor="officerSelect">Programme Officer *</label>
+                <label htmlFor="officerSelect">Programme Officer</label>
                 {loadingCandidates ? (
                   <p className="cell-sub">Loading available faculty officers...</p>
                 ) : (
@@ -606,6 +613,18 @@ export const UnitDetail: React.FC = () => {
                 )}
               </div>
 
+              <div className="form-group">
+                <label htmlFor="unitCapacity">Unit Max Capacity</label>
+                <input
+                  id="unitCapacity"
+                  type="number"
+                  min="1"
+                  value={unitCapacity}
+                  onChange={(e) => setUnitCapacity(e.target.value)}
+                  placeholder="e.g. 50, 100, 150 (Leave blank for no limit)"
+                />
+              </div>
+
               <div className="modal-actions">
                 <button
                   type="button"
@@ -620,7 +639,7 @@ export const UnitDetail: React.FC = () => {
                   className="btn-primary"
                   disabled={assigningOfficer}
                 >
-                  {assigningOfficer ? "Saving Assignment..." : "Save Assignment"}
+                  {assigningOfficer ? "Saving Settings..." : "Save Configuration"}
                 </button>
               </div>
             </form>
