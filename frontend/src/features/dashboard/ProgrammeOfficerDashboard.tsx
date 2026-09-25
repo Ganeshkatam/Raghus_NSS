@@ -123,74 +123,110 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards: Unit Capacity & Pending Action Queues */}
+      {/* KPI Cards: Unit Capacity & Action Queues */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
         {/* Card 1: Unit Capacity */}
-        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #1e40af" }}>
-          <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-            Unit Enrolled Members
-          </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#1e40af", marginTop: "0.25rem" }}>
-            {enrolledCount} {unitCapacity ? <span style={{ fontSize: "1rem", color: "#64748b", fontWeight: 500 }}>/ {unitCapacity}</span> : null}
-          </div>
-          {unitCapacity && capacityPercent !== null ? (
-            <>
-              <div style={{ height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", marginTop: "0.5rem" }}>
-                <div
-                  style={{
-                    width: `${capacityPercent}%`,
-                    height: "100%",
-                    backgroundColor: capacityPercent >= 90 ? "#e11d48" : "#2563eb",
-                  }}
-                />
-              </div>
+        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #1e40af", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
+              Enrolled Volunteers
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#1e40af", marginTop: "0.25rem" }}>
+              {enrolledCount} {unitCapacity ? <span style={{ fontSize: "1rem", color: "#64748b", fontWeight: 500 }}>/ {unitCapacity}</span> : null}
+            </div>
+            {unitCapacity && capacityPercent !== null ? (
+              <>
+                <div style={{ height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden", marginTop: "0.5rem" }}>
+                  <div
+                    style={{
+                      width: `${capacityPercent}%`,
+                      height: "100%",
+                      backgroundColor: capacityPercent >= 90 ? "#e11d48" : "#2563eb",
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+                  {capacityPercent}% of capacity used
+                </span>
+              </>
+            ) : (
               <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
-                {capacityPercent}% institutional quota occupied
+                No capacity limit set
               </span>
-            </>
-          ) : (
-            <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
-              No maximum capacity limit configured
-            </span>
-          )}
+            )}
+          </div>
+          <Link
+            to={assignedUnit?.unitId ? `/units/${assignedUnit.unitId}` : "/volunteers"}
+            className="table-action-link"
+            style={{ fontSize: "0.8rem", marginTop: "0.75rem", display: "inline-block", alignSelf: "flex-start" }}
+          >
+            View Volunteers
+          </Link>
         </div>
 
-        {/* Card 2: Pending Volunteer Onboarding */}
-        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #f59e0b" }}>
-          <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-            Pending Volunteer Approvals
+        {/* Card 2: Pending Volunteer Approvals */}
+        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #f59e0b", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
+              Pending Approvals
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#d97706", marginTop: "0.25rem" }}>
+              {pendingApprovalsCount}
+            </div>
+            <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+              {pendingApprovalsCount === 1 ? "1 volunteer waiting" : `${pendingApprovalsCount} volunteers waiting`}
+            </span>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#d97706", marginTop: "0.25rem" }}>
-            {pendingApprovalsCount}
-          </div>
-          <Link to="/volunteers?status=PENDING_APPROVAL" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Open Onboarding Queue
+          <Link
+            to="/volunteers?status=PENDING_APPROVAL"
+            className="table-action-link"
+            style={{ fontSize: "0.8rem", marginTop: "0.75rem", display: "inline-block", alignSelf: "flex-start" }}
+          >
+            Review Applications
           </Link>
         </div>
 
         {/* Card 3: Pending Service-Hour Claims */}
-        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #10b981" }}>
-          <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-            Pending Service Hour Claims
+        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #10b981", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
+              Service Hour Claims
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#059669", marginTop: "0.25rem" }}>
+              {pendingClaimsCount}
+            </div>
+            <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+              {pendingClaimsCount === 1 ? "1 claim to check" : `${pendingClaimsCount} claims to check`}
+            </span>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#059669", marginTop: "0.25rem" }}>
-            {pendingClaimsCount}
-          </div>
-          <Link to="/service-hours" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Audit &amp; Approve Claims
+          <Link
+            to="/service-hours"
+            className="table-action-link"
+            style={{ fontSize: "0.8rem", marginTop: "0.75rem", display: "inline-block", alignSelf: "flex-start" }}
+          >
+            Review Claims
           </Link>
         </div>
 
         {/* Card 4: Attendance Corrections */}
-        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #8b5cf6" }}>
-          <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-            Attendance Corrections
+        <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #8b5cf6", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
+              Attendance Corrections
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#7c3aed", marginTop: "0.25rem" }}>
+              {pendingCorrectionsCount}
+            </div>
+            <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem", display: "block" }}>
+              {pendingCorrectionsCount === 1 ? "1 correction request" : `${pendingCorrectionsCount} correction requests`}
+            </span>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#7c3aed", marginTop: "0.25rem" }}>
-            {pendingCorrectionsCount}
-          </div>
-          <Link to="/attendance" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Audit Corrections Queue
+          <Link
+            to="/attendance"
+            className="table-action-link"
+            style={{ fontSize: "0.8rem", marginTop: "0.75rem", display: "inline-block", alignSelf: "flex-start" }}
+          >
+            Review Corrections
           </Link>
         </div>
       </div>
@@ -259,7 +295,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           <div className="section-header">
             <div>
               <h3>Officer Action Center</h3>
-              <p className="subtitle">Immediate operational directives requiring Programme Officer sign-off.</p>
+              <p className="subtitle">Immediate tasks waiting for your review and approval.</p>
             </div>
           </div>
 
@@ -267,8 +303,8 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             <div style={{ padding: "0.85rem 1rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <strong>Volunteer Onboarding Approvals</strong>
-                  <div className="cell-sub">{pendingApprovalsCount} student candidates awaiting enrollment verification.</div>
+                  <strong>Volunteer Approvals</strong>
+                  <div className="cell-sub">{pendingApprovalsCount} student candidates waiting for approval.</div>
                 </div>
                 <Link to="/volunteers?status=PENDING_APPROVAL" className="btn-primary-sm">
                   Review
@@ -279,11 +315,11 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             <div style={{ padding: "0.85rem 1rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <strong>Service Hour Accreditation Claims</strong>
-                  <div className="cell-sub">{pendingClaimsCount} activity reports submitted with evidence notes.</div>
+                  <strong>Service Hour Claims</strong>
+                  <div className="cell-sub">{pendingClaimsCount} activity reports waiting for verification.</div>
                 </div>
                 <Link to="/service-hours" className="btn-primary-sm">
-                  Audit
+                  Review
                 </Link>
               </div>
             </div>
@@ -291,11 +327,11 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             <div style={{ padding: "0.85rem 1rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <strong>Attendance Session &amp; QR Control</strong>
-                  <div className="cell-sub">Project active tokens or audit requested attendance adjustments.</div>
+                  <strong>Attendance &amp; QR Codes</strong>
+                  <div className="cell-sub">Start sessions, display QR codes, or check corrections.</div>
                 </div>
                 <Link to="/attendance" className="btn-primary-sm">
-                  Console
+                  Open Console
                 </Link>
               </div>
             </div>
