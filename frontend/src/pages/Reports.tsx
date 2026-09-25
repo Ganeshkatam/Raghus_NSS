@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { apiRequest, apiRequestBlob, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 import { useAuth } from "../context/AuthContext";
 
 
@@ -316,20 +317,20 @@ export const Reports: React.FC = () => {
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>From Date</label>
-            <input
-              type="date"
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b", marginBottom: "0.35rem", display: "block" }}>From Date</label>
+            <CustomDatePicker
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={setFromDate}
+              placeholder="From Date"
             />
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b" }}>To Date</label>
-            <input
-              type="date"
+            <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b", marginBottom: "0.35rem", display: "block" }}>To Date</label>
+            <CustomDatePicker
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={setToDate}
+              placeholder="To Date"
             />
           </div>
 

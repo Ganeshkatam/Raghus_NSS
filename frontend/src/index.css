@@ -1461,6 +1461,278 @@ select option[value=""] {
   color: #64748b;
 }
 
+/* Custom Date Picker */
+.custom-datepicker-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.custom-datepicker-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #334155);
+  margin-bottom: 0.35rem;
+}
+
+.custom-datepicker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #ffffff;
+  padding: 0.625rem 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-primary, #0f172a);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  font-family: inherit;
+}
+
+.custom-datepicker-trigger:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.custom-datepicker-trigger.is-open,
+.custom-datepicker-trigger:focus-visible {
+  outline: none;
+  border-color: var(--nss-navy, #1e3a8a);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.14), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.custom-datepicker-trigger:disabled {
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  opacity: 0.75;
+}
+
+.custom-datepicker-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.custom-datepicker-value.is-placeholder {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.custom-datepicker-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.custom-datepicker-clear-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-datepicker-arrow {
+  flex-shrink: 0;
+  color: #475569;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-datepicker-arrow.rotate-up {
+  transform: rotate(180deg);
+  color: var(--nss-navy, #1e3a8a);
+}
+
+.custom-datepicker-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 9999;
+  width: 310px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+  padding: 0.85rem;
+  animation: selectMenuFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  gap: 0.35rem;
+}
+
+.custom-datepicker-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.custom-datepicker-nav-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-datepicker-selects {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.custom-datepicker-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  background-color: #ffffff;
+  cursor: pointer;
+  outline: none;
+}
+
+.custom-datepicker-select:focus {
+  border-color: var(--nss-navy, #1e3a8a);
+}
+
+.custom-datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.custom-datepicker-weekday {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  padding: 0.25rem 0;
+}
+
+.custom-datepicker-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.custom-datepicker-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.custom-datepicker-day:hover:not(:disabled) {
+  background-color: #eff6ff;
+  color: var(--nss-navy, #1e3a8a);
+}
+
+.custom-datepicker-day.is-selected {
+  background-color: var(--nss-navy, #1e40af) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.custom-datepicker-day.is-today:not(.is-selected) {
+  border: 1px solid var(--nss-navy, #1e40af);
+  color: var(--nss-navy, #1e40af);
+  font-weight: 700;
+}
+
+.custom-datepicker-day.is-outside {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.custom-datepicker-day:disabled:not(.is-outside) {
+  color: #e2e8f0;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.custom-datepicker-time-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.2rem 0.2rem;
+  margin-top: 0.6rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.custom-datepicker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.6rem;
+  margin-top: 0.6rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.custom-datepicker-footer-btn {
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.custom-datepicker-footer-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-datepicker-footer-btn.is-primary {
+  background-color: var(--nss-navy, #1e40af);
+  color: #ffffff;
+  border-color: var(--nss-navy, #1e40af);
+}
+
+.custom-datepicker-footer-btn.is-primary:hover {
+  background-color: #1d4ed8;
+}
+
 
 .password-input-wrapper {
   position: relative;

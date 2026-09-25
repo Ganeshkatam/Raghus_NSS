@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 interface ServiceHourEntry {
   entryId: string;
@@ -640,12 +641,12 @@ export const ServiceHours: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="claimActivityDate">Activity Date</label>
-                  <input
+                  <label htmlFor="claimActivityDate" style={{ display: "block", marginBottom: "0.35rem" }}>Activity Date</label>
+                  <CustomDatePicker
                     id="claimActivityDate"
-                    type="date"
                     value={claimActivityDate}
-                    onChange={(e) => setClaimActivityDate(e.target.value)}
+                    onChange={setClaimActivityDate}
+                    placeholder="Select activity date..."
                   />
                 </div>
 

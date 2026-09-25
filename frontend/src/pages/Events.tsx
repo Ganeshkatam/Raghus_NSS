@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 
 interface Unit {
@@ -509,37 +510,41 @@ export const Events: React.FC = () => {
               </div>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Start *</label>
-                  <input
-                    type="datetime-local"
+                  <label style={{ display: "block", marginBottom: "0.35rem" }}>Start *</label>
+                  <CustomDatePicker
                     required
+                    includeTime
                     value={form.startAt}
-                    onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+                    onChange={(val) => setForm({ ...form, startAt: val })}
+                    placeholder="Select start date & time"
                   />
                 </div>
                 <div className="form-group">
-                  <label>End *</label>
-                  <input
-                    type="datetime-local"
+                  <label style={{ display: "block", marginBottom: "0.35rem" }}>End *</label>
+                  <CustomDatePicker
                     required
+                    includeTime
                     value={form.endAt}
-                    onChange={(e) => setForm({ ...form, endAt: e.target.value })}
+                    onChange={(val) => setForm({ ...form, endAt: val })}
+                    placeholder="Select end date & time"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Registration opens</label>
-                  <input
-                    type="datetime-local"
+                  <label style={{ display: "block", marginBottom: "0.35rem" }}>Registration opens</label>
+                  <CustomDatePicker
+                    includeTime
                     value={form.registrationOpenAt}
-                    onChange={(e) => setForm({ ...form, registrationOpenAt: e.target.value })}
+                    onChange={(val) => setForm({ ...form, registrationOpenAt: val })}
+                    placeholder="Select opening date & time"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Registration closes</label>
-                  <input
-                    type="datetime-local"
+                  <label style={{ display: "block", marginBottom: "0.35rem" }}>Registration closes</label>
+                  <CustomDatePicker
+                    includeTime
                     value={form.registrationCloseAt}
-                    onChange={(e) => setForm({ ...form, registrationCloseAt: e.target.value })}
+                    onChange={(val) => setForm({ ...form, registrationCloseAt: val })}
+                    placeholder="Select closing date & time"
                   />
                 </div>
               </div>

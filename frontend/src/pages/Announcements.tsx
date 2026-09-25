@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 interface Announcement {
   announcementId: string;
@@ -579,12 +580,12 @@ export const Announcements: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="announcementExpires">Notice Expiry Date (Optional)</label>
-                  <input
+                  <label htmlFor="announcementExpires" style={{ display: "block", marginBottom: "0.35rem" }}>Notice Expiry Date (Optional)</label>
+                  <CustomDatePicker
                     id="announcementExpires"
-                    type="date"
                     value={newExpiresAt}
-                    onChange={(e) => setNewExpiresAt(e.target.value)}
+                    onChange={setNewExpiresAt}
+                    placeholder="Select expiry date..."
                   />
                 </div>
 
