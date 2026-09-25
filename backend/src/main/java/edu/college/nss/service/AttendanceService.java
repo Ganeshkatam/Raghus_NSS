@@ -72,8 +72,8 @@ public class AttendanceService {
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
 
-        if (!"OPEN".equals(event.getStatus()) && !"COMPLETED".equals(event.getStatus())) {
-            throw new IllegalStateException("Attendance sessions can only be opened for OPEN or COMPLETED events.");
+        if (!"OPEN".equals(event.getStatus())) {
+            throw new IllegalStateException("Attendance sessions can only be opened for OPEN events.");
         }
         if (!req.expiresAt().isAfter(req.startsAt())) {
             throw new IllegalArgumentException("Expiration time must be strictly after start time.");
@@ -173,18 +173,7 @@ public class AttendanceService {
             AttendanceSession session = sessionRepository.findById(parsed.sessionId())
                 .orElseThrow(() -> new IllegalArgumentException("Session not found."));
 
-            if (!"OPEN".equals(session.getStatus())) {
-                throw new AttendanceSessionExpiredException("Attendance session is closed.");
-            }
-            Instant now = Instant.now();
-            if (now.isBefore(session.getStartsAt())) {
-                throw new AttendanceSessionExpiredException("Attendance session has not started yet.");
-            }
-            if (now.isAfter(session.getExpiresAt())) {
-                session.expire();
-                sessionRepository.save(session);
-                throw new AttendanceSessionExpiredException("Attendance session has expired.");
-            }
+            validateSessionTiming(session, Instant.now());
 
             EventRegistration registration = registrationRepository
                 .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
@@ -224,9 +213,7 @@ public class AttendanceService {
             .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         assertManagerForUnit(principal, session.getEvent().getUnit());
 
-        if (!"OPEN".equals(session.getStatus())) {
-            throw new AttendanceSessionExpiredException("Attendance session is not open.");
-        }
+        validateSessionTiming(session, Instant.now());
 
         Volunteer volunteer = volunteerRepository.findById(req.volunteerId())
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found: " + req.volunteerId()));
@@ -408,6 +395,20 @@ public class AttendanceService {
                 rec != null ? rec.getAttendanceId() : null
             );
         }).toList();
+    }
+
+    private void validateSessionTiming(AttendanceSession session, Instant now) {
+        if (!"OPEN".equals(session.getStatus())) {
+            throw new AttendanceSessionExpiredException("Attendance session is not open.");
+        }
+        if (now.isBefore(session.getStartsAt())) {
+            throw new AttendanceSessionExpiredException("Attendance session has not started yet.");
+        }
+        if (!now.isBefore(session.getExpiresAt())) {
+            session.expire();
+            sessionRepository.save(session);
+            throw new AttendanceSessionExpiredException("Attendance session has expired.");
+        }
     }
 
     private String generateSignedToken(AttendanceSession session) {

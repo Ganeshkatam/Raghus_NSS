@@ -209,4 +209,52 @@ class AttendanceIntegrationTest {
         assertThrows(AccessDeniedException.class, () ->
             attendanceService.manualCheckIn(session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal));
     }
+
+    @Test
+    void openSession_onCompletedEvent_shouldThrowIllegalState() {
+        Event completedEvent = new Event(unit, admin, "Tree Plantation", "Completed Drive", "SERVICE",
+            Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600),
+            Instant.now().minusSeconds(10800), Instant.now().minusSeconds(7200), "Campus Grounds", 50);
+        completedEvent.publish();
+        completedEvent.open();
+        completedEvent.close();
+        completedEvent.complete();
+        completedEvent = eventRepository.save(completedEvent);
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(10), Instant.now().plusSeconds(300));
+        Event finalCompletedEvent = completedEvent;
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            attendanceService.openSession(finalCompletedEvent.getEventId(), req, adminPrincipal));
+        assertTrue(ex.getMessage().contains("OPEN events"));
+    }
+
+    @Test
+    void manualCheckIn_beforeSessionStarts_shouldThrowSessionNotStarted() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().plusSeconds(60), Instant.now().plusSeconds(600));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        AttendanceSessionExpiredException ex = assertThrows(AttendanceSessionExpiredException.class, () ->
+            attendanceService.manualCheckIn(session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal));
+        assertTrue(ex.getMessage().contains("not started yet"));
+    }
+
+    @Test
+    void manualCheckIn_validTiming_shouldRecordAttendance() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        CheckInResponse response = attendanceService.manualCheckIn(
+            session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal);
+
+        assertEquals("PRESENT", response.status());
+        assertEquals("MANUAL_COORDINATOR", response.checkInMethod());
+        assertTrue(recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.sessionId(), volunteer.getVolunteerId()));
+    }
 }
