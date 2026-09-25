@@ -94,7 +94,8 @@ export const EventDetail: React.FC = () => {
   const activeTab = (searchParams.get("tab") as TabType) || "overview";
   const setActiveTab = (tab: TabType) => setSearchParams({ tab });
 
-  const { isCoordinatorOrOfficer } = useAuth();
+  const { isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const canManageEvents = isCoordinatorOrOfficer || hasCapability("EVENTS_MANAGE");
   const [event, setEvent] = useState<EventItem | null>(null);
   const [stats, setStats] = useState<EventStats | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -382,7 +383,7 @@ export const EventDetail: React.FC = () => {
           </p>
         </div>
 
-        {isCoordinatorOrOfficer && (
+        {canManageEvents && (
           <div className="card-actions" style={{ marginTop: "0.5rem" }}>
             <button className="btn-secondary-sm" disabled={busy} onClick={cloneEvent}>
               Clone Event
@@ -463,7 +464,7 @@ export const EventDetail: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          Registration {isCoordinatorOrOfficer ? `(${registrations.length})` : ""}
+          Registration {canManageEvents ? `(${registrations.length})` : ""}
         </button>
         <button
           type="button"

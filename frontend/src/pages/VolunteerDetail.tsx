@@ -51,8 +51,8 @@ interface TransferHistoryItem {
 
 export const VolunteerDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user, isCoordinatorOrOfficer } = useAuth();
-  const isManager = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
+  const { user, isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const isManager = isCoordinatorOrOfficer || hasCapability("VOLUNTEERS_MANAGE") || Boolean(user?.roles?.some((r) =>
     ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   ));
 

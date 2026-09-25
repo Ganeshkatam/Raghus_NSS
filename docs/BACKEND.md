@@ -69,7 +69,7 @@ backend/
 | **Auth & Security** | Login, token issuance, token refresh, current user context (`/auth/me`), BCrypt encryption, token revocation. |
 | **Users & Roles** | User accounts, status (`ACTIVE`, `INACTIVE`, `SUSPENDED`), role and capability mapping. |
 | **Volunteers** | Volunteer profile creation, enrollment verification, college ID, department mapping, academic year. |
-| **NSS Units** | Unit provisioning, Programme Officer assignments, member rosters, active status tracking. |
+| **NSS Units** | Unit provisioning, Programme Officer assignments, member lists, active status tracking. |
 | **Events** | Event scheduling, venue, credit hours, capacity, registration window, and state machine lifecycle. |
 | **Registrations** | Volunteer self-registration, capacity checking under concurrency, cancellation, participant roster. |
 | **Attendance** | Controlled sessions, dynamic QR verification, manual check-ins, supervisor corrections, and audit history. |

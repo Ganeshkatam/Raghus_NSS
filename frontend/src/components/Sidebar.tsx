@@ -8,7 +8,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { isAdmin, isCoordinator, isOfficer, isCoordinatorOrOfficer, isStudentLeader, isVolunteer } = useAuth();
+  const { isAdmin, isCoordinator, isOfficer, isCoordinatorOrOfficer, isStudentLeader, isVolunteer, hasCapability } = useAuth();
 
   const handleLinkClick = () => {
     if (window.innerWidth <= 1024) {
@@ -70,8 +70,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Section: Organisation (Only Officers, Coordinators, and Admins) */}
-          {isCoordinatorOrOfficer && (
+          {/* Section: Organisation */}
+          {(isCoordinatorOrOfficer || hasCapability("UNITS_VIEW")) && (
             <div className="nav-group">
               <span className="nav-group-title">Organisation</span>
               <NavLink
@@ -234,8 +234,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Section: Reports & Analytics (Officers, Coordinators, and Admins) */}
-          {isCoordinatorOrOfficer && (
+          {/* Section: Reports & Analytics */}
+          {(isCoordinatorOrOfficer || hasCapability("REPORTS_VIEW")) && (
             <div className="nav-group">
               <span className="nav-group-title">Reports &amp; Analytics</span>
               <NavLink

@@ -52,7 +52,8 @@ interface VolunteerRegistration {
 const toIso = (value: string) => (value ? new Date(value).toISOString() : null);
 
 export const Events: React.FC = () => {
-  const { isCoordinatorOrOfficer } = useAuth();
+  const { isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const canManageEvents = isCoordinatorOrOfficer || hasCapability("EVENTS_MANAGE");
   const [events, setEvents] = useState<EventItem[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [status, setStatus] = useState("");
@@ -80,11 +81,11 @@ export const Events: React.FC = () => {
 
   const filterPills = [
     { label: "All", value: "" },
-    ...(isCoordinatorOrOfficer ? [{ label: "Draft", value: "DRAFT" }] : []),
+    ...(canManageEvents ? [{ label: "Draft", value: "DRAFT" }] : []),
     { label: "Published", value: "PUBLISHED" },
     { label: "Ongoing", value: "ONGOING" },
     { label: "Completed", value: "COMPLETED" },
-    ...(isCoordinatorOrOfficer ? [{ label: "Cancelled", value: "CANCELLED" }] : []),
+    ...(canManageEvents ? [{ label: "Cancelled", value: "CANCELLED" }] : []),
   ];
 
   const load = async () => {
@@ -224,7 +225,7 @@ export const Events: React.FC = () => {
             Plan NSS activities, manage registration windows, and monitor volunteer allocations.
           </p>
         </div>
-        {isCoordinatorOrOfficer && (
+        {canManageEvents && (
           <button className="btn-primary" onClick={() => setShowModal(true)}>
             + Create Event
           </button>

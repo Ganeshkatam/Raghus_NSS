@@ -29,7 +29,8 @@ interface VolunteerPageResponse {
 }
 
 export const Volunteers: React.FC = () => {
-  const { isCoordinatorOrOfficer } = useAuth();
+  const { isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const canManageVolunteers = isCoordinatorOrOfficer || hasCapability("VOLUNTEERS_MANAGE");
 
   const [volunteers, setVolunteers] = useState<VolunteerItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,7 +177,7 @@ export const Volunteers: React.FC = () => {
           </p>
         </div>
 
-        {isCoordinatorOrOfficer && (
+        {canManageVolunteers && (
           <button onClick={() => setShowModal(true)} className="btn-primary">
             + Enroll Volunteer
           </button>
@@ -378,7 +379,7 @@ export const Volunteers: React.FC = () => {
                           </td>
                           <td>
                             <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                              {isPending && isCoordinatorOrOfficer && (
+                              {isPending && canManageVolunteers && (
                                 <>
                                   <button
                                     type="button"

@@ -55,8 +55,8 @@ export const InstitutionalDashboard: React.FC = () => {
         const unitList = Array.isArray(unitsData)
           ? unitsData
           : Array.isArray((unitsData as any)?.content)
-          ? (unitsData as any).content
-          : [];
+            ? (unitsData as any).content
+            : [];
         setUnits(unitList);
       } finally {
         setLoading(false);
@@ -195,7 +195,7 @@ export const InstitutionalDashboard: React.FC = () => {
         <div className="section-header">
           <div>
             <h3>NSS Operational Units Comparison</h3>
-            <p className="subtitle">Capacity allocation, faculty officer jurisdiction, and participation rosters.</p>
+            <p className="subtitle">Capacity allocation, faculty officer jurisdiction, and participation lists.</p>
           </div>
           <Link to="/units" className="btn-secondary-sm">
             Units Console

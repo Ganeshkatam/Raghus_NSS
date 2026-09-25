@@ -83,8 +83,8 @@ College
 | Role | Core Capabilities |
 |---|---|
 | **Volunteer** | Manage permitted profile fields, discover published events, self-register, check in via QR code, view verified attendance status, track service-hour ledger, access announcements, and view issued certificates. |
-| **Student Leader** | All Volunteer capabilities plus delegated field assistance: managing event attendance sessions, coordinating participant check-in rosters, and assisting in unit operations. |
-| **Programme Officer** | Manage assigned NSS units, approve volunteers, draft and publish events, supervise registration rosters, open/close attendance sessions, perform manual check-in and corrections, approve/adjust service hours, author activity reports, and issue unit announcements. |
+| **Student Leader** | All Volunteer capabilities plus delegated field assistance: managing event attendance sessions, coordinating participant check-in lists, and assisting in unit operations. |
+| **Programme Officer** | Manage assigned NSS units, approve volunteers, draft and publish events, supervise registration lists, open/close attendance sessions, perform manual check-in and corrections, approve/adjust service hours, author activity reports, and issue unit announcements. |
 | **Faculty Coordinator** | College-wide operational supervision across all NSS units, cross-unit event coordination, institutional report approvals, and academic accreditation summaries. |
 | **System Administrator** | Full institutional governance: user provisioning, role-capability matrix mapping, college structure configuration, audit log inspection, and system health monitoring. |
 
@@ -117,7 +117,7 @@ College
 | **FR-021** | In-App Notifications | Generate system notifications for registration confirmations, session openings, service-hour approvals, and circulars. |
 | **FR-022** | Achievements & Honors | Record and showcase institutional recognitions, awards, and leadership citations. |
 | **FR-023** | Certificate Issuance | Track eligibility milestones (e.g. 120 service hours + Special Camp) and manage verified completion certificates. |
-| **FR-024** | Search & Filtering | Provide fast, server-side paginated search across volunteers, events, units, and attendance rosters. |
+| **FR-024** | Search & Filtering | Provide fast, server-side paginated search across volunteers, events, units, and attendance lists. |
 | **FR-025** | Operational Dashboards | Deliver personalized dashboards displaying real-time metrics, upcoming schedules, and pending approval queues. |
 | **FR-026** | Institutional Analytics | Aggregate participation by department, gender, unit, and event category for administrative review. |
 | **FR-027** | Report Exporting | Export accredited data in standardized CSV, spreadsheet, and PDF formats. |

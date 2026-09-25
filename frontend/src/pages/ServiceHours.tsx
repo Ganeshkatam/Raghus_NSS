@@ -36,8 +36,8 @@ interface PersonalSummary {
 }
 
 export const ServiceHours: React.FC = () => {
-  const { user, isCoordinatorOrOfficer } = useAuth();
-  const isOfficerOrAdmin = isCoordinatorOrOfficer || Boolean(user?.roles?.some((r) =>
+  const { user, isCoordinatorOrOfficer, hasCapability } = useAuth();
+  const isOfficerOrAdmin = isCoordinatorOrOfficer || hasCapability("SERVICE_HOURS_MANAGE") || Boolean(user?.roles?.some((r) =>
     ["ADMIN", "FACULTY_COORDINATOR", "PROGRAMME_OFFICER"].includes(r)
   ));
 
@@ -263,7 +263,7 @@ export const ServiceHours: React.FC = () => {
 
         {/* Action button */}
         <div style={{ display: "flex", gap: "0.75rem" }}>
-          {user?.roles?.includes("VOLUNTEER") && (
+          {(user?.roles?.includes("VOLUNTEER") || hasCapability("SERVICE_HOURS_LOG")) && (
             <button
               onClick={() => setShowClaimModal(true)}
               style={{

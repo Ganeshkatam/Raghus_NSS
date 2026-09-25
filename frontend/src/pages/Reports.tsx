@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { apiRequest, apiRequestBlob, ApiError } from "../api/client";
 import { CustomSelect } from "../components/CustomSelect";
 import { SearchBar } from "../components/SearchBar";
+import { useAuth } from "../context/AuthContext";
 
 
 interface UnitPerformance {
@@ -56,6 +57,9 @@ interface EventPreviewItem {
 type ReportTab = "overview" | "volunteers" | "events" | "serviceHours";
 
 export const Reports: React.FC = () => {
+  const { hasCapability, isCoordinatorOrOfficer } = useAuth();
+  const canExport = isCoordinatorOrOfficer || hasCapability("REPORTS_EXPORT");
+
   const [metrics, setMetrics] = useState<InstitutionalMetrics | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,7 +221,7 @@ export const Reports: React.FC = () => {
           Reports &amp; Institutional Analytics
         </h1>
         <p style={{ margin: "0.25rem 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.95rem" }}>
-          Accreditation compliance rosters, NSS unit comparative matrices, and filtered audit exports.
+          Accreditation compliance lists, NSS unit comparative matrices, and filtered audit exports.
         </p>
       </div>
 
@@ -348,7 +352,8 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* Export Action Cards */}
-      <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
+      {canExport && (
+        <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid #e2e8f0", marginBottom: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
@@ -409,6 +414,7 @@ export const Reports: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Preview Section Tabs */}
       <div
@@ -614,10 +620,10 @@ export const Reports: React.FC = () => {
                       <td>
                         <span
                           className={`badge ${v.status === "ACTIVE"
-                              ? "badge-success"
-                              : v.status === "PENDING_APPROVAL"
-                                ? "badge-warning"
-                                : "badge-muted"
+                            ? "badge-success"
+                            : v.status === "PENDING_APPROVAL"
+                              ? "badge-warning"
+                              : "badge-muted"
                             }`}
                         >
                           {v.status}

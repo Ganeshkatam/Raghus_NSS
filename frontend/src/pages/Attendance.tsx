@@ -61,8 +61,8 @@ interface PendingCorrection {
 }
 
 export const Attendance: React.FC = () => {
-  const { user, isAuthenticated, isAdmin, isCoordinator, isOfficer } = useAuth();
-  const isManager = isAuthenticated && (isAdmin || isCoordinator || isOfficer);
+  const { user, isAuthenticated, isAdmin, isCoordinator, isOfficer, hasCapability } = useAuth();
+  const isManager = isAuthenticated && (isAdmin || isCoordinator || isOfficer || hasCapability("ATTENDANCE_MANAGE"));
 
 
   const [events, setEvents] = useState<any[]>([]);
@@ -282,7 +282,7 @@ export const Attendance: React.FC = () => {
           <h1>{isManager ? "Attendance & QR Verification Operations" : "Volunteer Attendance Check-In"}</h1>
           <p className="subtitle">
             {isManager
-              ? "Manage live check-in sessions, dynamic QR verification, and volunteer attendance rosters."
+              ? "Manage live check-in sessions, dynamic QR verification, and volunteer attendance lists."
               : "Verify your participation in ongoing NSS activities using the session code displayed at the venue."}
           </p>
         </div>

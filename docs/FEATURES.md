@@ -358,7 +358,7 @@ This specification defines the functional, technical, and operational contracts 
 ---
 
 ### F-25: Multi-Year Batch Volunteer Promotion & Data Archival
-- **Purpose**: End-of-year administrative workflow to graduate final-year volunteers, advance continuing student semesters, and archive unit rosters.
+- **Purpose**: End-of-year administrative workflow to graduate final-year volunteers, advance continuing student semesters, and archive unit lists.
 - **Authorized Actors**: `ADMIN`.
 - **API Endpoints**:
   - `POST /api/v1/admin/academic-year/rollover`: Executes atomic batch promotion of volunteers and closes old academic year memberships.

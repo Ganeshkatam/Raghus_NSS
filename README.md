@@ -8,7 +8,7 @@ A high-reliability, cloud-native enterprise management platform engineered for N
 
 The platform digitizes, automates, and audits end-to-end NSS institutional operations for higher education institutions:
 - **Volunteer Life Cycle**: Centralized demographic dossiers, academic roll number mapping, branch progression, emergency contacts, and active status tracking.
-- **Unit Organization**: Multi-unit management (e.g. Unit 1, Unit 2) with assigned faculty Programme Officers and annual enrollment rosters.
+- **Unit Organization**: Multi-unit management (e.g. Unit 1, Unit 2) with assigned faculty Programme Officers and annual enrollment lists.
 - **Community Events**: Event lifecycle management (`DRAFT` -> `PUBLISHED` -> `OPEN` -> `IN_PROGRESS` -> `COMPLETED`) with capacity enforcement and self-registration.
 - **Cryptographic QR Attendance**: High-concurrency, anti-buddy-punching attendance terminals powered by time-rotating HMAC-SHA256 tokens and manual supervisor overrides.
 - **Service Hour Ledger**: Append-only transaction ledger with supervisory approval queues and automated tracking toward the mandatory 120-hour graduation milestone.

@@ -52,10 +52,10 @@ The system is organized into modular bounded contexts. Communication between mod
 |---|---|
 | **Identity & Access** | Authentication, stateless JWT issuance, token lifecycle, password encryption, and capability validation. |
 | **Volunteer Management** | Student profiling, academic department mapping, enrollment lifecycle, and leadership designations. |
-| **Unit Management** | NSS unit provisioning, Programme Officer assignments, volunteer rosters, and unit-scoped access boundaries. |
+| **Unit Management** | NSS unit provisioning, Programme Officer assignments, volunteer lists, and unit-scoped access boundaries. |
 | **Event Management** | Programme lifecycle (Draft -> Published -> Open -> Closed -> Completed -> Cancelled), venue, capacity, and scheduling. |
 | **Event Registration** | Volunteer self-registration, capacity reservation, cutoff enforcement, and registration roster tracking. |
-| **Attendance** | Controlled sessions, dynamic QR verification, manual check-in rosters, supervisor corrections, and audit history. |
+| **Attendance** | Controlled sessions, dynamic QR verification, manual check-in lists, supervisor corrections, and audit history. |
 | **Service Hours** | Authoritative service-hour ledger, event credit derivation, manual claims review, and 120-hour milestone progress. |
 | **Activity Reporting** | Post-programme documentation, participant summaries, outcomes, and photo documentation. |
 | **Communication** | Targeted announcements (college-wide or unit-scoped), notification inbox, and delivery tracking. |

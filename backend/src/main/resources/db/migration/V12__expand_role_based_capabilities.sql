@@ -4,11 +4,11 @@
 -- Insert expanded capabilities
 INSERT INTO permissions (permission_id, name, description) VALUES
 (gen_random_uuid(), 'USERS_VIEW', 'View user directory and profiles'),
-(gen_random_uuid(), 'UNITS_VIEW', 'View NSS units, rosters, and officer assignments'),
+(gen_random_uuid(), 'UNITS_VIEW', 'View NSS units, lists, and officer assignments'),
 (gen_random_uuid(), 'VOLUNTEERS_VIEW', 'View volunteer directory and profiles'),
 (gen_random_uuid(), 'EVENTS_VIEW', 'Browse published events, schedules, and details'),
 (gen_random_uuid(), 'EVENTS_REGISTER', 'Register and cancel registrations for events'),
-(gen_random_uuid(), 'ATTENDANCE_VIEW', 'View attendance rosters and check-in history'),
+(gen_random_uuid(), 'ATTENDANCE_VIEW', 'View attendance lists and check-in history'),
 (gen_random_uuid(), 'ATTENDANCE_CHECKIN', 'Scan QR code or enter session code to check in'),
 (gen_random_uuid(), 'SERVICE_HOURS_VIEW', 'View service hour ledger records and totals'),
 (gen_random_uuid(), 'SERVICE_HOURS_LOG', 'Submit and credit manual service hours for activities'),

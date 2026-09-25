@@ -177,7 +177,7 @@ export const AppContent: React.FC = () => {
               description="7-day rural immersion camps, village adoption activities, and special residential initiatives."
               phase="Future Scope"
               features={[
-                "Rural village camp allocation and student leadership rosters",
+                "Rural village camp allocation and student leadership lists",
                 "Daily camp schedule and multi-session service hours logging",
                 "Community impact assessment and project reporting"
               ]}

@@ -1070,7 +1070,7 @@ Core NSS data: volunteers, profiles, NSS units, unit details
 
 Programmes: event catalogue, detail, creation, lifecycle, registration
 
-Participation: attendance, QR attendance, rosters, corrections, service hours
+Participation: attendance, QR attendance, lists, corrections, service hours
 
 Communication: announcements and notifications
 
