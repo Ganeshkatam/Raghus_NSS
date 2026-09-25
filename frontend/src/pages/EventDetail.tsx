@@ -310,14 +310,14 @@ export const EventDetail: React.FC = () => {
     event.status === "CLOSED" || event.status === "COMPLETED" || event.status === "CANCELLED"
       ? "Registration Closed"
       : event.status === "DRAFT"
-      ? "Draft - Window Not Opened"
-      : event.status === "PUBLISHED"
-      ? event.registrationOpenAt && new Date(event.registrationOpenAt) > now
-        ? `Opens ${new Date(event.registrationOpenAt).toLocaleString()}`
-        : "Not Opened"
-      : isWindowOpen
-      ? "Registration Window Open"
-      : "Registration Closed";
+        ? "Draft - Window Not Opened"
+        : event.status === "PUBLISHED"
+          ? event.registrationOpenAt && new Date(event.registrationOpenAt) > now
+            ? `Opens ${new Date(event.registrationOpenAt).toLocaleString()}`
+            : "Not Opened"
+          : isWindowOpen
+            ? "Registration Window Open"
+            : "Registration Closed";
 
   // Filtered registrations
   const filteredRegistrations = registrations.filter((r) => {
@@ -391,12 +391,12 @@ export const EventDetail: React.FC = () => {
                 {a === "publish"
                   ? "Publish"
                   : a === "open"
-                  ? "Open Registration"
-                  : a === "close"
-                  ? "Close Registration"
-                  : a === "complete"
-                  ? "Mark Completed"
-                  : "Cancel Event"}
+                    ? "Open Registration"
+                    : a === "close"
+                      ? "Close Registration"
+                      : a === "complete"
+                        ? "Mark Completed"
+                        : "Cancel Event"}
               </button>
             ))}
           </div>
@@ -734,21 +734,21 @@ export const EventDetail: React.FC = () => {
                   className="table-action-link"
                   style={{ fontWeight: 600 }}
                 >
-                  &rarr; View Registration Roster ({registrations.length} total)
+                  View Registration List ({registrations.length} total)
                 </Link>
                 <Link
                   to={`/events/${id}?tab=attendance`}
                   className="table-action-link"
                   style={{ fontWeight: 600 }}
                 >
-                  &rarr; Manage Attendance Roster &amp; Sessions
+                  Manage Attendance List &amp; Sessions
                 </Link>
                 <Link
                   to={`/events/${id}?tab=statistics`}
                   className="table-action-link"
                   style={{ fontWeight: 600 }}
                 >
-                  &rarr; View Real-Time Statistics &amp; Metrics
+                  View Real-Time Statistics &amp; Metrics
                 </Link>
               </div>
             </section>
@@ -839,13 +839,12 @@ export const EventDetail: React.FC = () => {
                           <td>{r.volunteerName}</td>
                           <td>
                             <span
-                              className={`badge ${
-                                r.status === "WAITLISTED"
-                                  ? "badge-warning"
-                                  : r.status === "CANCELLED"
+                              className={`badge ${r.status === "WAITLISTED"
+                                ? "badge-warning"
+                                : r.status === "CANCELLED"
                                   ? "badge-muted"
                                   : "badge-success"
-                              }`}
+                                }`}
                             >
                               {r.status}
                             </span>
@@ -876,13 +875,12 @@ export const EventDetail: React.FC = () => {
                     }}
                   >
                     <span
-                      className={`badge ${
-                        myRegistration.status === "WAITLISTED"
-                          ? "badge-warning"
-                          : myRegistration.status === "CANCELLED"
+                      className={`badge ${myRegistration.status === "WAITLISTED"
+                        ? "badge-warning"
+                        : myRegistration.status === "CANCELLED"
                           ? "badge-muted"
                           : "badge-success"
-                      }`}
+                        }`}
                     >
                       {myRegistration.status}
                     </span>
@@ -1056,13 +1054,12 @@ export const EventDetail: React.FC = () => {
                             </td>
                             <td>
                               <span
-                                className={`badge ${
-                                  item.attendanceStatus === "PRESENT"
-                                    ? "badge-success"
-                                    : item.attendanceStatus === "ABSENT"
+                                className={`badge ${item.attendanceStatus === "PRESENT"
+                                  ? "badge-success"
+                                  : item.attendanceStatus === "ABSENT"
                                     ? "badge-danger"
                                     : "badge-muted"
-                                }`}
+                                  }`}
                               >
                                 {item.attendanceStatus}
                               </span>

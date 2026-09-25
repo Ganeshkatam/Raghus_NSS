@@ -66,8 +66,8 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
         const eventList = Array.isArray(eventsData)
           ? eventsData
           : Array.isArray((eventsData as any)?.content)
-          ? (eventsData as any).content
-          : [];
+            ? (eventsData as any).content
+            : [];
         setEvents(eventList);
       } finally {
         setLoading(false);
@@ -164,7 +164,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             {pendingApprovalsCount}
           </div>
           <Link to="/volunteers?status=PENDING_APPROVAL" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Open Onboarding Queue &rarr;
+            Open Onboarding Queue
           </Link>
         </div>
 
@@ -177,7 +177,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             {pendingClaimsCount}
           </div>
           <Link to="/service-hours" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Audit &amp; Approve Claims &rarr;
+            Audit &amp; Approve Claims
           </Link>
         </div>
 
@@ -190,7 +190,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             {pendingCorrectionsCount}
           </div>
           <Link to="/attendance" className="table-action-link" style={{ fontSize: "0.8rem", marginTop: "0.5rem", display: "inline-block" }}>
-            Audit Corrections Queue &rarr;
+            Audit Corrections Queue
           </Link>
         </div>
       </div>

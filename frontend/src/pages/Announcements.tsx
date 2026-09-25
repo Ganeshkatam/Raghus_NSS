@@ -296,7 +296,7 @@ export const Announcements: React.FC = () => {
                       </span>
                       {n.link && (
                         <a href={n.link} style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: 600, textDecoration: "underline" }}>
-                          View Details &rarr;
+                          View Details
                         </a>
                       )}
                     </div>
