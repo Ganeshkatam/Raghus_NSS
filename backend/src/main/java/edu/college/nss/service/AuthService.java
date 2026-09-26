@@ -171,7 +171,7 @@ public class AuthService {
         return userAgent;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = {BadCredentialsException.class, DisabledException.class})
     public AuthResponse refresh(RefreshRequest request) {
         String token = request.refreshToken();
 

@@ -1,17 +1,36 @@
 package edu.college.nss.domain;
 
 import jakarta.persistence.*;
+import org.springframework.data.domain.Persistable;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "auth_sessions")
-public class AuthSession {
+public class AuthSession implements Persistable<UUID> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "session_id", updatable = false, nullable = false)
     private UUID sessionId;
+
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public UUID getId() {
+        return sessionId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.isNew = false;
+    }
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)

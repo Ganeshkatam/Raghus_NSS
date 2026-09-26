@@ -333,4 +333,123 @@ public class AuthServiceSessionTest {
         verify(authSessionRepository).save(activeSession1);
         verify(authSessionRepository).save(activeSession2);
     }
+
+    @Test
+    void refresh_withUnknownToken_shouldThrowBadCredentials_andNotTouchAnyFamily() {
+        String unknownToken = tokenProvider.generateRefreshToken("session@college.edu");
+        String unknownHash = TokenHashUtil.sha256(unknownToken);
+
+        User user = new User("Session User", "session@college.edu", "hashedPw", "9876543210");
+        when(userRepository.findByEmail("session@college.edu")).thenReturn(Optional.of(user));
+        when(authSessionRepository.findByRefreshTokenHashWithLock(unknownHash)).thenReturn(Optional.empty());
+
+        org.springframework.security.authentication.BadCredentialsException ex = assertThrows(
+            org.springframework.security.authentication.BadCredentialsException.class,
+            () -> authService.refresh(new edu.college.nss.web.dto.RefreshRequest(unknownToken))
+        );
+
+        assertTrue(ex.getMessage().contains("Invalid or unrecognized refresh token"));
+        verify(authSessionRepository, never()).findByTokenFamilyIdAndIsActiveTrue(any());
+    }
+
+    @Test
+    void logout_thenRefresh_shouldThrowBadCredentialsExceptionWithRevokedReason() {
+        UUID sessionId = UUID.randomUUID();
+        User user = new User("Session User", "session@college.edu", "hashedPw", "9876543210");
+        user.setUserId(UUID.randomUUID());
+
+        String refreshToken = tokenProvider.generateRefreshToken("session@college.edu");
+        String refreshHash = TokenHashUtil.sha256(refreshToken);
+
+        AuthSession session = new AuthSession(
+            sessionId,
+            user,
+            UUID.randomUUID(),
+            refreshHash,
+            "127.0.0.1",
+            "Agent",
+            "Chrome",
+            Instant.now().plusSeconds(3600)
+        );
+
+        // 1. Simulate logout
+        when(authSessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        String accessToken = tokenProvider.generateAccessTokenFromEmail("session@college.edu", user.getUserId(), "Session User", sessionId);
+        authService.logout("Bearer " + accessToken);
+
+        assertFalse(session.isActive());
+        assertEquals("USER_LOGOUT", session.getRevokeReason());
+
+        // 2. Simulate refresh attempt with the now-revoked session
+        when(userRepository.findByEmail("session@college.edu")).thenReturn(Optional.of(user));
+        when(authSessionRepository.findByRefreshTokenHashWithLock(refreshHash)).thenReturn(Optional.of(session));
+
+        org.springframework.security.authentication.BadCredentialsException ex = assertThrows(
+            org.springframework.security.authentication.BadCredentialsException.class,
+            () -> authService.refresh(new edu.college.nss.web.dto.RefreshRequest(refreshToken))
+        );
+
+        assertTrue(ex.getMessage().contains("USER_LOGOUT"));
+    }
+
+    @Test
+    void refresh_thenReplayingOldToken_shouldRevokeEntireFamily_andSubsequentNewTokenRefreshShouldFail() {
+        String r1 = tokenProvider.generateRefreshToken("session@college.edu");
+        String r1Hash = TokenHashUtil.sha256(r1);
+
+        UUID familyId = UUID.randomUUID();
+        User user = new User("Session User", "session@college.edu", "hashedPw", "9876543210");
+        user.setUserId(UUID.randomUUID());
+        user.setStatus("ACTIVE");
+
+        AuthSession s1 = new AuthSession(
+            UUID.randomUUID(),
+            user,
+            familyId,
+            r1Hash,
+            "127.0.0.1",
+            "Agent",
+            "Chrome",
+            Instant.now().plusSeconds(3600)
+        );
+
+        when(userRepository.findByEmail("session@college.edu")).thenReturn(Optional.of(user));
+        when(authSessionRepository.findByRefreshTokenHashWithLock(r1Hash)).thenReturn(Optional.of(s1));
+
+        // Step 1: Normal rotation R1 -> R2
+        AuthResponse response1 = authService.refresh(new edu.college.nss.web.dto.RefreshRequest(r1));
+        String r2 = response1.refreshToken();
+        String r2Hash = TokenHashUtil.sha256(r2);
+
+        assertEquals("TOKEN_ROTATED", s1.getRevokeReason());
+        assertFalse(s1.isActive());
+
+        // Capture new session S2 created during rotation
+        ArgumentCaptor<AuthSession> captor = ArgumentCaptor.forClass(AuthSession.class);
+        verify(authSessionRepository, atLeast(2)).save(captor.capture());
+        AuthSession s2 = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertEquals(r2Hash, s2.getRefreshTokenHash());
+        assertTrue(s2.isActive());
+
+        // Step 2: Attacker replays R1
+        when(authSessionRepository.findByRefreshTokenHashWithLock(r1Hash)).thenReturn(Optional.of(s1));
+        when(authSessionRepository.findByTokenFamilyIdAndIsActiveTrue(familyId)).thenReturn(List.of(s2));
+
+        org.springframework.security.authentication.BadCredentialsException replayEx = assertThrows(
+            org.springframework.security.authentication.BadCredentialsException.class,
+            () -> authService.refresh(new edu.college.nss.web.dto.RefreshRequest(r1))
+        );
+        assertTrue(replayEx.getMessage().contains("reuse detected"));
+        assertFalse(s2.isActive());
+        assertEquals("FAMILY_REVOKED", s2.getRevokeReason());
+
+        // Step 3: Legitimate client attempts to refresh using R2
+        when(authSessionRepository.findByRefreshTokenHashWithLock(r2Hash)).thenReturn(Optional.of(s2));
+
+        org.springframework.security.authentication.BadCredentialsException s2Ex = assertThrows(
+            org.springframework.security.authentication.BadCredentialsException.class,
+            () -> authService.refresh(new edu.college.nss.web.dto.RefreshRequest(r2))
+        );
+        assertTrue(s2Ex.getMessage().contains("FAMILY_REVOKED"));
+    }
 }
