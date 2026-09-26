@@ -45,4 +45,20 @@ public class JwtTokenProviderTest {
         assertTrue(provider.validateToken(token));
         assertEquals("test@college.edu", provider.getEmailFromToken(token));
     }
+
+    @Test
+    void generateAccessToken_withSessionId_shouldIncludeSessionIdClaim() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
+
+        java.util.UUID userId = java.util.UUID.randomUUID();
+        java.util.UUID sessionId = java.util.UUID.randomUUID();
+
+        String token = provider.generateAccessTokenFromEmail("session-user@college.edu", userId, "Session User", sessionId);
+
+        assertNotNull(token);
+        assertTrue(provider.validateToken(token));
+        assertEquals(sessionId, provider.getSessionIdFromToken(token));
+        assertEquals(604800000L, provider.getRefreshExpirationMs());
+    }
 }

@@ -62,7 +62,7 @@ public class AuthControllerTest {
         UserDto userDto = new UserDto(UUID.randomUUID(), "Admin User", "admin@raghunss.edu", "1234567890", "ACTIVE", Set.of("ADMIN"));
         AuthResponse authResponse = new AuthResponse("mock-access-token", "mock-refresh-token", 900000L, userDto);
 
-        when(authService.login(any(LoginRequest.class))).thenReturn(authResponse);
+        when(authService.login(any(LoginRequest.class), any(), any())).thenReturn(authResponse);
 
         LoginRequest request = new LoginRequest("admin@raghunss.edu", "Admin@Password123");
 
@@ -77,7 +77,7 @@ public class AuthControllerTest {
 
     @Test
     public void login_withInvalidCredentials_shouldReturnStructuredError() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenThrow(new BadCredentialsException("Bad credentials"));
+        when(authService.login(any(LoginRequest.class), any(), any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
         LoginRequest request = new LoginRequest("admin@raghunss.edu", "WrongPassword");
 

@@ -1,9 +1,12 @@
 package edu.college.nss.service;
 
+import edu.college.nss.domain.AuthSession;
 import edu.college.nss.domain.User;
+import edu.college.nss.repository.AuthSessionRepository;
 import edu.college.nss.repository.UserRepository;
 import edu.college.nss.security.CustomUserDetails;
 import edu.college.nss.security.JwtTokenProvider;
+import edu.college.nss.security.TokenHashUtil;
 import edu.college.nss.web.dto.AuthResponse;
 import edu.college.nss.web.dto.LoginRequest;
 import edu.college.nss.web.dto.RefreshRequest;
@@ -20,6 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import edu.college.nss.web.dto.ChangePasswordRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Service
 public class AuthService {
 
@@ -28,19 +34,22 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final edu.college.nss.security.RedisTokenBlacklistService tokenBlacklistService;
+    private final AuthSessionRepository authSessionRepository;
 
     public AuthService(
         AuthenticationManager authenticationManager,
         JwtTokenProvider tokenProvider,
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
-        edu.college.nss.security.RedisTokenBlacklistService tokenBlacklistService
+        edu.college.nss.security.RedisTokenBlacklistService tokenBlacklistService,
+        AuthSessionRepository authSessionRepository
     ) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.authSessionRepository = authSessionRepository;
     }
 
     @Transactional
@@ -60,9 +69,24 @@ public class AuthService {
         tokenBlacklistService.blacklistAllUserTokens(email);
     }
 
+    @Transactional
     public void logout(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
+
+            try {
+                UUID sessionId = tokenProvider.getSessionIdFromToken(token);
+                if (sessionId != null) {
+                    authSessionRepository.findById(sessionId).ifPresent(session -> {
+                        if (session.isActive()) {
+                            session.revoke("USER_LOGOUT");
+                            authSessionRepository.save(session);
+                        }
+                    });
+                }
+            } catch (Exception ignored) {
+            }
+
             try {
                 java.util.Date expiry = tokenProvider.getExpirationFromToken(token);
                 if (expiry != null) {
@@ -76,8 +100,12 @@ public class AuthService {
         }
     }
 
-    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
+        return login(request, null, null);
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         Authentication authentication = authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(request.email().toLowerCase().trim(), request.password())
         );
@@ -91,11 +119,31 @@ public class AuthService {
             throw new LockedException("Account is suspended.");
         }
 
-        String accessToken = tokenProvider.generateAccessToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(userPrincipal.getUsername());
-
         User user = userRepository.findByEmail(userPrincipal.getUsername())
             .orElseThrow(() -> new IllegalStateException("Authenticated user not found in database."));
+
+        String refreshToken = tokenProvider.generateRefreshToken(userPrincipal.getUsername());
+        String refreshTokenHash = TokenHashUtil.sha256(refreshToken);
+
+        UUID sessionId = UUID.randomUUID();
+        UUID tokenFamilyId = UUID.randomUUID();
+        Instant expiresAt = Instant.now().plusMillis(tokenProvider.getRefreshExpirationMs());
+
+        String deviceLabel = parseDeviceLabel(userAgent);
+
+        AuthSession session = new AuthSession(
+            sessionId,
+            user,
+            tokenFamilyId,
+            refreshTokenHash,
+            ipAddress,
+            userAgent,
+            deviceLabel,
+            expiresAt
+        );
+        authSessionRepository.save(session);
+
+        String accessToken = tokenProvider.generateAccessToken(authentication, sessionId);
 
         return new AuthResponse(
             accessToken,
@@ -103,6 +151,16 @@ public class AuthService {
             tokenProvider.getExpirationMs(),
             UserDto.fromEntity(user)
         );
+    }
+
+    private String parseDeviceLabel(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return "Unknown Device";
+        }
+        if (userAgent.length() > 100) {
+            return userAgent.substring(0, 100);
+        }
+        return userAgent;
     }
 
     @Transactional(readOnly = true)

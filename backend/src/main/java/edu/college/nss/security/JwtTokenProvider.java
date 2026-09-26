@@ -34,14 +34,24 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(Authentication authentication) {
+        return generateAccessToken(authentication, null);
+    }
+
+    public String generateAccessToken(Authentication authentication, UUID sessionId) {
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
             .subject(userPrincipal.getUsername())
             .claim("userId", userPrincipal.getUserId() != null ? userPrincipal.getUserId().toString() : null)
-            .claim("name", userPrincipal.getName())
+            .claim("name", userPrincipal.getName());
+
+        if (sessionId != null) {
+            builder.claim("sessionId", sessionId.toString());
+        }
+
+        return builder
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
@@ -49,13 +59,23 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessTokenFromEmail(String email, UUID userId, String name) {
+        return generateAccessTokenFromEmail(email, userId, name, null);
+    }
+
+    public String generateAccessTokenFromEmail(String email, UUID userId, String name, UUID sessionId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
             .subject(email)
             .claim("userId", userId != null ? userId.toString() : null)
-            .claim("name", name)
+            .claim("name", name);
+
+        if (sessionId != null) {
+            builder.claim("sessionId", sessionId.toString());
+        }
+
+        return builder
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
@@ -127,7 +147,25 @@ public class JwtTokenProvider {
         }
     }
 
+    public UUID getSessionIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+            String sid = claims.get("sessionId", String.class);
+            return sid != null ? UUID.fromString(sid) : null;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
     public long getExpirationMs() {
         return expirationMs;
+    }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
     }
 }
