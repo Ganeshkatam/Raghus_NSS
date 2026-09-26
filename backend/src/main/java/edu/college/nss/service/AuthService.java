@@ -24,6 +24,7 @@ import edu.college.nss.web.dto.ChangePasswordRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -67,6 +68,13 @@ public class AuthService {
 
         // Revoke all previous active sessions in Redis upon password change
         tokenBlacklistService.blacklistAllUserTokens(email);
+
+        // Revoke all active database refresh sessions
+        List<AuthSession> activeSessions = authSessionRepository.findByUser_UserIdAndIsActiveTrue(user.getUserId());
+        for (AuthSession activeSession : activeSessions) {
+            activeSession.revoke("PASSWORD_CHANGED");
+            authSessionRepository.save(activeSession);
+        }
     }
 
     @Transactional
@@ -163,7 +171,7 @@ public class AuthService {
         return userAgent;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse refresh(RefreshRequest request) {
         String token = request.refreshToken();
 
@@ -179,17 +187,69 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new BadCredentialsException("User associated with token no longer exists."));
 
+        String incomingHash = TokenHashUtil.sha256(token);
+
+        AuthSession session = authSessionRepository.findByRefreshTokenHashWithLock(incomingHash)
+            .orElseThrow(() -> new BadCredentialsException("Invalid or unrecognized refresh token."));
+
+        // 1. Detect token reuse if this token was already rotated or revoked due to reuse
+        if ("TOKEN_ROTATED".equals(session.getRevokeReason()) || "TOKEN_REUSE".equals(session.getRevokeReason())) {
+            List<AuthSession> activeFamilySessions = authSessionRepository.findByTokenFamilyIdAndIsActiveTrue(session.getTokenFamilyId());
+            for (AuthSession familySession : activeFamilySessions) {
+                familySession.revoke("FAMILY_REVOKED");
+                authSessionRepository.save(familySession);
+            }
+            throw new BadCredentialsException("Refresh token reuse detected. Token family has been revoked.");
+        }
+
+        // 2. Reject if revoked for any other reason (e.g. USER_LOGOUT, PASSWORD_CHANGED)
+        if (!session.isActive() || session.getRevokedAt() != null) {
+            throw new BadCredentialsException("Session has been revoked: " + session.getRevokeReason());
+        }
+
+        // 3. Reject if expired
+        if (session.isExpired()) {
+            session.revoke("EXPIRED");
+            authSessionRepository.save(session);
+            throw new BadCredentialsException("Session has expired.");
+        }
+
+        // 4. Verify account status
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            session.revoke("ACCOUNT_INACTIVE");
+            authSessionRepository.save(session);
             throw new DisabledException("Account is not active.");
         }
 
-        java.util.Date issuedAt = tokenProvider.getIssuedAtFromToken(token);
-        if (issuedAt != null && user.getUpdatedAt() != null && issuedAt.toInstant().isBefore(user.getUpdatedAt().minusSeconds(1))) {
-            throw new BadCredentialsException("Session invalidated due to password change. Please re-authenticate.");
-        }
+        // 5. Rotate current session credential
+        session.revoke("TOKEN_ROTATED");
+        authSessionRepository.save(session);
 
-        String newAccessToken = tokenProvider.generateAccessTokenFromEmail(user.getEmail(), user.getUserId(), user.getName());
+        // 6. Generate and persist replacement session in the same token family
         String newRefreshToken = tokenProvider.generateRefreshToken(user.getEmail());
+        String newRefreshTokenHash = TokenHashUtil.sha256(newRefreshToken);
+
+        UUID newSessionId = UUID.randomUUID();
+        Instant newExpiresAt = Instant.now().plusMillis(tokenProvider.getRefreshExpirationMs());
+
+        AuthSession newSession = new AuthSession(
+            newSessionId,
+            user,
+            session.getTokenFamilyId(),
+            newRefreshTokenHash,
+            session.getIpAddress(),
+            session.getUserAgent(),
+            session.getDeviceLabel(),
+            newExpiresAt
+        );
+        authSessionRepository.save(newSession);
+
+        String newAccessToken = tokenProvider.generateAccessTokenFromEmail(
+            user.getEmail(),
+            user.getUserId(),
+            user.getName(),
+            newSessionId
+        );
 
         return new AuthResponse(
             newAccessToken,
