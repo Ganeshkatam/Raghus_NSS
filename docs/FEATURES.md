@@ -6,22 +6,49 @@ This specification defines the functional, technical, and operational contracts 
 
 ## Module 1: Identity & Access Management (IAM)
 
-### F-01: User Authentication & JWT Session Lifecycle
-- **Purpose**: Authenticates system actors, generates stateless JWT security tokens, handles password verification via BCrypt, and supports token revocation via Redis.
-- **Authorized Actors**: All system users (`ADMIN`, `FACULTY_COORDINATOR`, `PROGRAMME_OFFICER`, `STUDENT_LEADER`, `VOLUNTEER`).
-- **API Endpoints**:
-  - `POST /api/v1/auth/login`: Authenticates username/password, returns `token`, `tokenType`, `expiresIn`, `user` dossier with assigned roles and atomic capabilities.
-  - `POST /api/v1/auth/logout`: Revokes the bearer token by writing its signature hash to Redis blocklist with remaining TTL.
-  - `POST /api/v1/auth/refresh`: Issues a refreshed JWT token for unexpired, active accounts.
-- **Data Entities**: `users`, `roles`, `user_roles`, `permissions`, `role_permissions`.
+### F-01: User Authentication, Token-Family Lifecycle & Enterprise Session Management
+- **Purpose**: Authenticates system actors, manages short-lived signed JWT access tokens and hashed rotating refresh tokens, enforces server-side authentication session lifecycle (`auth_sessions`), detects refresh-token reuse with token-family revocation, supports explicit session termination and bulk invalidation, enforces password management policies with session invalidation, prevents brute-force abuse via account lockout, and maintains security audit trails.
+- **Authoritative Specification Document**: [NSS_Authentication_Specification_Update.md](file:///e:/REC_NSS/docs/NSS_Authentication_Specification_Update.md).
+- **Authorized Actors**:
+  - Unauthenticated / Anonymous: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/forgot-password`, `POST /api/v1/auth/reset-password`.
+  - Authenticated (`ADMIN`, `FACULTY_COORDINATOR`, `PROGRAMME_OFFICER`, `STUDENT_LEADER`, `VOLUNTEER`): `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`, `POST /api/v1/auth/logout-all`, `GET /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{sessionId}`, `POST /api/v1/auth/change-password`.
+- **Architectural Security Invariants**:
+  1. **No Raw Refresh-Token Persistence**: Refresh tokens are 256-bit high-entropy strings; only cryptographic SHA-256 hashes are persisted in `auth_sessions`.
+  2. **Single-Use Rotation**: Every successful refresh operation rotates the refresh token, marking the prior token hash consumed and issuing a new token pair.
+  3. **Reuse Detection & Family Revocation**: Presentation of a previously rotated or revoked refresh token is treated as an active token-compromise event. The entire token family (`token_family_id`) is instantly revoked, and an audit security event is logged.
+  4. **Session Ownership Isolation**: Users may inspect and revoke only their own active sessions.
+  5. **Status Enforcement**: Inactive (`is_active = false`) or suspended accounts are barred from authenticating or refreshing sessions.
+  6. **Password Change & Reset Invalidation**: Successful password change or password reset invalidates all existing active refresh sessions for the affected user account.
+  7. **Transient-Error Tolerance**: Client application must not trigger local logout or clear sessions due to transient network failures, timeouts, or 502/503/504 gateway errors.
+  8. **Auditability**: All critical authentication and session state transitions emit structured, immutable audit log events.
+- **API Endpoints Contract**:
+  - `POST /api/v1/auth/login`: Validates credentials against BCrypt hash, checks account status and lockout thresholds, generates access token and refresh token, persists `auth_sessions` record, and returns `AuthResponse` with user dossier and granted capabilities.
+  - `POST /api/v1/auth/refresh`: Validates refresh token hash against active session; rotates credential; updates `last_used_at` and stored token hash. Rejection on reuse revokes the whole token family.
+  - `POST /api/v1/auth/logout`: Revokes current active session in `auth_sessions` (`revoked_at = NOW()`, `revoke_reason = 'USER_LOGOUT'`) and writes access token signature to Redis revocation store.
+  - `POST /api/v1/auth/logout-all`: Revokes all active refreshable sessions for the authenticated user (`revoke_reason = 'LOGOUT_ALL'`).
+  - `GET /api/v1/auth/sessions`: Lists active sessions for the current user with safe device/browser label, IP, creation time, and last used time (excluding raw tokens and token hashes).
+  - `DELETE /api/v1/auth/sessions/{sessionId}`: Revokes specified session after verifying user ownership.
+  - `POST /api/v1/auth/change-password`: Verifies current password, enforces password complexity policy, updates password hash, and invalidates all existing refresh sessions.
+  - `POST /api/v1/auth/forgot-password`: Generates single-use, expiring reset token (TTL 15m) without revealing whether the account exists.
+  - `POST /api/v1/auth/reset-password`: Validates reset token, applies new password, consumes token, and invalidates existing refresh sessions.
+- **Data Entities**: `users`, `auth_sessions`, `roles`, `user_roles`, `permissions`, `role_permissions`, `audit_logs`.
 - **Validation Rules**:
-  - Password minimum 8 characters; verified against BCrypt hash (cost factor >= 12).
-  - Account state must be `is_active = true`; deactivated accounts receive `403 Forbidden` (`AUTH_ACCOUNT_DISABLED`).
-  - Username and email are trimmed and case-folded during lookup.
+  - Passwords: Minimum 8 characters, at least 1 uppercase, 1 lowercase, 1 numeric, 1 special character.
+  - Account state must be `is_active = true`; locked accounts (`locked_until > NOW()`) receive `423 Locked`.
+  - Failed logins: Tracked in Redis and `users.failed_login_attempts`; locks account for 15 minutes after 5 consecutive failures.
 - **Error Contracts**:
-  - `401 Unauthorized` (`AUTH_BAD_CREDENTIALS`): Invalid username or password.
-  - `403 Forbidden` (`AUTH_TOKEN_REVOKED`): Bearer token present in Redis revocation store.
-- **Verification Criteria**: Unit tests in `AuthServiceTest` confirming token generation, claim extraction, expiry enforcement, and Redis blocklist verification.
+  - `400 Bad Request` (`AUTH_PASSWORD_POLICY_VIOLATION`, `AUTH_RESET_TOKEN_INVALID`): Invalid payload or password requirements not satisfied.
+  - `401 Unauthorized` (`AUTH_BAD_CREDENTIALS`, `AUTH_TOKEN_INVALID`, `AUTH_SESSION_EXPIRED`, `AUTH_TOKEN_REUSED`): Authentication failure or revoked/reused token.
+  - `403 Forbidden` (`AUTH_ACCOUNT_DISABLED`, `AUTH_FORBIDDEN`): Inactive account or unauthorized action.
+  - `404 Not Found` (`AUTH_SESSION_NOT_FOUND`): Target session does not exist or does not belong to the user.
+  - `423 Locked` (`AUTH_ACCOUNT_LOCKED`): Account temporarily locked due to excessive failed login attempts.
+- **Implementation Phases**:
+  - `AUTH-1`: Session Foundation (`auth_sessions` schema, entity, repository, login session creation, token hashing).
+  - `AUTH-2`: Refresh Security (rotation mechanics, token family tracking, reuse detection, audit events).
+  - `AUTH-3`: Session UX (session listing, individual session revocation, logout-all, frontend UI).
+  - `AUTH-4`: Credential Lifecycle (password change hardening, forgot/reset password flow, session invalidation).
+  - `AUTH-5`: Abuse Protection & Verification (failed-login tracking, account lockout, integration and transient error tests).
+- **Verification Criteria**: Unit and integration tests in `AuthServiceTest`, `AuthControllerTest`, and `SessionManagementIntegrationTest` verifying login, rotation, reuse detection, session revocation, lockout, and password change invalidation.
 
 ---
 

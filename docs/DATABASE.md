@@ -24,6 +24,7 @@ erDiagram
     USERS ||--o{ NSS_UNITS : "programme officer leads"
     USERS ||--o{ AUDIT_LOGS : "performs"
     USERS ||--o{ NOTIFICATIONS : "receives"
+    USERS ||--o{ AUTH_SESSIONS : "holds"
     USERS }|--|{ ROLES : "user_roles"
     ROLES }|--|{ PERMISSIONS : "role_permissions"
 
@@ -56,8 +57,26 @@ erDiagram
         varchar phone
         varchar avatar_url
         boolean is_active
+        integer failed_login_attempts
+        timestamptz locked_until
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    AUTH_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        uuid token_family_id
+        varchar refresh_token_hash
+        varchar ip_address
+        text user_agent
+        varchar device_label
+        boolean is_active
+        timestamptz created_at
+        timestamptz last_used_at
+        timestamptz expires_at
+        timestamptz revoked_at
+        varchar revoke_reason
     }
 
     ROLES {
@@ -283,8 +302,31 @@ Represents all system actors across student volunteers, faculty leaders, program
 - `phone` (`VARCHAR(20)`): Contact phone number.
 - `avatar_url` (`VARCHAR(255)`): Profile photo URI.
 - `is_active` (`BOOLEAN`, NOT NULL, DEFAULT true): Account state flag.
+- `failed_login_attempts` (`INTEGER`, NOT NULL, DEFAULT 0): Consecutive failed authentication count for brute-force tracking.
+- `locked_until` (`TIMESTAMPTZ`): Timestamp until which the account remains locked against authentication attempts.
 - `created_at` (`TIMESTAMPTZ`, NOT NULL, DEFAULT now()): Registration timestamp.
 - `updated_at` (`TIMESTAMPTZ`, NOT NULL, DEFAULT now()): Modification timestamp.
+
+#### `auth_sessions`
+Tracks active and rotated refresh sessions, cryptographic token hashes, and token families for reuse detection.
+- `id` (`UUID`, PK, `DEFAULT gen_random_uuid()`): Session identifier.
+- `user_id` (`UUID`, NOT NULL, FK `users.id` ON DELETE CASCADE): User owning this session.
+- `token_family_id` (`UUID`, NOT NULL): UUID binding all rotated generations of this session for reuse detection.
+- `refresh_token_hash` (`VARCHAR(64)`, NOT NULL): SHA-256 cryptographic digest of the current active refresh token.
+- `ip_address` (`VARCHAR(45)`): IPv4 or IPv6 client address at session creation/refresh.
+- `user_agent` (`TEXT`): Browser/client user-agent string.
+- `device_label` (`VARCHAR(100)`): Human-readable browser and OS descriptor for session UX.
+- `is_active` (`BOOLEAN`, NOT NULL, DEFAULT true): Active session flag.
+- `created_at` (`TIMESTAMPTZ`, NOT NULL, DEFAULT now()): Session creation timestamp.
+- `last_used_at` (`TIMESTAMPTZ`, NOT NULL, DEFAULT now()): Timestamp of last refresh or session verification.
+- `expires_at` (`TIMESTAMPTZ`, NOT NULL): Hard expiration timestamp (7 days from last rotation).
+- `revoked_at` (`TIMESTAMPTZ`): Invalidation timestamp if revoked before expiry.
+- `revoke_reason` (`VARCHAR(50)`): Enumerated reason code (`USER_LOGOUT`, `LOGOUT_ALL`, `TOKEN_REUSE_DETECTED`, `PASSWORD_CHANGED`, `PASSWORD_RESET`, `ADMIN_REVOKED`, `EXPIRED`).
+- **Indexes**:
+  - `idx_auth_sessions_user_id`: B-Tree on `user_id` for listing user sessions and user-level revocation.
+  - `idx_auth_sessions_token_family_id`: B-Tree on `token_family_id` for instant family revocation upon reuse detection.
+  - `idx_auth_sessions_token_hash`: B-Tree on `refresh_token_hash` for fast O(1) hash validation.
+  - `idx_auth_sessions_active_expiry`: B-Tree on `(is_active, expires_at)` for background session cleanup and validation.
 
 #### `roles`
 System access roles governing user privilege envelopes.
