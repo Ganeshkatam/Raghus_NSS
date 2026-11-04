@@ -9,6 +9,7 @@ import { API_BASE_URL } from "./api/client";
 import { UserRole } from "./config/navigation";
 
 // Dynamic route-based code splitting
+const LandingPage = React.lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
 const Login = React.lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
 const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const Volunteers = React.lazy(() => import("./pages/Volunteers").then(m => ({ default: m.Volunteers })));
@@ -90,6 +91,7 @@ export const AppContent: React.FC = () => {
       }
     >
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
 
       {/* Overview */}
