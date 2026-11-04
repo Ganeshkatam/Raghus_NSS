@@ -1,9 +1,18 @@
 /* ==========================================================================
    Raghu Engineering College NSS - Modern Institutional Landing Page
-   Design System: Smooth Surfaces, Clean Geometry, College Navy & Crimson
+   Design System: Smooth Powder Blue Surfaces, Clean Geometry, College Navy & Crimson
    ========================================================================== */
 
 :root {
+  /* Powder Blue Palette & Surface Gradients */
+  --rec-powder-blue: #b0e0e6;
+  --rec-powder-blue-light: #f3f8fc;
+  --rec-powder-blue-subtle: #e4f1fa;
+  --rec-powder-blue-border: #c6e3f4;
+  --rec-powder-blue-mid: #8ec5e7;
+  --rec-powder-blue-dark: #1b5375;
+
+  /* Institutional Accent Palette */
   --rec-navy-dark: #0a1c33;
   --rec-navy: #0c2340;
   --rec-navy-light: #16325c;
@@ -15,27 +24,32 @@
   --rec-green: #059669;
   --rec-green-light: #ecfdf5;
 
+  /* Surfaces & Backgrounds */
   --rec-bg-white: #ffffff;
-  --rec-bg-subtle: #f8fafc;
-  --rec-bg-muted: #f1f5f9;
+  --rec-bg-subtle: #f2f7fc;
+  --rec-bg-muted: #eaf2f8;
 
-  --rec-border-subtle: #e2e8f0;
-  --rec-border-medium: #cbd5e1;
+  /* Borders & Dividers */
+  --rec-border-subtle: #dbeaf5;
+  --rec-border-medium: #c2dcf0;
 
+  /* Typography */
   --rec-text-main: #0f172a;
   --rec-text-secondary: #334155;
   --rec-text-muted: #64748b;
   --rec-text-white: #ffffff;
 
+  /* Geometry & Radius */
   --rec-radius-sm: 8px;
   --rec-radius-md: 14px;
   --rec-radius-lg: 20px;
   --rec-radius-xl: 28px;
   --rec-radius-full: 9999px;
 
-  --rec-shadow-card: 0 4px 20px -2px rgba(12, 35, 64, 0.06), 0 2px 6px -1px rgba(12, 35, 64, 0.04);
-  --rec-shadow-hover: 0 16px 32px -4px rgba(12, 35, 64, 0.12), 0 4px 12px -2px rgba(12, 35, 64, 0.06);
-  --rec-shadow-elevated: 0 20px 40px -10px rgba(12, 35, 64, 0.2);
+  /* Elevated Shadows with Powder Blue Tint */
+  --rec-shadow-card: 0 4px 20px -2px rgba(27, 83, 117, 0.07), 0 2px 6px -1px rgba(27, 83, 117, 0.04);
+  --rec-shadow-hover: 0 16px 32px -4px rgba(27, 83, 117, 0.14), 0 4px 12px -2px rgba(27, 83, 117, 0.06);
+  --rec-shadow-elevated: 0 20px 40px -10px rgba(12, 35, 64, 0.18);
 }
 
 /* Accessibility Skip Link */
@@ -81,17 +95,17 @@
 }
 
 /* ==========================================================================
-   Header & Navigation (Frosted Glass Smooth Surface)
+   Header & Navigation (Frosted Powder Blue Glass Surface)
    ========================================================================== */
 
 .rec-header {
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(243, 248, 252, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--rec-border-subtle);
+  border-bottom: 1px solid var(--rec-powder-blue-border);
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -120,7 +134,7 @@
   justify-content: center;
   color: #ffffff;
   box-shadow: 0 4px 10px rgba(12, 35, 64, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-emblem-badge span {
@@ -134,7 +148,7 @@
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--rec-gold);
+  color: var(--rec-powder-blue);
   line-height: 1;
   margin-top: 2px;
 }
@@ -154,7 +168,7 @@
 .rec-portal-subtitle {
   font-size: 11px;
   font-weight: 500;
-  color: var(--rec-text-muted);
+  color: var(--rec-powder-blue-dark);
   letter-spacing: 0.2px;
 }
 
@@ -176,7 +190,7 @@
 }
 
 .rec-nav-link:hover {
-  color: var(--rec-crimson);
+  color: var(--rec-powder-blue-dark);
 }
 
 .rec-btn-login {
@@ -191,6 +205,7 @@
   border-radius: var(--rec-radius-full);
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(12, 35, 64, 0.15);
+  border: 1px solid rgba(176, 224, 230, 0.3);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -207,8 +222,8 @@
   gap: 5px;
   width: 42px;
   height: 42px;
-  background: var(--rec-bg-subtle);
-  border: 1px solid var(--rec-border-subtle);
+  background: var(--rec-powder-blue-light);
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-sm);
   cursor: pointer;
   padding: 9px;
@@ -224,14 +239,14 @@
 }
 
 /* ==========================================================================
-   Hero Section (Smooth Radial Surfaces)
+   Hero Section (Powder Blue Radial Glow & Smooth Surfaces)
    ========================================================================== */
 
 .rec-hero-section {
   position: relative;
-  background: radial-gradient(100% 120% at 85% 10%, #f0f7ff 0%, #ffffff 60%, #fdf5f5 100%);
+  background: radial-gradient(110% 120% at 85% 10%, #e1eff8 0%, #f1f8fc 45%, #ffffff 100%);
   padding: clamp(3rem, 7vw, 5.5rem) 0 clamp(2.5rem, 6vw, 4.5rem);
-  border-bottom: 1px solid var(--rec-border-subtle);
+  border-bottom: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-hero-grid {
@@ -245,13 +260,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: var(--rec-crimson-light);
-  color: var(--rec-crimson);
+  background-color: var(--rec-powder-blue-subtle);
+  color: var(--rec-powder-blue-dark);
   font-size: 11.5px;
   font-weight: 700;
   padding: 6px 14px;
   border-radius: var(--rec-radius-full);
-  border: 1px solid rgba(185, 28, 28, 0.15);
+  border: 1px solid var(--rec-powder-blue-border);
   margin-bottom: 20px;
   letter-spacing: 0.3px;
 }
@@ -259,9 +274,9 @@
 .rec-pill-dot {
   width: 7px;
   height: 7px;
-  background-color: var(--rec-crimson);
+  background-color: #2b7da8;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.2);
+  box-shadow: 0 0 0 3px rgba(43, 125, 168, 0.25);
 }
 
 .rec-hero-title {
@@ -274,7 +289,7 @@
 }
 
 .rec-accent-text {
-  background: linear-gradient(135deg, var(--rec-crimson) 0%, var(--rec-gold) 100%);
+  background: linear-gradient(135deg, var(--rec-crimson) 0%, #0284c7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -320,21 +335,21 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: var(--rec-bg-white);
+  background: #f4f9fd;
   color: var(--rec-navy) !important;
   font-size: 15px;
   font-weight: 600;
   padding: 13px 24px;
   border-radius: var(--rec-radius-md);
-  border: 1px solid var(--rec-border-medium);
+  border: 1px solid var(--rec-powder-blue-border);
   box-shadow: var(--rec-shadow-card);
   transition: all 0.2s ease;
   text-decoration: none;
 }
 
 .rec-btn-secondary:hover {
-  background: var(--rec-bg-subtle);
-  border-color: var(--rec-navy);
+  background: #e6f3fa;
+  border-color: var(--rec-powder-blue-mid);
   color: var(--rec-navy) !important;
   transform: translateY(-2px);
 }
@@ -344,23 +359,24 @@
   align-items: center;
   gap: 14px;
   padding: 14px 18px;
-  background: var(--rec-bg-white);
-  border: 1px solid var(--rec-border-subtle);
+  background: #f7fbfe;
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-md);
   max-width: 440px;
-  box-shadow: 0 2px 8px rgba(12, 35, 64, 0.04);
+  box-shadow: 0 2px 8px rgba(176, 224, 230, 0.2);
 }
 
 .rec-motto-icon {
   width: 40px;
   height: 40px;
   border-radius: var(--rec-radius-sm);
-  background: var(--rec-gold-light);
-  color: var(--rec-gold);
+  background: var(--rec-powder-blue-subtle);
+  color: var(--rec-powder-blue-dark);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-motto-label {
@@ -369,7 +385,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--rec-text-muted);
+  color: var(--rec-powder-blue-dark);
 }
 
 .rec-motto-quote {
@@ -381,10 +397,10 @@
 
 /* Showcase Card & Surface */
 .rec-surface-card {
-  background: var(--rec-bg-white);
+  background: #ffffff;
   border-radius: var(--rec-radius-xl);
-  border: 1px solid var(--rec-border-subtle);
-  box-shadow: var(--rec-shadow-elevated);
+  border: 1px solid var(--rec-powder-blue-border);
+  box-shadow: 0 20px 40px -10px rgba(27, 83, 117, 0.12);
   padding: 14px;
 }
 
@@ -423,10 +439,10 @@
 
 .rec-caption-tag {
   display: inline-block;
-  background: var(--rec-crimson);
-  color: #ffffff;
+  background: var(--rec-powder-blue);
+  color: var(--rec-navy-dark);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   padding: 4px 10px;
   border-radius: var(--rec-radius-full);
@@ -448,17 +464,17 @@
 }
 
 .rec-metric-card {
-  background: var(--rec-bg-subtle);
-  border: 1px solid var(--rec-border-subtle);
+  background: var(--rec-powder-blue-light);
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-md);
   padding: 16px 18px;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .rec-metric-card:hover {
   background: #ffffff;
   transform: translateY(-2px);
-  border-color: var(--rec-border-medium);
+  border-color: var(--rec-powder-blue-mid);
 }
 
 .rec-metric-val {
@@ -474,7 +490,7 @@
   display: block;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--rec-text-muted);
+  color: var(--rec-powder-blue-dark);
   margin-top: 4px;
 }
 
@@ -487,9 +503,9 @@
 }
 
 .rec-bg-subtle {
-  background-color: var(--rec-bg-subtle);
-  border-top: 1px solid var(--rec-border-subtle);
-  border-bottom: 1px solid var(--rec-border-subtle);
+  background-color: var(--rec-powder-blue-light);
+  border-top: 1px solid var(--rec-powder-blue-border);
+  border-bottom: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-section-header {
@@ -504,8 +520,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--rec-crimson);
+  color: var(--rec-powder-blue-dark);
+  background: var(--rec-powder-blue-subtle);
+  padding: 4px 12px;
+  border-radius: var(--rec-radius-full);
   margin-bottom: 10px;
+  border: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-section-title {
@@ -524,7 +544,7 @@
 }
 
 /* ==========================================================================
-   Pillars of NSS (Smooth Rounded Cards)
+   Pillars of NSS (Smooth Rounded Cards with Powder Blue Elements)
    ========================================================================== */
 
 .rec-pillars-grid {
@@ -535,11 +555,11 @@
 
 .rec-pillar-card {
   background: var(--rec-bg-white);
-  border: 1px solid var(--rec-border-subtle);
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-lg);
   padding: 32px 28px;
   box-shadow: var(--rec-shadow-card);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
   display: flex;
   flex-direction: column;
 }
@@ -547,7 +567,7 @@
 .rec-pillar-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--rec-shadow-hover);
-  border-color: var(--rec-border-medium);
+  border-color: var(--rec-powder-blue-mid);
 }
 
 .rec-pillar-icon {
@@ -561,18 +581,21 @@
 }
 
 .rec-icon-navy {
-  background: #eef4ff;
-  color: var(--rec-navy);
+  background: var(--rec-powder-blue-subtle);
+  color: var(--rec-powder-blue-dark);
+  border: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-icon-crimson {
   background: var(--rec-crimson-light);
   color: var(--rec-crimson);
+  border: 1px solid rgba(185, 28, 28, 0.15);
 }
 
 .rec-icon-green {
   background: var(--rec-green-light);
   color: var(--rec-green);
+  border: 1px solid rgba(5, 150, 105, 0.15);
 }
 
 .rec-pillar-card h3 {
@@ -593,7 +616,7 @@
   list-style: none;
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid var(--rec-border-subtle);
+  border-top: 1px solid var(--rec-powder-blue-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -609,7 +632,7 @@
 }
 
 .rec-pillar-list svg {
-  color: var(--rec-green);
+  color: var(--rec-powder-blue-dark);
   flex-shrink: 0;
 }
 
@@ -625,19 +648,19 @@
 
 .rec-initiative-card {
   background: var(--rec-bg-white);
-  border: 1px solid var(--rec-border-subtle);
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-lg);
   overflow: hidden;
   box-shadow: var(--rec-shadow-card);
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .rec-initiative-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--rec-shadow-hover);
-  border-color: var(--rec-border-medium);
+  border-color: var(--rec-powder-blue-mid);
 }
 
 .rec-card-media {
@@ -661,15 +684,16 @@
   position: absolute;
   top: 14px;
   left: 14px;
-  background: rgba(12, 35, 64, 0.85);
+  background: rgba(10, 28, 51, 0.88);
   backdrop-filter: blur(8px);
-  color: #ffffff;
+  color: var(--rec-powder-blue);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 5px 12px;
   border-radius: var(--rec-radius-full);
+  border: 1px solid rgba(176, 224, 230, 0.3);
 }
 
 .rec-card-content {
@@ -697,7 +721,7 @@
 .rec-card-footer {
   margin-top: auto;
   padding-top: 14px;
-  border-top: 1px solid var(--rec-border-subtle);
+  border-top: 1px solid var(--rec-powder-blue-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -706,7 +730,10 @@
 .rec-card-stat {
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--rec-crimson);
+  color: var(--rec-powder-blue-dark);
+  background: var(--rec-powder-blue-subtle);
+  padding: 3px 9px;
+  border-radius: var(--rec-radius-full);
 }
 
 .rec-card-link {
@@ -721,7 +748,7 @@
 }
 
 .rec-card-link:hover {
-  color: var(--rec-crimson);
+  color: var(--rec-powder-blue-dark);
 }
 
 /* ==========================================================================
@@ -760,8 +787,9 @@
   width: 36px;
   height: 36px;
   border-radius: var(--rec-radius-sm);
-  background: var(--rec-green-light);
-  color: var(--rec-green);
+  background: var(--rec-powder-blue-subtle);
+  color: var(--rec-powder-blue-dark);
+  border: 1px solid var(--rec-powder-blue-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -789,7 +817,7 @@
   border-radius: var(--rec-radius-xl);
   padding: 30px;
   box-shadow: 0 24px 48px -12px rgba(10, 28, 51, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(176, 224, 230, 0.25);
   position: relative;
   overflow: hidden;
 }
@@ -799,10 +827,10 @@
   position: absolute;
   top: -50px;
   right: -50px;
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(185, 28, 28, 0.25) 0%, rgba(185, 28, 28, 0) 70%);
+  background: radial-gradient(circle, rgba(176, 224, 230, 0.2) 0%, rgba(176, 224, 230, 0) 70%);
   pointer-events: none;
 }
 
@@ -821,21 +849,21 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--rec-powder-blue);
 }
 
 .rec-chip-ring {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: var(--rec-gold);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.3);
+  background-color: var(--rec-powder-blue);
+  box-shadow: 0 0 0 3px rgba(176, 224, 230, 0.35);
 }
 
 .rec-passport-status {
-  background: rgba(5, 150, 105, 0.2);
-  color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.4);
+  background: rgba(176, 224, 230, 0.15);
+  color: var(--rec-powder-blue);
+  border: 1px solid rgba(176, 224, 230, 0.4);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.8px;
@@ -854,14 +882,14 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(176, 224, 230, 0.15);
+  border: 2px solid var(--rec-powder-blue);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: 16px;
-  color: #ffffff;
+  color: var(--rec-powder-blue);
 }
 
 .rec-volunteer-name {
@@ -872,7 +900,7 @@
 
 .rec-volunteer-unit {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--rec-powder-blue);
   margin-top: 2px;
 }
 
@@ -881,7 +909,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(176, 224, 230, 0.15);
   border-radius: var(--rec-radius-md);
   padding: 16px;
   margin-bottom: 22px;
@@ -897,7 +925,7 @@
 .rec-pass-lbl {
   display: block;
   font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--rec-powder-blue);
   margin-top: 3px;
 }
 
@@ -925,7 +953,7 @@
 
 .rec-prog-bar {
   height: 100%;
-  background: linear-gradient(90deg, #34d399, #10b981);
+  background: linear-gradient(90deg, var(--rec-powder-blue), #38bdf8);
   border-radius: var(--rec-radius-full);
 }
 
@@ -946,7 +974,7 @@
 }
 
 /* ==========================================================================
-   3-Step Volunteer Flow
+   3-Step Volunteer Flow (Powder Blue Number Badges)
    ========================================================================== */
 
 .rec-steps-grid {
@@ -957,33 +985,34 @@
 
 .rec-step-card {
   background: var(--rec-bg-white);
-  border: 1px solid var(--rec-border-subtle);
+  border: 1px solid var(--rec-powder-blue-border);
   border-radius: var(--rec-radius-lg);
   padding: 34px 28px;
   box-shadow: var(--rec-shadow-card);
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .rec-step-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--rec-shadow-hover);
-  border-color: var(--rec-border-medium);
+  border-color: var(--rec-powder-blue-mid);
 }
 
 .rec-step-number {
   width: 44px;
   height: 44px;
   border-radius: var(--rec-radius-sm);
-  background: linear-gradient(135deg, var(--rec-navy) 0%, var(--rec-navy-light) 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--rec-powder-blue-subtle) 0%, var(--rec-powder-blue) 100%);
+  color: var(--rec-navy-dark);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
   font-weight: 800;
   margin-bottom: 22px;
-  box-shadow: 0 4px 10px rgba(12, 35, 64, 0.15);
+  box-shadow: 0 4px 10px rgba(176, 224, 230, 0.4);
+  border: 1px solid var(--rec-powder-blue-border);
 }
 
 .rec-step-card h3 {
@@ -1000,7 +1029,7 @@
 }
 
 /* ==========================================================================
-   Call To Action Banner
+   Call To Action Banner (Rich Ambient Glow & Powder Blue Ring)
    ========================================================================== */
 
 .rec-cta-section {
@@ -1008,7 +1037,7 @@
 }
 
 .rec-cta-card {
-  background: radial-gradient(circle at 100% 0%, #1e40af 0%, var(--rec-navy-dark) 70%);
+  background: radial-gradient(circle at 100% 0%, #1e40af 0%, var(--rec-navy) 50%, var(--rec-navy-dark) 100%);
   color: #ffffff;
   border-radius: var(--rec-radius-xl);
   padding: clamp(2.5rem, 6vw, 4.5rem);
@@ -1016,7 +1045,7 @@
   box-shadow: 0 24px 50px -10px rgba(12, 35, 64, 0.35);
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(176, 224, 230, 0.3);
 }
 
 .rec-cta-card::before {
@@ -1026,7 +1055,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--rec-crimson), var(--rec-gold), #3b82f6);
+  background: linear-gradient(90deg, var(--rec-powder-blue), #38bdf8, var(--rec-crimson));
 }
 
 .rec-cta-content {
@@ -1036,8 +1065,8 @@
 
 .rec-cta-tag {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--rec-gold);
+  background: rgba(176, 224, 230, 0.18);
+  color: var(--rec-powder-blue);
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1045,6 +1074,7 @@
   padding: 6px 16px;
   border-radius: var(--rec-radius-full);
   margin-bottom: 18px;
+  border: 1px solid rgba(176, 224, 230, 0.35);
 }
 
 .rec-cta-title {
@@ -1094,20 +1124,20 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(176, 224, 230, 0.12);
   backdrop-filter: blur(8px);
   color: #ffffff !important;
   font-size: 15px;
   font-weight: 600;
   padding: 14px 26px;
   border-radius: var(--rec-radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(176, 224, 230, 0.35);
   transition: all 0.2s ease;
   text-decoration: none;
 }
 
 .rec-btn-cta-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(176, 224, 230, 0.25);
   transform: translateY(-2px);
 }
 
@@ -1118,7 +1148,7 @@
 .rec-footer {
   background-color: var(--rec-navy-dark);
   color: rgba(255, 255, 255, 0.85);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(176, 224, 230, 0.15);
   font-size: 13.5px;
 }
 
@@ -1158,7 +1188,7 @@
 
 .rec-footer-brand p {
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--rec-powder-blue);
 }
 
 .rec-footer-address {
@@ -1171,7 +1201,7 @@
 .rec-footer-motto-callout {
   font-size: 12px;
   font-weight: 700;
-  color: var(--rec-gold);
+  color: var(--rec-powder-blue);
   letter-spacing: 0.5px;
 }
 
@@ -1200,7 +1230,7 @@
 }
 
 .rec-footer-links a:hover {
-  color: #ffffff;
+  color: var(--rec-powder-blue);
 }
 
 .rec-contact-info {
@@ -1218,8 +1248,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(176, 224, 230, 0.08);
+  border: 1px solid rgba(176, 224, 230, 0.25);
   color: #ffffff !important;
   font-size: 12px;
   font-weight: 600;
@@ -1230,8 +1260,8 @@
 }
 
 .rec-footer-login-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: #ffffff;
+  background: rgba(176, 224, 230, 0.2);
+  border-color: var(--rec-powder-blue);
 }
 
 .rec-footer-bottom {
@@ -1300,12 +1330,12 @@
     left: 0;
     right: 0;
     background: #ffffff;
-    border-bottom: 1px solid var(--rec-border-subtle);
+    border-bottom: 1px solid var(--rec-powder-blue-border);
     padding: 24px;
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
-    box-shadow: 0 16px 30px rgba(12, 35, 64, 0.1);
+    box-shadow: 0 16px 30px rgba(27, 83, 117, 0.12);
     transform: translateY(-120%);
     opacity: 0;
     pointer-events: none;
