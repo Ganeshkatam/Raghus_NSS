@@ -34,12 +34,6 @@ const Leaf = () => (
   </svg>
 );
 
-const BookOpen = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
-    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 const UsersGroup = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
     <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -49,6 +43,12 @@ const UsersGroup = () => (
 const AwardBadge = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="24" height="24">
     <path d="M12 15v2m-6 4l6-2 6 2v-4a7 7 0 10-12 0v4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const BellAlert = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16">
+    <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -119,7 +119,7 @@ export const LandingPage: React.FC = () => {
 
       {/* Main Content Container */}
       <main id="main-content">
-        {/* Hero Section */}
+        {/* Viewport-Optimized Hero Section */}
         <section className="rec-hero-section">
           <div className="rec-container rec-hero-grid">
             <div className="rec-hero-content">
@@ -195,6 +195,27 @@ export const LandingPage: React.FC = () => {
           </div>
         </section>
 
+        {/* Full-Bleed Live Announcement Ticker */}
+        <div className="rec-announcement-ticker" aria-label="Portal Announcements">
+          <div className="rec-container rec-ticker-inner">
+            <div className="rec-ticker-badge">
+              <BellAlert />
+              <span>LIVE UPDATES</span>
+            </div>
+            <div className="rec-ticker-content">
+              <span>Annual Blood Donation Mega-Camp scheduled at College Auditorium</span>
+              <span className="rec-ticker-sep">·</span>
+              <span>120+ Units Mobilized in recent Visakhapatnam Rural Health Drive</span>
+              <span className="rec-ticker-sep">·</span>
+              <span>Online NSS Credit Hour Logging Open for All Registered Units</span>
+            </div>
+            <Link to="/login" className="rec-ticker-link">
+              <span>View Portal Noticeboard</span>
+              <ArrowRight />
+            </Link>
+          </div>
+        </div>
+
         {/* Purpose & College Ideals Section */}
         <section id="about" className="rec-section rec-bg-subtle">
           <div className="rec-container">
@@ -252,7 +273,7 @@ export const LandingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Flagship Initiatives */}
+        {/* Flagship Initiatives - Expanded Viewport Grid */}
         <section id="initiatives" className="rec-section">
           <div className="rec-container">
             <div className="rec-section-header">
