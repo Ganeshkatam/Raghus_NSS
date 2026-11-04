@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +25,12 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     long countByStatus(String status);
     long countByUnit_UnitId(UUID unitId);
+
+    @Query("SELECT count(e) FROM Event e WHERE e.status in ('PUBLISHED', 'OPEN') and e.endAt >= :now")
+    long countActiveDrives(@Param("now") Instant now);
+
+    @Query("SELECT count(e) FROM Event e WHERE e.status in ('COMPLETED', 'CLOSED')")
+    long countCompletedDrives();
 
     @EntityGraph(attributePaths = {"unit", "createdBy"})
     @Query(
