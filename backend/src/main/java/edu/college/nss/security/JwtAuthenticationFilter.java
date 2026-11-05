@@ -54,6 +54,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt = getJwtFromRequest(request);
 
         if (StringUtils.hasText(jwt)) {
+            // Pre-emptively clear existing SecurityContext so failed bearer checks never inherit an earlier identity
+            SecurityContextHolder.clearContext();
+
             // 1. Signature, structure, expiration, and strict ACCESS type claim check (P0.1)
             if (!tokenProvider.validateToken(jwt) || !tokenProvider.isAccessToken(jwt)) {
                 log.debug("Bearer token rejected: invalid, expired, or non-ACCESS token");
