@@ -61,6 +61,7 @@ public class JwtTokenProvider {
             .claim("userId", userPrincipal.getUserId().toString())
             .claim("name", userPrincipal.getName())
             .claim("sessionId", sessionId.toString())
+            .claim("mustChangePassword", userPrincipal.isMustChangePassword())
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
@@ -73,6 +74,10 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessTokenFromEmail(String email, UUID userId, String name, UUID sessionId) {
+        return generateAccessTokenFromEmail(email, userId, name, sessionId, false);
+    }
+
+    public String generateAccessTokenFromEmail(String email, UUID userId, String name, UUID sessionId, boolean mustChangePassword) {
         if (sessionId == null) {
             throw new IllegalArgumentException("Access tokens require a persistent sessionId binding.");
         }
@@ -88,6 +93,7 @@ public class JwtTokenProvider {
             .claim("userId", userId.toString())
             .claim("name", name)
             .claim("sessionId", sessionId.toString())
+            .claim("mustChangePassword", mustChangePassword)
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
@@ -198,6 +204,20 @@ public class JwtTokenProvider {
             return uid != null ? UUID.fromString(uid) : null;
         } catch (JwtException | IllegalArgumentException ex) {
             return null;
+        }
+    }
+
+    public boolean isMustChangePassword(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+            Boolean mcp = claims.get("mustChangePassword", Boolean.class);
+            return Boolean.TRUE.equals(mcp);
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
         }
     }
 

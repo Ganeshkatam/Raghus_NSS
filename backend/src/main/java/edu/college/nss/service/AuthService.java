@@ -63,6 +63,7 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
         user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);
 
@@ -248,7 +249,8 @@ public class AuthService {
             user.getEmail(),
             user.getUserId(),
             user.getName(),
-            newSessionId
+            newSessionId,
+            user.isMustChangePassword()
         );
 
         return new AuthResponse(

@@ -12,11 +12,12 @@ public record UserDto(
     String email,
     String phone,
     String status,
+    boolean mustChangePassword,
     Set<String> roles,
     Set<String> permissions
 ) {
     public UserDto(UUID userId, String name, String email, String phone, String status, Set<String> roles) {
-        this(userId, name, email, phone, status, roles, Set.of());
+        this(userId, name, email, phone, status, false, roles, Set.of());
     }
 
     public static UserDto fromEntity(User user) {
@@ -41,6 +42,7 @@ public record UserDto(
             user.getEmail(),
             user.getPhone(),
             user.getStatus(),
+            user.isMustChangePassword(),
             roleNames,
             permissionNames
         );

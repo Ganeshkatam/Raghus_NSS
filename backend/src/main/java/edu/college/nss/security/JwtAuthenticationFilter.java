@@ -136,6 +136,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                 if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+                    // Check if forced password change is required
+                    boolean requiresPasswordChange = session.getUser().isMustChangePassword() || tokenProvider.isMustChangePassword(jwt);
+                    if (requiresPasswordChange) {
+                        String uri = request.getRequestURI();
+                        boolean isAllowedPasswordChangePath = uri.endsWith("/api/v1/auth/change-password")
+                            || uri.endsWith("/api/v1/auth/logout")
+                            || uri.endsWith("/api/v1/auth/me");
+
+                        if (!isAllowedPasswordChangePath) {
+                            sendForbiddenResponse(response, "PASSWORD_CHANGE_REQUIRED", "Account password change is required before accessing application resources.");
+                            return;
+                        }
+                    }
+
                     UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -156,6 +170,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void sendForbiddenResponse(HttpServletResponse response, String code, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(String.format("{\"error\":{\"code\":\"%s\",\"message\":\"%s\"}}", code, message));
     }
 
     private void sendServiceUnavailableResponse(HttpServletResponse response, String code, String message) throws IOException {

@@ -17,6 +17,7 @@ public class CustomUserDetails implements UserDetails {
     private final String email;
     private final String password;
     private final String status;
+    private final boolean mustChangePassword;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
@@ -25,6 +26,7 @@ public class CustomUserDetails implements UserDetails {
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.status = user.getStatus();
+        this.mustChangePassword = user.isMustChangePassword();
 
         Set<SimpleGrantedAuthority> auths = new HashSet<>();
         if (user.getRoles() != null) {
@@ -57,6 +59,10 @@ public class CustomUserDetails implements UserDetails {
 
     public String getStatus() {
         return status;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 
     @Override

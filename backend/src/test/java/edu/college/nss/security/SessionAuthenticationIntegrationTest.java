@@ -494,4 +494,95 @@ public class SessionAuthenticationIntegrationTest {
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
+
+    @Test
+    @DisplayName("P0.3: mustChangePassword=true blocks access to general protected endpoints with 403")
+    void mustChangePassword_blocksGeneralProtectedEndpoint() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId,
+            true
+        );
+
+        mockMvc.perform(get("/api/v1/units")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.3: mustChangePassword=true permits /change-password and successfully clears flag")
+    void mustChangePassword_allowsChangePassword_andClearsFlag() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId,
+            true
+        );
+
+        ChangePasswordRequest request = new ChangePasswordRequest(TEST_PASSWORD, "NewStrongPassword123!");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isNoContent());
+
+        User updatedUser = userRepository.findByEmail(testUser.getEmail()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertFalse(updatedUser.isMustChangePassword());
+    }
+
+    @Test
+    @DisplayName("P0.3: Refresh with mustChangePassword=true preserves the requirement in new access token")
+    void mustChangePassword_preservedAcrossRefresh() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID sessionId = UUID.randomUUID();
+        String refreshToken = tokenProvider.generateRefreshToken(testUser.getEmail());
+        String refreshTokenHash = TokenHashUtil.sha256(refreshToken);
+
+        AuthSession session = new AuthSession(
+            sessionId,
+            testUser,
+            UUID.randomUUID(),
+            refreshTokenHash,
+            "127.0.0.1",
+            "IntegrationTestBrowser",
+            "Test Device",
+            Instant.now().plusSeconds(604800)
+        );
+        authSessionRepository.save(session);
+
+        RefreshRequest refreshRequest = new RefreshRequest(refreshToken);
+
+        org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(refreshRequest)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        String responseJson = result.getResponse().getContentAsString();
+        edu.college.nss.web.dto.AuthResponse authResponse = objectMapper.readValue(
+            responseJson, edu.college.nss.web.dto.AuthResponse.class
+        );
+
+        org.junit.jupiter.api.Assertions.assertTrue(tokenProvider.isMustChangePassword(authResponse.accessToken()));
+        org.junit.jupiter.api.Assertions.assertTrue(authResponse.user().mustChangePassword());
+    }
 }
