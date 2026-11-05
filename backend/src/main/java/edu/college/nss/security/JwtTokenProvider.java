@@ -28,6 +28,12 @@ public class JwtTokenProvider {
         if (secret == null || secret.trim().length() < 32) {
             throw new IllegalArgumentException("JWT secret key must be configured and at least 32 characters (256 bits) long.");
         }
+        if (expirationMs <= 0) {
+            throw new IllegalArgumentException("JWT access token expiration must be greater than zero.");
+        }
+        if (refreshExpirationMs <= 0) {
+            throw new IllegalArgumentException("JWT refresh token expiration must be greater than zero.");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
         this.refreshExpirationMs = refreshExpirationMs;
@@ -43,13 +49,16 @@ public class JwtTokenProvider {
             throw new IllegalArgumentException("Access tokens require a persistent sessionId binding.");
         }
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
+        if (userPrincipal.getUserId() == null) {
+            throw new IllegalArgumentException("Access tokens require an authenticated user with a non-null userId.");
+        }
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
             .subject(userPrincipal.getUsername())
             .claim("type", "ACCESS")
-            .claim("userId", userPrincipal.getUserId() != null ? userPrincipal.getUserId().toString() : null)
+            .claim("userId", userPrincipal.getUserId().toString())
             .claim("name", userPrincipal.getName())
             .claim("sessionId", sessionId.toString())
             .issuedAt(now)
@@ -67,13 +76,16 @@ public class JwtTokenProvider {
         if (sessionId == null) {
             throw new IllegalArgumentException("Access tokens require a persistent sessionId binding.");
         }
+        if (userId == null) {
+            throw new IllegalArgumentException("Access tokens require an explicit non-null userId.");
+        }
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
             .subject(email)
             .claim("type", "ACCESS")
-            .claim("userId", userId != null ? userId.toString() : null)
+            .claim("userId", userId.toString())
             .claim("name", name)
             .claim("sessionId", sessionId.toString())
             .issuedAt(now)
@@ -170,6 +182,20 @@ public class JwtTokenProvider {
                 .getPayload();
             String sid = claims.get("sessionId", String.class);
             return sid != null ? UUID.fromString(sid) : null;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    public UUID getUserIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+            String uid = claims.get("userId", String.class);
+            return uid != null ? UUID.fromString(uid) : null;
         } catch (JwtException | IllegalArgumentException ex) {
             return null;
         }

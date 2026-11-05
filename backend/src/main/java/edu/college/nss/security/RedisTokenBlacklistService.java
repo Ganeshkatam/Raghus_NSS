@@ -91,7 +91,7 @@ public class RedisTokenBlacklistService {
             byte[] encodedhash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(encodedhash);
         } catch (NoSuchAlgorithmException e) {
-            return Integer.toHexString(token.hashCode());
+            throw new IllegalStateException("SHA-256 message digest algorithm not available", e);
         }
     }
 }

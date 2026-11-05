@@ -101,7 +101,7 @@ public class AuthSession implements Persistable<UUID> {
     }
 
     public boolean isExpired() {
-        return Instant.now().isAfter(this.expiresAt);
+        return expiresAt == null || !expiresAt.isAfter(Instant.now());
     }
 
     public boolean isValid() {

@@ -34,6 +34,26 @@ public class JwtTokenProviderTest {
     }
 
     @Test
+    void constructor_withNonPositiveExpiration_shouldThrowIllegalArgumentException() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class,
+            () -> new JwtTokenProvider(validSecret, 0L, 604800000L)
+        );
+        assertTrue(ex.getMessage().contains("access token expiration must be greater than zero"));
+    }
+
+    @Test
+    void constructor_withNonPositiveRefreshExpiration_shouldThrowIllegalArgumentException() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class,
+            () -> new JwtTokenProvider(validSecret, 900000L, -100L)
+        );
+        assertTrue(ex.getMessage().contains("refresh token expiration must be greater than zero"));
+    }
+
+    @Test
     void constructor_withValidSecret_shouldInitializeAndValidateToken() {
         String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
         JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
@@ -48,6 +68,18 @@ public class JwtTokenProviderTest {
         assertFalse(provider.isRefreshToken(token));
         assertEquals("test@college.edu", provider.getEmailFromToken(token));
         assertEquals(sessionId, provider.getSessionIdFromToken(token));
+        assertEquals(userId, provider.getUserIdFromToken(token));
+    }
+
+    @Test
+    void generateAccessToken_withNullUserId_throwsIllegalArgumentException() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
+        java.util.UUID sessionId = java.util.UUID.randomUUID();
+
+        assertThrows(IllegalArgumentException.class, () ->
+            provider.generateAccessTokenFromEmail("test@college.edu", null, "Test User", sessionId)
+        );
     }
 
     @Test

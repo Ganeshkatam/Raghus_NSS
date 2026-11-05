@@ -81,7 +81,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !"SUSPENDED".equalsIgnoreCase(status);
+        return !"SUSPENDED".equalsIgnoreCase(status) && !"LOCKED".equalsIgnoreCase(status);
     }
 
     @Override

@@ -2,12 +2,13 @@ package edu.college.nss.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.college.nss.domain.AuthSession;
-import edu.college.nss.domain.Role;
 import edu.college.nss.domain.User;
 import edu.college.nss.repository.AuthSessionRepository;
 import edu.college.nss.repository.UserRepository;
 import edu.college.nss.service.AuthService;
 import edu.college.nss.web.dto.ChangePasswordRequest;
+import edu.college.nss.web.dto.LoginRequest;
+import edu.college.nss.web.dto.RefreshRequest;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +34,9 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,6 +59,9 @@ public class SessionAuthenticationIntegrationTest {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockitoSpyBean
     private AuthSessionRepository authSessionRepository;
@@ -146,7 +152,6 @@ public class SessionAuthenticationIntegrationTest {
     @Test
     @DisplayName("P0.2: Access JWT with missing sessionId claim must return 401")
     void accessToken_withMissingSessionId_returns401() throws Exception {
-        // Token has type=ACCESS but sessionId claim is absent
         String tokenNoSession = Jwts.builder()
             .subject(testUser.getEmail())
             .claim("type", "ACCESS")
@@ -159,6 +164,75 @@ public class SessionAuthenticationIntegrationTest {
 
         mockMvc.perform(get("/api/v1/auth/me")
                 .header("Authorization", "Bearer " + tokenNoSession))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.2: Access JWT with missing userId claim must return 401")
+    void accessToken_withMissingUserId_returns401() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String tokenNoUserId = Jwts.builder()
+            .subject(testUser.getEmail())
+            .claim("type", "ACCESS")
+            .claim("name", testUser.getName())
+            .claim("sessionId", sessionId.toString())
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + 900000))
+            .signWith(getSigningKey())
+            .compact();
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + tokenNoUserId))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.2: Access JWT where token userId differs from session userId returns 401")
+    void accessToken_withMismatchedUserId_returns401() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        UUID randomDifferentUserId = UUID.randomUUID();
+        String mismatchedToken = Jwts.builder()
+            .subject(testUser.getEmail())
+            .claim("type", "ACCESS")
+            .claim("userId", randomDifferentUserId.toString())
+            .claim("name", testUser.getName())
+            .claim("sessionId", sessionId.toString())
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + 900000))
+            .signWith(getSigningKey())
+            .compact();
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + mismatchedToken))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.2: Access JWT where token email differs from session email returns 401")
+    void accessToken_withMismatchedEmail_returns401() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String mismatchedEmailToken = Jwts.builder()
+            .subject("different-user@raghuenggcollege.in")
+            .claim("type", "ACCESS")
+            .claim("userId", testUser.getUserId().toString())
+            .claim("name", testUser.getName())
+            .claim("sessionId", sessionId.toString())
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + 900000))
+            .signWith(getSigningKey())
+            .compact();
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + mismatchedEmailToken))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
     }
@@ -195,7 +269,7 @@ public class SessionAuthenticationIntegrationTest {
             sessionId
         );
 
-        // Perform logout (which marks session revoked in PostgreSQL)
+        // Perform logout (marks session revoked in PostgreSQL)
         authService.logout("Bearer " + token);
 
         mockMvc.perform(get("/api/v1/auth/me")
@@ -233,6 +307,26 @@ public class SessionAuthenticationIntegrationTest {
         UUID sessionId = UUID.randomUUID();
         // Session expired 5 minutes ago
         createSession(sessionId, testUser, Instant.now().minusSeconds(300));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId
+        );
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.2: Session expiring exactly at current instant returns 401")
+    void accessToken_withSessionExpiringAtCurrentInstant_returns401() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        // Boundary condition: session expires at exact current instant
+        createSession(sessionId, testUser, Instant.now());
 
         String token = tokenProvider.generateAccessTokenFromEmail(
             testUser.getEmail(),
@@ -311,6 +405,28 @@ public class SessionAuthenticationIntegrationTest {
     }
 
     @Test
+    @DisplayName("P0.2: Redis says blacklisted but PostgreSQL session valid - PostgreSQL remains authoritative and succeeds")
+    void redisSaysBlacklisted_postgreSqlSessionValid_authenticationSucceeds() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId
+        );
+
+        // Even if Redis claims the token is blacklisted, PostgreSQL session is authoritative
+        when(tokenBlacklistService.isTokenBlacklisted(any())).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.email").value(testUser.getEmail()));
+    }
+
+    @Test
     @DisplayName("P0.2: Access JWT from rotated session is rejected")
     void accessToken_fromRotatedSession_returns401() throws Exception {
         UUID sessionId = UUID.randomUUID();
@@ -332,5 +448,50 @@ public class SessionAuthenticationIntegrationTest {
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
     }
-}
 
+    @Test
+    @DisplayName("P0.3: Locked administrator login is rejected")
+    void lockedUser_login_isRejected() throws Exception {
+        testUser.setStatus("LOCKED");
+        userRepository.save(testUser);
+
+        LoginRequest loginRequest = new LoginRequest(TEST_EMAIL, TEST_PASSWORD);
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @DisplayName("P0.3: Locked administrator refresh is rejected")
+    void lockedUser_refresh_isRejected() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        String refreshToken = tokenProvider.generateRefreshToken(testUser.getEmail());
+        String refreshTokenHash = TokenHashUtil.sha256(refreshToken);
+
+        AuthSession session = new AuthSession(
+            sessionId,
+            testUser,
+            UUID.randomUUID(),
+            refreshTokenHash,
+            "127.0.0.1",
+            "IntegrationTestBrowser",
+            "Test Device",
+            Instant.now().plusSeconds(604800)
+        );
+        authSessionRepository.save(session);
+
+        testUser.setStatus("LOCKED");
+        userRepository.save(testUser);
+
+        RefreshRequest refreshRequest = new RefreshRequest(refreshToken);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(refreshRequest)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+    }
+}

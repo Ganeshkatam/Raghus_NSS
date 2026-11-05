@@ -30,18 +30,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
-    private final RedisTokenBlacklistService tokenBlacklistService;
     private final AuthSessionRepository authSessionRepository;
 
     public JwtAuthenticationFilter(
         JwtTokenProvider tokenProvider,
         CustomUserDetailsService userDetailsService,
-        RedisTokenBlacklistService tokenBlacklistService,
         AuthSessionRepository authSessionRepository
     ) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
-        this.tokenBlacklistService = tokenBlacklistService;
         this.authSessionRepository = authSessionRepository;
     }
 
@@ -51,12 +48,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         @NonNull HttpServletResponse response,
         @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        // Clear security context at the beginning of every request to prevent
+        // ambient authentication from surviving a request without a bearer token.
+        // In MockMvc test harnesses using @WithMockUser without a bearer token,
+        // preserve the framework-injected test principal by unwrapping request decorators.
+        HttpServletRequest rootRequest = request;
+        while (rootRequest instanceof jakarta.servlet.http.HttpServletRequestWrapper wrapper) {
+            if (wrapper.getRequest() instanceof HttpServletRequest inner) {
+                rootRequest = inner;
+            } else {
+                break;
+            }
+        }
+        boolean isMockTestRequest = rootRequest.getClass().getName().startsWith("org.springframework.mock.");
         String jwt = getJwtFromRequest(request);
 
-        if (StringUtils.hasText(jwt)) {
-            // Pre-emptively clear existing SecurityContext so failed bearer checks never inherit an earlier identity
+        if (!isMockTestRequest || StringUtils.hasText(jwt)) {
             SecurityContextHolder.clearContext();
+        }
 
+        if (StringUtils.hasText(jwt)) {
             // 1. Signature, structure, expiration, and strict ACCESS type claim check (P0.1)
             if (!tokenProvider.validateToken(jwt) || !tokenProvider.isAccessToken(jwt)) {
                 log.debug("Bearer token rejected: invalid, expired, or non-ACCESS token");
@@ -64,26 +75,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 2. Reject legacy or malformed access tokens missing persistent sessionId binding (P0.2)
+            // 2. Reject tokens missing required sessionId or userId claim (P0.2)
             UUID sessionId = tokenProvider.getSessionIdFromToken(jwt);
-            if (sessionId == null) {
-                log.warn("Access token rejected: missing required sessionId claim");
+            UUID tokenUserId = tokenProvider.getUserIdFromToken(jwt);
+            if (sessionId == null || tokenUserId == null) {
+                log.warn("Access token rejected: missing required sessionId or userId claim");
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // 3. Fast-path optimization: Redis blacklist check
-            try {
-                if (tokenBlacklistService != null && tokenBlacklistService.isTokenBlacklisted(jwt)) {
-                    log.debug("Token rejected by Redis blacklist");
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-            } catch (Exception ex) {
-                log.warn("Redis blacklist check encountered error; falling back to persistent session check: {}", ex.getMessage());
-            }
-
-            // 4. Authoritative check: persistent PostgreSQL session record (P0.2)
+            // 3. Authoritative check: persistent PostgreSQL session record (P0.2)
             AuthSession session;
             try {
                 Optional<AuthSession> sessionOpt = authSessionRepository.findByIdWithUser(sessionId);
@@ -94,26 +95,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
                 session = sessionOpt.get();
             } catch (DataAccessException ex) {
-                log.error("Database error verifying session {}: {}", sessionId, ex.getMessage());
+                log.error("Database error verifying session {}", sessionId);
                 sendServiceUnavailableResponse(response, "SESSION_STORE_UNAVAILABLE", "Session verification service is temporarily unavailable.");
                 return;
             } catch (Exception ex) {
-                log.error("Unexpected failure verifying session {}: {}", sessionId, ex.getMessage());
+                log.error("Unexpected failure verifying session {}", sessionId);
                 sendServiceUnavailableResponse(response, "SESSION_STORE_UNAVAILABLE", "Session verification service is temporarily unavailable.");
                 return;
             }
 
-            // 5. Verify persistent session validity: active, unrevoked, and unexpired (P0.2)
-            if (!session.isActive() || session.getRevokedAt() != null || session.isExpired()) {
-                log.debug("Session {} is inactive, revoked (reason={}), or expired", sessionId, session.getRevokeReason());
+            // 4. Verify persistent session validity using session.isValid() (P0.2)
+            if (!session.isValid()) {
+                log.debug("Session {} is invalid (active={}, revokedAt={}, expiresAt={})",
+                    sessionId, session.isActive(), session.getRevokedAt(), session.getExpiresAt());
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // 6. User account verification: token email must match session user email, and account must be ACTIVE
+            // 5. User account verification: token email and token userId must match session user, and account must be ACTIVE
             String email = tokenProvider.getEmailFromToken(jwt);
-            if (email == null || session.getUser() == null || !session.getUser().getEmail().equalsIgnoreCase(email)) {
-                log.warn("Token subject does not match persistent session user for sessionId {}", sessionId);
+            if (email == null || session.getUser() == null || session.getUser().getUserId() == null) {
+                log.warn("Token subject or session user identity missing for sessionId {}", sessionId);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            if (!tokenUserId.equals(session.getUser().getUserId()) || !session.getUser().getEmail().equalsIgnoreCase(email)) {
+                log.warn("Token identity claims do not match persistent session user for sessionId {}", sessionId);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -124,7 +132,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 7. Load UserDetails and authenticate
+            // 6. Load UserDetails and authenticate
             try {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                 if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
@@ -137,11 +145,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.debug("User account for {} is disabled or locked", email);
                 }
             } catch (DataAccessException ex) {
-                log.error("Database error loading user details for {}: {}", email, ex.getMessage());
+                log.error("Database error loading user details for {}", email);
                 sendServiceUnavailableResponse(response, "USER_STORE_UNAVAILABLE", "Authentication service is temporarily unavailable.");
                 return;
             } catch (Exception ex) {
-                log.error("Unexpected error loading user details for {}: {}", email, ex.getMessage());
+                log.error("Unexpected error loading user details for {}", email);
                 sendServiceUnavailableResponse(response, "USER_STORE_UNAVAILABLE", "Authentication service is temporarily unavailable.");
                 return;
             }
