@@ -146,13 +146,16 @@ public class SessionAuthenticationIntegrationTest {
     @Test
     @DisplayName("P0.2: Access JWT with missing sessionId claim must return 401")
     void accessToken_withMissingSessionId_returns401() throws Exception {
-        // Token has type=ACCESS but sessionId is null
-        String tokenNoSession = tokenProvider.generateAccessTokenFromEmail(
-            testUser.getEmail(),
-            testUser.getUserId(),
-            testUser.getName(),
-            null
-        );
+        // Token has type=ACCESS but sessionId claim is absent
+        String tokenNoSession = Jwts.builder()
+            .subject(testUser.getEmail())
+            .claim("type", "ACCESS")
+            .claim("userId", testUser.getUserId().toString())
+            .claim("name", testUser.getName())
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + 900000))
+            .signWith(getSigningKey())
+            .compact();
 
         mockMvc.perform(get("/api/v1/auth/me")
                 .header("Authorization", "Bearer " + tokenNoSession))

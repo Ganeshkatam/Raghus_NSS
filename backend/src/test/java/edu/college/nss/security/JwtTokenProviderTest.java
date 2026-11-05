@@ -39,13 +39,26 @@ public class JwtTokenProviderTest {
         JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
 
         java.util.UUID userId = java.util.UUID.randomUUID();
-        String token = provider.generateAccessTokenFromEmail("test@college.edu", userId, "Test User");
+        java.util.UUID sessionId = java.util.UUID.randomUUID();
+        String token = provider.generateAccessTokenFromEmail("test@college.edu", userId, "Test User", sessionId);
 
         assertNotNull(token);
         assertTrue(provider.validateToken(token));
         assertTrue(provider.isAccessToken(token));
         assertFalse(provider.isRefreshToken(token));
         assertEquals("test@college.edu", provider.getEmailFromToken(token));
+        assertEquals(sessionId, provider.getSessionIdFromToken(token));
+    }
+
+    @Test
+    void generateAccessToken_withNullSessionId_throwsIllegalArgumentException() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
+        java.util.UUID userId = java.util.UUID.randomUUID();
+
+        assertThrows(IllegalArgumentException.class, () ->
+            provider.generateAccessTokenFromEmail("test@college.edu", userId, "Test User", null)
+        );
     }
 
     @Test

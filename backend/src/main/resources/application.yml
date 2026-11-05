@@ -59,6 +59,9 @@ server:
     include-exception: false
 
 management:
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:

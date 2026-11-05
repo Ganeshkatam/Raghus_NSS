@@ -94,6 +94,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 log.error("Database error verifying session {}: {}", sessionId, ex.getMessage());
                 sendServiceUnavailableResponse(response, "SESSION_STORE_UNAVAILABLE", "Session verification service is temporarily unavailable.");
                 return;
+            } catch (Exception ex) {
+                log.error("Unexpected failure verifying session {}: {}", sessionId, ex.getMessage());
+                sendServiceUnavailableResponse(response, "SESSION_STORE_UNAVAILABLE", "Session verification service is temporarily unavailable.");
+                return;
             }
 
             // 5. Verify persistent session validity: active, unrevoked, and unexpired (P0.2)
@@ -134,7 +138,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 sendServiceUnavailableResponse(response, "USER_STORE_UNAVAILABLE", "Authentication service is temporarily unavailable.");
                 return;
             } catch (Exception ex) {
-                log.warn("Failed to load user details for {}: {}", email, ex.getMessage());
+                log.error("Unexpected error loading user details for {}: {}", email, ex.getMessage());
+                sendServiceUnavailableResponse(response, "USER_STORE_UNAVAILABLE", "Authentication service is temporarily unavailable.");
+                return;
             }
         }
 

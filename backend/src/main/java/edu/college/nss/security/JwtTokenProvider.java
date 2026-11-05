@@ -33,51 +33,49 @@ public class JwtTokenProvider {
         this.refreshExpirationMs = refreshExpirationMs;
     }
 
+    @Deprecated
     public String generateAccessToken(Authentication authentication) {
-        return generateAccessToken(authentication, null);
+        throw new UnsupportedOperationException("Access tokens require an explicit persistent sessionId binding.");
     }
 
     public String generateAccessToken(Authentication authentication, UUID sessionId) {
+        if (sessionId == null) {
+            throw new IllegalArgumentException("Access tokens require a persistent sessionId binding.");
+        }
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        var builder = Jwts.builder()
+        return Jwts.builder()
             .subject(userPrincipal.getUsername())
             .claim("type", "ACCESS")
             .claim("userId", userPrincipal.getUserId() != null ? userPrincipal.getUserId().toString() : null)
-            .claim("name", userPrincipal.getName());
-
-        if (sessionId != null) {
-            builder.claim("sessionId", sessionId.toString());
-        }
-
-        return builder
+            .claim("name", userPrincipal.getName())
+            .claim("sessionId", sessionId.toString())
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
             .compact();
     }
 
+    @Deprecated
     public String generateAccessTokenFromEmail(String email, UUID userId, String name) {
-        return generateAccessTokenFromEmail(email, userId, name, null);
+        throw new UnsupportedOperationException("Access tokens require an explicit persistent sessionId binding.");
     }
 
     public String generateAccessTokenFromEmail(String email, UUID userId, String name, UUID sessionId) {
+        if (sessionId == null) {
+            throw new IllegalArgumentException("Access tokens require a persistent sessionId binding.");
+        }
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        var builder = Jwts.builder()
+        return Jwts.builder()
             .subject(email)
             .claim("type", "ACCESS")
             .claim("userId", userId != null ? userId.toString() : null)
-            .claim("name", name);
-
-        if (sessionId != null) {
-            builder.claim("sessionId", sessionId.toString());
-        }
-
-        return builder
+            .claim("name", name)
+            .claim("sessionId", sessionId.toString())
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)
