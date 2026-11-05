@@ -28,4 +28,7 @@ public interface AuthSessionRepository extends JpaRepository<AuthSession, UUID> 
     List<AuthSession> findByTokenFamilyIdAndIsActiveTrue(UUID tokenFamilyId);
 
     Optional<AuthSession> findBySessionIdAndIsActiveTrue(UUID sessionId);
+
+    @Query("SELECT s FROM AuthSession s JOIN FETCH s.user WHERE s.sessionId = :sessionId")
+    Optional<AuthSession> findByIdWithUser(@Param("sessionId") UUID sessionId);
 }

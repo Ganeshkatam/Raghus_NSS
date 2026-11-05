@@ -43,6 +43,8 @@ public class JwtTokenProviderTest {
 
         assertNotNull(token);
         assertTrue(provider.validateToken(token));
+        assertTrue(provider.isAccessToken(token));
+        assertFalse(provider.isRefreshToken(token));
         assertEquals("test@college.edu", provider.getEmailFromToken(token));
     }
 
@@ -58,7 +60,23 @@ public class JwtTokenProviderTest {
 
         assertNotNull(token);
         assertTrue(provider.validateToken(token));
+        assertTrue(provider.isAccessToken(token));
+        assertFalse(provider.isRefreshToken(token));
         assertEquals(sessionId, provider.getSessionIdFromToken(token));
         assertEquals(604800000L, provider.getRefreshExpirationMs());
+    }
+
+    @Test
+    void generateRefreshToken_shouldSetRefreshType() {
+        String validSecret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        JwtTokenProvider provider = new JwtTokenProvider(validSecret, 900000L, 604800000L);
+
+        String refreshToken = provider.generateRefreshToken("refresh-test@college.edu");
+
+        assertNotNull(refreshToken);
+        assertTrue(provider.validateToken(refreshToken));
+        assertTrue(provider.isRefreshToken(refreshToken));
+        assertFalse(provider.isAccessToken(refreshToken));
+        assertEquals("refresh-test@college.edu", provider.getEmailFromToken(refreshToken));
     }
 }

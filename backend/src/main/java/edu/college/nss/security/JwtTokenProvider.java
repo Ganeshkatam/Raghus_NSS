@@ -44,6 +44,7 @@ public class JwtTokenProvider {
 
         var builder = Jwts.builder()
             .subject(userPrincipal.getUsername())
+            .claim("type", "ACCESS")
             .claim("userId", userPrincipal.getUserId() != null ? userPrincipal.getUserId().toString() : null)
             .claim("name", userPrincipal.getName());
 
@@ -68,6 +69,7 @@ public class JwtTokenProvider {
 
         var builder = Jwts.builder()
             .subject(email)
+            .claim("type", "ACCESS")
             .claim("userId", userId != null ? userId.toString() : null)
             .claim("name", name);
 
@@ -130,6 +132,19 @@ public class JwtTokenProvider {
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(authToken);
             return true;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+            return "ACCESS".equals(claims.get("type"));
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }
