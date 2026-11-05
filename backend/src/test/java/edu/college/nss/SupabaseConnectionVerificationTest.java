@@ -51,6 +51,60 @@ public class SupabaseConnectionVerificationTest {
             System.out.println("Error Message:   " + ex.getMessage());
             System.out.println("=======================================================\n");
         }
+
+        testRedisConnection(env.getOrDefault("SPRING_DATA_REDIS_URL", System.getenv("SPRING_DATA_REDIS_URL")));
+    }
+
+    private void testRedisConnection(String redisUrl) {
+        System.out.println("\n=======================================================");
+        System.out.println("UPSTASH REDIS CONNECTIVITY CHECK");
+        System.out.println("=======================================================");
+
+        if (redisUrl == null || redisUrl.isBlank()) {
+            System.out.println("STATUS:          SKIPPED");
+            System.out.println("Details:         SPRING_DATA_REDIS_URL is not set.");
+            System.out.println("=======================================================\n");
+            return;
+        }
+
+        try {
+            org.springframework.data.redis.connection.RedisStandaloneConfiguration config =
+                new org.springframework.data.redis.connection.RedisStandaloneConfiguration();
+
+            java.net.URI uri = java.net.URI.create(redisUrl);
+            config.setHostName(uri.getHost());
+            config.setPort(uri.getPort() > 0 ? uri.getPort() : 6379);
+
+            if (uri.getUserInfo() != null) {
+                String[] parts = uri.getUserInfo().split(":", 2);
+                if (parts.length > 1) {
+                    config.setPassword(parts[1]);
+                }
+            }
+
+            org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration clientConfig =
+                org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration.builder()
+                    .useSsl().build();
+
+            org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory factory =
+                new org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory(config, clientConfig);
+            factory.afterPropertiesSet();
+            factory.start();
+
+            try (var conn = factory.getConnection()) {
+                String pingResponse = conn.ping();
+                System.out.println("STATUS:          CONNECTED_SUCCESSFULLY");
+                System.out.println("Redis Host:      " + uri.getHost());
+                System.out.println("Ping Response:   " + pingResponse);
+                System.out.println("=======================================================\n");
+            } finally {
+                factory.destroy();
+            }
+        } catch (Exception ex) {
+            System.out.println("STATUS:          CONNECTION_FAILED");
+            System.out.println("Error Message:   " + ex.getMessage());
+            System.out.println("=======================================================\n");
+        }
     }
 
     private Map<String, String> loadEnvFile() {
