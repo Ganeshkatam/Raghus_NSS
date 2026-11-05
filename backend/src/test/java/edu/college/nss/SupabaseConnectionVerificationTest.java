@@ -75,3 +75,4 @@ public class SupabaseConnectionVerificationTest {
         return map;
     }
 }
+

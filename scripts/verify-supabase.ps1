@@ -27,3 +27,4 @@ Write-Host "[3/3] Running JDBC database connection check..." -ForegroundColor Cy
 Push-Location "$RootDir\backend"
 ./gradlew test --tests 'edu.college.nss.SupabaseConnectionVerificationTest' --info
 Pop-Location
+
