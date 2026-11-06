@@ -1,6 +1,6 @@
 -- V21__lock_compromised_admin_and_revoke_sessions.sql
 -- Remediate committed credentials (P0.3):
--- 1. Safely replace only the specific users status domain CHECK constraint with one allowing 'LOCKED'.
+-- 1. Safely locate and replace only the specific users status domain CHECK constraint with one allowing 'LOCKED'.
 -- 2. Add must_change_password flag for controlled credential provisioning.
 -- 3. Lock confirmed compromised administrator identities without altering emails or user relationships.
 -- 4. Invalidate all active persistent sessions for compromised identities.
@@ -8,28 +8,50 @@
 -- 1. Safely locate and replace only the specific users status domain constraint
 DO $$
 DECLARE
-    v_conname text;
+    v_target_conname text;
+    v_match_count integer;
+    v_already_updated boolean := false;
 BEGIN
-    FOR v_conname IN (
-        SELECT conname 
-        FROM pg_constraint 
-        WHERE conrelid = 'users'::regclass 
-          AND contype = 'c' 
+    -- Check if a status check constraint allowing 'LOCKED' already exists
+    SELECT EXISTS (
+        SELECT 1 
+        FROM pg_constraint c
+        WHERE c.conrelid = 'users'::regclass 
+          AND c.contype = 'c' 
           AND (
-              conname = 'users_status_check'
-              OR (
-                  pg_get_constraintdef(oid) LIKE '%ACTIVE%' 
-                  AND pg_get_constraintdef(oid) LIKE '%INACTIVE%' 
-                  AND pg_get_constraintdef(oid) LIKE '%SUSPENDED%'
-              )
+              c.conname = 'users_status_check'
+              OR pg_get_constraintdef(c.oid) ~* '^\s*CHECK\s*\(\(?\(?status\)?'
           )
-    ) LOOP
-        EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || quote_ident(v_conname);
-    END LOOP;
+          AND pg_get_constraintdef(c.oid) LIKE '%''LOCKED''%'
+    ) INTO v_already_updated;
 
-    -- Add the updated domain check constraint allowing 'LOCKED'
-    ALTER TABLE users ADD CONSTRAINT users_status_check 
-        CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'LOCKED'));
+    IF v_already_updated THEN
+        RAISE NOTICE 'Status check constraint already includes LOCKED. Skipping constraint replacement.';
+    ELSE
+        -- Find existing status check constraint that does not yet include LOCKED
+        SELECT COUNT(*), MAX(c.conname)
+        INTO v_match_count, v_target_conname
+        FROM pg_constraint c
+        WHERE c.conrelid = 'users'::regclass 
+          AND c.contype = 'c' 
+          AND (
+              c.conname = 'users_status_check'
+              OR c.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'status')]
+              OR pg_get_constraintdef(c.oid) ~* '^\s*CHECK\s*\(\(?\(?status\)?'
+          )
+          AND pg_get_constraintdef(c.oid) NOT LIKE '%''LOCKED''%';
+
+        IF v_match_count = 1 THEN
+            EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || quote_ident(v_target_conname);
+            ALTER TABLE users ADD CONSTRAINT users_status_check 
+                CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'LOCKED'));
+            RAISE NOTICE 'Successfully replaced status check constraint % with users_status_check', v_target_conname;
+        ELSIF v_match_count = 0 THEN
+            RAISE EXCEPTION 'Status domain check constraint not found on users table';
+        ELSE
+            RAISE EXCEPTION 'Ambiguous status CHECK constraints found on users table (count=%)', v_match_count;
+        END IF;
+    END IF;
 END $$;
 
 -- 2. Add must_change_password column if not exists

@@ -585,4 +585,138 @@ public class SessionAuthenticationIntegrationTest {
         org.junit.jupiter.api.Assertions.assertTrue(tokenProvider.isMustChangePassword(authResponse.accessToken()));
         org.junit.jupiter.api.Assertions.assertTrue(authResponse.user().mustChangePassword());
     }
+
+    @Test
+    @DisplayName("P0.3: Unauthenticated request to /change-password returns 401 AUTHENTICATION_REQUIRED")
+    void changePassword_unauthenticated_returns401() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest(TEST_PASSWORD, "NewStrongPassword123!");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("P0.3: Password length boundary: 11 characters rejected with 400, 12 characters accepted with 204")
+    void changePassword_lengthBoundary_11Rejected_12Accepted() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID sessionId = UUID.randomUUID();
+        createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId,
+            true
+        );
+
+        // 11 characters - exactly below boundary
+        ChangePasswordRequest weakRequest = new ChangePasswordRequest(TEST_PASSWORD, "ShortPass1!");
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(weakRequest)))
+            .andExpect(status().isBadRequest());
+
+        // 12 characters - exactly at boundary
+        ChangePasswordRequest validRequest = new ChangePasswordRequest(TEST_PASSWORD, "SecurePass1!");
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(validRequest)))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("P0.3: mustChangePassword=true allows /logout and revokes active session")
+    void mustChangePassword_allowsLogout_andRevokesSession() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID sessionId = UUID.randomUUID();
+        AuthSession session = createSession(sessionId, testUser, Instant.now().plusSeconds(900));
+
+        String token = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            sessionId,
+            true
+        );
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+
+        AuthSession updatedSession = authSessionRepository.findById(sessionId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertFalse(updatedSession.isActive());
+        org.junit.jupiter.api.Assertions.assertEquals("USER_LOGOUT", updatedSession.getRevokeReason());
+    }
+
+    @Test
+    @DisplayName("P0.3: Complete lifecycle: 403 on protected endpoint, /change-password clears requirement, subsequent login succeeds")
+    void mustChangePassword_fullLifecycle_blocksProtectedThenAllowsAfterPasswordChange() throws Exception {
+        testUser.setMustChangePassword(true);
+        userRepository.save(testUser);
+
+        UUID initialSessionId = UUID.randomUUID();
+        createSession(initialSessionId, testUser, Instant.now().plusSeconds(900));
+
+        String initialToken = tokenProvider.generateAccessTokenFromEmail(
+            testUser.getEmail(),
+            testUser.getUserId(),
+            testUser.getName(),
+            initialSessionId,
+            true
+        );
+
+        // 1. Calling protected endpoint returns 403 PASSWORD_CHANGE_REQUIRED
+        mockMvc.perform(get("/api/v1/units")
+                .header("Authorization", "Bearer " + initialToken))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"));
+
+        // 2. Change password via /api/v1/auth/change-password
+        String newPassword = "BrandNewSecurePassword2026!";
+        ChangePasswordRequest changeRequest = new ChangePasswordRequest(TEST_PASSWORD, newPassword);
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header("Authorization", "Bearer " + initialToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(changeRequest)))
+            .andExpect(status().isNoContent());
+
+        // 3. Verify user in database has mustChangePassword=false
+        User refreshedUser = userRepository.findByEmail(testUser.getEmail()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertFalse(refreshedUser.isMustChangePassword());
+
+        // 4. Verify old session is revoked
+        AuthSession oldSession = authSessionRepository.findById(initialSessionId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertFalse(oldSession.isActive());
+        org.junit.jupiter.api.Assertions.assertEquals("PASSWORD_CHANGED", oldSession.getRevokeReason());
+
+        // 5. Subsequent login with new password succeeds and has mustChangePassword=false
+        LoginRequest loginRequest = new LoginRequest(testUser.getEmail(), newPassword);
+        org.springframework.test.web.servlet.MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        edu.college.nss.web.dto.AuthResponse newAuthResponse = objectMapper.readValue(
+            loginResult.getResponse().getContentAsString(),
+            edu.college.nss.web.dto.AuthResponse.class
+        );
+        org.junit.jupiter.api.Assertions.assertFalse(newAuthResponse.user().mustChangePassword());
+        org.junit.jupiter.api.Assertions.assertFalse(tokenProvider.isMustChangePassword(newAuthResponse.accessToken()));
+
+        // 6. Accessing protected endpoint with new token is NOT blocked by PASSWORD_CHANGE_REQUIRED
+        mockMvc.perform(get("/api/v1/units")
+                .header("Authorization", "Bearer " + newAuthResponse.accessToken()))
+            .andExpect(status().isOk());
+    }
 }

@@ -297,7 +297,7 @@ public class AuthServiceSessionTest {
 
         when(userRepository.findByEmail("session@college.edu")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("CurrentPass123", "$2a$10$hashedPw")).thenReturn(true);
-        when(passwordEncoder.encode("NewPassword456")).thenReturn("$2a$10$newHashedPw");
+        when(passwordEncoder.encode("NewPassword456!")).thenReturn("$2a$10$newHashedPw");
 
         AuthSession activeSession1 = new AuthSession(
             UUID.randomUUID(),
@@ -323,7 +323,7 @@ public class AuthServiceSessionTest {
 
         when(authSessionRepository.findByUser_UserIdAndIsActiveTrue(userId)).thenReturn(List.of(activeSession1, activeSession2));
 
-        authService.changePassword("session@college.edu", new edu.college.nss.web.dto.ChangePasswordRequest("CurrentPass123", "NewPassword456"));
+        authService.changePassword("session@college.edu", new edu.college.nss.web.dto.ChangePasswordRequest("CurrentPass123", "NewPassword456!"));
 
         assertFalse(activeSession1.isActive());
         assertEquals("PASSWORD_CHANGED", activeSession1.getRevokeReason());

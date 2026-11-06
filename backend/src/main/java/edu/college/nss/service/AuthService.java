@@ -55,6 +55,8 @@ public class AuthService {
 
     @Transactional
     public void changePassword(String email, ChangePasswordRequest request) {
+        edu.college.nss.security.PasswordPolicy.validate(request.newPassword());
+
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
 
