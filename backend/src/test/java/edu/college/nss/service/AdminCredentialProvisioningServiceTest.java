@@ -15,6 +15,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.AbstractPlatformTransactionManager;
+import org.springframework.transaction.support.DefaultTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,20 +47,32 @@ public class AdminCredentialProvisioningServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    private TransactionTemplate transactionTemplate;
     private AdminCredentialProvisioningService provisioningService;
 
     private static final String APPROVED_ADMIN_EMAIL = "admin@raghunss.edu";
-    private static final String OPERATOR_EMAIL = "infra-lead@raghuenggcollege.in";
     private static final String STRONG_PASSWORD_12 = "SecurePass1!"; // Exactly 12 chars
     private static final String WEAK_PASSWORD_11 = "ShortPass1!"; // Exactly 11 chars
 
     @BeforeEach
     void setUp() {
+        transactionTemplate = new TransactionTemplate(new AbstractPlatformTransactionManager() {
+            @Override
+            protected Object doGetTransaction() { return new Object(); }
+            @Override
+            protected void doBegin(Object transaction, TransactionDefinition definition) {}
+            @Override
+            protected void doCommit(DefaultTransactionStatus status) {}
+            @Override
+            protected void doRollback(DefaultTransactionStatus status) {}
+        });
+
         provisioningService = new AdminCredentialProvisioningService(
             userRepository,
             authSessionRepository,
             auditLogRepository,
-            passwordEncoder
+            passwordEncoder,
+            transactionTemplate
         );
     }
 
@@ -79,7 +95,7 @@ public class AdminCredentialProvisioningServiceTest {
             .thenReturn(new ArrayList<>(List.of(activeSession)));
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
-        OperatorIdentity operator = OperatorIdentity.fromVerifiedCli(OPERATOR_EMAIL);
+        OperatorIdentity operator = OperatorIdentity.fromSystemProcess();
         provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, operator);
 
         // Verify user state updated
@@ -97,8 +113,8 @@ public class AdminCredentialProvisioningServiceTest {
         ArgumentCaptor<AuditLog> auditCaptor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository).save(auditCaptor.capture());
         AuditLog audit = auditCaptor.getValue();
-        assertEquals(OPERATOR_EMAIL, audit.getActorEmail());
-        assertTrue(audit.getActorName().contains("CLI Operator"));
+        assertEquals(operator.identifier(), audit.getActorEmail());
+        assertEquals(operator.displayName(), audit.getActorName());
         assertEquals("ADMIN_CREDENTIAL_PROVISIONED", audit.getAction());
         assertEquals("LOCKED", audit.getPreviousState());
         assertEquals("ACTIVE", audit.getNewState());
@@ -114,7 +130,7 @@ public class AdminCredentialProvisioningServiceTest {
     void provisionAdminCredential_unapprovedEmail_throwsSecurityException() {
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         SecurityException ex = assertThrows(SecurityException.class, () ->
-            provisioningService.provisionAdminCredential("attacker@example.com", passwordChars, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential("attacker@example.com", passwordChars)
         );
         assertTrue(ex.getMessage().contains("not an approved administrator recovery identity"));
     }
@@ -131,7 +147,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         SecurityException ex = assertThrows(SecurityException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
         );
         assertTrue(ex.getMessage().contains("does not possess ROLE_ADMIN"));
     }
@@ -143,7 +159,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
         );
         assertTrue(ex.getMessage().contains("Target account does not exist"));
     }
@@ -158,7 +174,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
         );
         assertTrue(ex.getMessage().contains("Target account is not locked"));
     }
@@ -169,7 +185,7 @@ public class AdminCredentialProvisioningServiceTest {
         // 11 characters
         char[] weak11 = WEAK_PASSWORD_11.toCharArray();
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, weak11, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, weak11)
         );
         assertTrue(ex.getMessage().contains("between 12 and 128 characters"));
 
@@ -183,7 +199,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] valid12 = STRONG_PASSWORD_12.toCharArray();
         assertDoesNotThrow(() ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12, OPERATOR_EMAIL)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12)
         );
     }
 
@@ -203,9 +219,23 @@ public class AdminCredentialProvisioningServiceTest {
         when(passwordEncoder.encode(any())).thenReturn("newHash");
         when(authSessionRepository.findByUser_UserIdAndIsActiveTrue(any())).thenReturn(List.of());
 
-        provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL, OPERATOR_EMAIL);
+        provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL);
 
         // Verify file was unlinked from disk after use
+        assertFalse(Files.exists(tempSecretFile));
+    }
+
+    @Test
+    @DisplayName("ProvisionFromFile guarantees zero-byte overwrite and deletion even when provisioning fails")
+    void provisionFromFile_failure_stillOverwritesAndDeletesFile() throws IOException {
+        Path tempSecretFile = Files.createTempFile("nss-admin-secret-fail-", ".tmp");
+        Files.writeString(tempSecretFile, WEAK_PASSWORD_11 + "\n");
+
+        assertThrows(IllegalArgumentException.class, () ->
+            provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL)
+        );
+
+        // Verify file was cleaned up and unlinked from disk despite failure
         assertFalse(Files.exists(tempSecretFile));
     }
 }

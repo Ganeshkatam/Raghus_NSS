@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.Console;
 import java.io.IOException;
@@ -46,17 +46,20 @@ public class AdminCredentialProvisioningService {
     private final AuthSessionRepository authSessionRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionTemplate transactionTemplate;
 
     public AdminCredentialProvisioningService(
         UserRepository userRepository,
         AuthSessionRepository authSessionRepository,
         AuditLogRepository auditLogRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        TransactionTemplate transactionTemplate
     ) {
         this.userRepository = userRepository;
         this.authSessionRepository = authSessionRepository;
         this.auditLogRepository = auditLogRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionTemplate = transactionTemplate;
     }
 
     /**
@@ -78,12 +81,10 @@ public class AdminCredentialProvisioningService {
         provisionAdminCredential(targetEmail, newPassword, OperatorIdentity.resolveCurrent());
     }
 
-    public void provisionAdminCredential(String targetEmail, char[] newPassword, String operatorEmail) {
-        provisionAdminCredential(targetEmail, newPassword, OperatorIdentity.fromVerifiedCli(operatorEmail));
-    }
-
     /**
      * Executes atomic, operator-authorized administrator credential provisioning.
+     * Uses explicit TransactionTemplate to ensure database transaction boundaries
+     * are guaranteed even when self-invoked or called outside AOP proxies.
      *
      * @param targetEmail The administrator account email to provision
      * @param newPassword The new temporary password character array (zeroed in finally block)
@@ -92,7 +93,6 @@ public class AdminCredentialProvisioningService {
      * @throws IllegalStateException if account is missing or not locked
      * @throws IllegalArgumentException if password fails policy requirements
      */
-    @Transactional
     public void provisionAdminCredential(String targetEmail, char[] newPassword, OperatorIdentity operator) {
         if (targetEmail == null || targetEmail.isBlank()) {
             throw new IllegalArgumentException("Target administrator email is required.");
@@ -110,59 +110,62 @@ public class AdminCredentialProvisioningService {
         }
 
         try {
-            // 2. Validate password complexity using policy
+            // 2. Validate password complexity using policy before opening transaction
             PasswordPolicy.validate(newPassword);
 
-            // 3. Lock user row with pessimistic write lock to prevent race conditions
-            User user = userRepository.findByEmailWithLock(normalizedEmail)
-                .orElseThrow(() -> new IllegalStateException(
-                    "Target account does not exist. Automatic account creation is prohibited; an existing administrator identity must be present."
-                ));
+            // 3. Execute atomic persistence and session revocation inside an explicit transaction
+            transactionTemplate.executeWithoutResult(status -> {
+                // Lock user row with pessimistic write lock to prevent race conditions
+                User user = userRepository.findByEmailWithLock(normalizedEmail)
+                    .orElseThrow(() -> new IllegalStateException(
+                        "Target account does not exist. Automatic account creation is prohibited; an existing administrator identity must be present."
+                    ));
 
-            // 4. Verify account is currently LOCKED
-            if (!"LOCKED".equalsIgnoreCase(user.getStatus())) {
-                throw new IllegalStateException(
-                    "Target account is not locked (current status=" + user.getStatus() + "). Provisioning can only be performed on locked accounts."
-                );
-            }
+                // Verify account is currently LOCKED
+                if (!"LOCKED".equalsIgnoreCase(user.getStatus())) {
+                    throw new IllegalStateException(
+                        "Target account is not locked (current status=" + user.getStatus() + "). Provisioning can only be performed on locked accounts."
+                    );
+                }
 
-            // 5. Verify account is ALREADY an administrator (prevent privilege escalation)
-            boolean hasAdminRole = user.getRoles() != null && user.getRoles().stream()
-                .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getName()));
-            if (!hasAdminRole) {
-                throw new SecurityException("Target account does not possess ROLE_ADMIN. Promoting non-administrator accounts is strictly prohibited.");
-            }
+                // Verify account is ALREADY an administrator (prevent privilege escalation)
+                boolean hasAdminRole = user.getRoles() != null && user.getRoles().stream()
+                    .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getName()));
+                if (!hasAdminRole) {
+                    throw new SecurityException("Target account does not possess ROLE_ADMIN. Promoting non-administrator accounts is strictly prohibited.");
+                }
 
-            // 6. Update credentials and enforce forced password change
-            CharBuffer charBuffer = CharBuffer.wrap(newPassword);
-            user.setPasswordHash(passwordEncoder.encode(charBuffer));
-            user.setStatus("ACTIVE");
-            user.setMustChangePassword(true);
-            user.setUpdatedAt(Instant.now());
-            userRepository.save(user);
+                // Update credentials and enforce forced password change
+                CharBuffer charBuffer = CharBuffer.wrap(newPassword);
+                user.setPasswordHash(passwordEncoder.encode(charBuffer));
+                user.setStatus("ACTIVE");
+                user.setMustChangePassword(true);
+                user.setUpdatedAt(Instant.now());
+                userRepository.save(user);
 
-            // 7. Revoke all existing sessions for this identity
-            List<AuthSession> existingSessions = authSessionRepository.findByUser_UserIdAndIsActiveTrue(user.getUserId());
-            for (AuthSession session : existingSessions) {
-                session.revoke("ADMIN_PROVISIONED");
-                authSessionRepository.save(session);
-            }
+                // Revoke all existing sessions for this identity
+                List<AuthSession> existingSessions = authSessionRepository.findByUser_UserIdAndIsActiveTrue(user.getUserId());
+                for (AuthSession session : existingSessions) {
+                    session.revoke("ADMIN_PROVISIONED");
+                    authSessionRepository.save(session);
+                }
 
-            // 8. Record structured audit log entry (attributable to verified operator; never logging password or hash)
-            AuditLog auditLog = new AuditLog();
-            auditLog.setActorName(effectiveOperator.displayName());
-            auditLog.setActorEmail(effectiveOperator.identifier());
-            auditLog.setAction("ADMIN_CREDENTIAL_PROVISIONED");
-            auditLog.setEntityType("USER");
-            auditLog.setEntityId(user.getUserId().toString());
-            auditLog.setEntityName(user.getName());
-            auditLog.setPreviousState("LOCKED");
-            auditLog.setNewState("ACTIVE");
-            auditLog.setReason("Controlled administrator credential rotation (" + effectiveOperator.source() + ").");
-            auditLogRepository.save(auditLog);
+                // Record structured audit log entry (attributable to verified operator; never logging password or hash)
+                AuditLog auditLog = new AuditLog();
+                auditLog.setActorName(effectiveOperator.displayName());
+                auditLog.setActorEmail(effectiveOperator.identifier());
+                auditLog.setAction("ADMIN_CREDENTIAL_PROVISIONED");
+                auditLog.setEntityType("USER");
+                auditLog.setEntityId(user.getUserId().toString());
+                auditLog.setEntityName(user.getName());
+                auditLog.setPreviousState("LOCKED");
+                auditLog.setNewState("ACTIVE");
+                auditLog.setReason("Controlled administrator credential rotation (" + effectiveOperator.source() + ").");
+                auditLogRepository.save(auditLog);
 
-            log.info("Administrator credentials successfully provisioned for user ID {} by operator {} ({})",
-                user.getUserId(), effectiveOperator.identifier(), effectiveOperator.source());
+                log.info("Administrator credentials successfully provisioned for user ID {} by operator {} ({})",
+                    user.getUserId(), effectiveOperator.identifier(), effectiveOperator.source());
+            });
         } finally {
             // Securely wipe sensitive in-memory password character array
             Arrays.fill(newPassword, '\0');
@@ -173,14 +176,10 @@ public class AdminCredentialProvisioningService {
         provisionFromFile(secretFilePath, targetEmail, OperatorIdentity.resolveCurrent());
     }
 
-    public void provisionFromFile(Path secretFilePath, String targetEmail, String operatorEmail) throws IOException {
-        provisionFromFile(secretFilePath, targetEmail, OperatorIdentity.fromVerifiedCli(operatorEmail));
-    }
-
     /**
      * Reads credentials from a protected local secret file, enforces restrictive file permissions,
      * opens atomically rejecting symlinks (LinkOption.NOFOLLOW_LINKS), provisions the account,
-     * overwrites file contents with zeros, and deletes the file.
+     * and guarantees in-place zero-byte overwrite and deletion on BOTH success and failure paths.
      */
     public void provisionFromFile(Path secretFilePath, String targetEmail, OperatorIdentity operator) throws IOException {
         if (secretFilePath == null) {
@@ -205,28 +204,34 @@ public class AdminCredentialProvisioningService {
             // Non-POSIX filesystem (e.g., Windows NTFS)
         }
 
-        // 2. Open atomically rejecting symlinks to prevent path replacement races
+        FileChannel channel = null;
         byte[] rawBytes = null;
         char[] passwordChars = null;
-        try (FileChannel channel = FileChannel.open(
+        long fileSize = 0;
+
+        try {
+            // 2. Open atomically with read/write rejecting symlinks to prevent path replacement races
+            channel = FileChannel.open(
                 secretFilePath,
                 StandardOpenOption.READ,
                 StandardOpenOption.WRITE,
                 LinkOption.NOFOLLOW_LINKS
-        )) {
-            long size = channel.size();
-            if (size <= 0) {
+            );
+
+            fileSize = channel.size();
+            if (fileSize <= 0) {
                 throw new IllegalArgumentException("Secret file is empty.");
             }
-            if (size > 4096) {
+            if (fileSize > 4096) {
                 throw new IllegalArgumentException("Secret file exceeds maximum permitted size (4KB).");
             }
 
-            int intSize = (int) size;
+            int intSize = (int) fileSize;
             rawBytes = new byte[intSize];
             ByteBuffer buffer = ByteBuffer.wrap(rawBytes);
             while (buffer.hasRemaining()) {
-                if (channel.read(buffer) < 0) {
+                int read = channel.read(buffer);
+                if (read < 0) {
                     break;
                 }
             }
@@ -252,14 +257,10 @@ public class AdminCredentialProvisioningService {
 
             // Execute provisioning
             provisionAdminCredential(targetEmail, passwordChars, operator);
-
-            // Overwrite file contents with zeros before unlinking
-            channel.position(0);
-            byte[] zeroBytes = new byte[intSize];
-            ByteBuffer zeroBuffer = ByteBuffer.wrap(zeroBytes);
-            channel.write(zeroBuffer);
-            channel.force(true);
         } finally {
+            // Guarantee in-place zero-byte overwrite and deletion on BOTH success and failure
+            zeroAndUnlinkFile(channel, secretFilePath, fileSize);
+
             // Wipe in-memory buffers
             if (rawBytes != null) {
                 Arrays.fill(rawBytes, (byte) 0);
@@ -267,11 +268,48 @@ public class AdminCredentialProvisioningService {
             if (passwordChars != null) {
                 Arrays.fill(passwordChars, '\0');
             }
-            // Delete file from disk
+        }
+    }
+
+    /**
+     * Overwrites file contents in-place with zero bytes handling partial writes in a loop,
+     * flushes to persistent storage, closes the channel, and deletes the file.
+     */
+    private void zeroAndUnlinkFile(FileChannel channel, Path secretFilePath, long fileSize) {
+        if (channel != null && channel.isOpen()) {
+            try {
+                channel.position(0);
+                long targetSize = Math.max(fileSize, channel.size());
+                byte[] zeroChunk = new byte[4096];
+                ByteBuffer zeroBuffer = ByteBuffer.wrap(zeroChunk);
+                long remaining = targetSize;
+                while (remaining > 0) {
+                    zeroBuffer.clear();
+                    if (remaining < zeroChunk.length) {
+                        zeroBuffer.limit((int) remaining);
+                    }
+                    while (zeroBuffer.hasRemaining()) {
+                        channel.write(zeroBuffer);
+                    }
+                    remaining -= zeroChunk.length;
+                }
+                channel.force(true);
+            } catch (Exception ex) {
+                log.error("Failed to overwrite secret file {} with zeros: {}", secretFilePath, ex.getMessage());
+            } finally {
+                try {
+                    channel.close();
+                } catch (IOException ex) {
+                    log.warn("Failed to close secret file channel {}: {}", secretFilePath, ex.getMessage());
+                }
+            }
+        }
+
+        if (secretFilePath != null) {
             try {
                 Files.deleteIfExists(secretFilePath);
             } catch (IOException ex) {
-                log.warn("Failed to delete secret file after provisioning: {}", ex.getMessage());
+                log.error("Failed to delete secret file {}: {}", secretFilePath, ex.getMessage());
             }
         }
     }

@@ -20,26 +20,32 @@ public record OperatorIdentity(
     }
 
     /**
-     * Resolves the operator identity from the active Spring Security context or host environment.
-     * Never trusts unauthenticated or caller-asserted strings.
+     * Resolves the operator identity from the authenticated Spring Security context.
+     * Throws SecurityException if no authenticated context is present.
      */
-    public static OperatorIdentity resolveCurrent() {
+    public static OperatorIdentity fromSecurityContext() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
-            String identifier = auth.getName();
-            String displayName = auth.getName();
-            if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-                if (userDetails.getName() != null && !userDetails.getName().isBlank()) {
-                    displayName = userDetails.getName();
-                }
-                if (userDetails.getUsername() != null && !userDetails.getUsername().isBlank()) {
-                    identifier = userDetails.getUsername();
-                }
-            }
-            return new OperatorIdentity(identifier, displayName, "SECURITY_CONTEXT");
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new SecurityException("No authenticated security context available for operator attribution.");
         }
+        String identifier = auth.getName();
+        String displayName = auth.getName();
+        if (auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            if (userDetails.getName() != null && !userDetails.getName().isBlank()) {
+                displayName = userDetails.getName();
+            }
+            if (userDetails.getUsername() != null && !userDetails.getUsername().isBlank()) {
+                identifier = userDetails.getUsername();
+            }
+        }
+        return new OperatorIdentity(identifier, displayName, "SECURITY_CONTEXT");
+    }
 
-        // Host / CLI maintenance process environment
+    /**
+     * Resolves operator identity from the operating system process runtime.
+     * Captures verified OS user, hostname, and JVM process ID.
+     */
+    public static OperatorIdentity fromSystemProcess() {
         String osUser = System.getProperty("user.name", "unknown-operator");
         String hostName;
         try {
@@ -47,18 +53,23 @@ public record OperatorIdentity(
         } catch (Exception ex) {
             hostName = "local-host";
         }
-        return new OperatorIdentity("cli:" + osUser + "@" + hostName, "CLI Operator (" + osUser + ")", "SYSTEM_CLI");
+        long pid = ProcessHandle.current().pid();
+        return new OperatorIdentity(
+            "os-user:" + osUser + "@" + hostName + "[pid=" + pid + "]",
+            "System Process (" + osUser + ")",
+            "SYSTEM_CLI"
+        );
     }
 
     /**
-     * Factory for verified CLI execution where explicit administrative attribution is provided.
+     * Automatically resolves current operator: prefers authenticated SecurityContext,
+     * falling back strictly to verified OS process attributes.
      */
-    public static OperatorIdentity fromVerifiedCli(String operatorEmail) {
-        if (operatorEmail == null || operatorEmail.isBlank()) {
-            throw new IllegalArgumentException("Operator email is required for verified CLI provisioning.");
+    public static OperatorIdentity resolveCurrent() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
+            return fromSecurityContext();
         }
-        String osUser = System.getProperty("user.name", "unknown-operator");
-        return new OperatorIdentity(operatorEmail.trim().toLowerCase(), "CLI Operator (" + osUser + ")", "VERIFIED_CLI");
+        return fromSystemProcess();
     }
 }
-
