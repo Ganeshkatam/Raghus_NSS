@@ -1,11 +1,11 @@
 package edu.college.nss.service;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import edu.college.nss.security.DatabaseIdentityGuard;
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.*;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.io.File;
-import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -17,12 +17,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Concurrency tests for database-level invariants on PostgreSQL:
+ * 1. Partial unique index on attendance_corrections (exactly 1 PENDING per record).
+ * 2. Partial unique index on service_hour_entries (exactly 1 active claim per volunteer/event).
+ * 3. Partial unique index on service_hour_entries (exactly 1 APPROVED credit per attendance record).
+ * 4. Pessimistic row locking on attendance_records (FOR UPDATE serialization).
+ *
+ * This test suite is strictly isolated from production:
+ * - Annotated with @Tag("postgres-concurrency") (excluded from regular unit test suite).
+ * - Enforces DatabaseIdentityGuard to refuse any connection to cloud, production, or remote instances.
+ * - Requires either an isolated POSTGRES_TEST_URL or a local Docker environment running Testcontainers.
+ */
+@Tag("postgres-concurrency")
 public class PostgreSqlLedgerConcurrencyTest {
 
-    private String url;
-    private String user;
-    private String pass;
-    private boolean isPostgreSqlAvailable = false;
+    private static PostgreSQLContainer<?> postgreSqlContainer;
+    private static String dbUrl;
+    private static String dbUser;
+    private static String dbPass;
+    private static boolean environmentAvailable = false;
 
     private final UUID testRunId = UUID.randomUUID();
     private UUID testUserId;
@@ -32,23 +46,71 @@ public class PostgreSqlLedgerConcurrencyTest {
     private UUID testSessionId;
     private UUID testAttendanceId;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        Map<String, String> env = loadEnvFile();
-        url = env.getOrDefault("SPRING_DATASOURCE_URL", System.getenv("SPRING_DATASOURCE_URL"));
-        user = env.getOrDefault("SPRING_DATASOURCE_USERNAME", System.getenv("SPRING_DATASOURCE_USERNAME"));
-        pass = env.getOrDefault("SPRING_DATASOURCE_PASSWORD", System.getenv("SPRING_DATASOURCE_PASSWORD"));
-
-        if (url != null && user != null && pass != null && !pass.isBlank() && !"your_supabase_db_password".equals(pass)) {
-            try (Connection conn = DriverManager.getConnection(url, user, pass)) {
-                isPostgreSqlAvailable = true;
-            } catch (Exception e) {
-                isPostgreSqlAvailable = false;
-            }
+    @BeforeAll
+    static void initDatabaseEnvironment() {
+        // 1. Check for explicitly provided isolated test database URL
+        String customTestUrl = System.getenv("POSTGRES_TEST_URL");
+        if (customTestUrl == null || customTestUrl.isBlank()) {
+            customTestUrl = System.getProperty("postgres.test.url");
         }
 
-        if (!isPostgreSqlAvailable) {
-            fail("PostgreSQL concurrency test suite failed: PostgreSQL credentials are not configured or connection failed. Live or isolated PostgreSQL is mandatory for this test suite.");
+        if (customTestUrl != null && !customTestUrl.isBlank()) {
+            // STRICT SAFETY ENFORCEMENT: Guard must verify this is NOT a production or cloud host
+            DatabaseIdentityGuard.assertSafeTestDatabase(customTestUrl);
+            dbUrl = customTestUrl;
+            dbUser = System.getenv().getOrDefault("POSTGRES_TEST_USERNAME", "postgres");
+            dbPass = System.getenv().getOrDefault("POSTGRES_TEST_PASSWORD", "postgres");
+            runFlywayMigrations(dbUrl, dbUser, dbPass);
+            environmentAvailable = true;
+            return;
+        }
+
+        // 2. Check for local Docker availability for Testcontainers
+        try {
+            if (DockerClientFactory.instance().isDockerAvailable()) {
+                postgreSqlContainer = new PostgreSQLContainer<>("postgres:17-alpine")
+                    .withDatabaseName("rec_nss_test")
+                    .withUsername("testuser")
+                    .withPassword("testpass");
+                postgreSqlContainer.start();
+
+                dbUrl = postgreSqlContainer.getJdbcUrl();
+                dbUser = postgreSqlContainer.getUsername();
+                dbPass = postgreSqlContainer.getPassword();
+
+                DatabaseIdentityGuard.assertSafeTestDatabase(dbUrl);
+                runFlywayMigrations(dbUrl, dbUser, dbPass);
+                environmentAvailable = true;
+                return;
+            }
+        } catch (Throwable ignored) {
+            // Docker unavailable
+        }
+
+        environmentAvailable = false;
+    }
+
+    @AfterAll
+    static void stopDatabaseEnvironment() {
+        if (postgreSqlContainer != null && postgreSqlContainer.isRunning()) {
+            postgreSqlContainer.stop();
+        }
+    }
+
+    private static void runFlywayMigrations(String url, String user, String pass) {
+        Flyway flyway = Flyway.configure()
+            .dataSource(url, user, pass)
+            .locations("classpath:db/migration")
+            .load();
+        flyway.migrate();
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
+        if (!environmentAvailable) {
+            fail("PostgreSQL concurrency test suite failed closed: An isolated PostgreSQL instance via POSTGRES_TEST_URL "
+                + "or a running Docker environment for Testcontainers is mandatory. "
+                + "Connecting to remote/production databases is strictly prohibited by DatabaseIdentityGuard.");
         }
 
         setupTestData();
@@ -56,13 +118,14 @@ public class PostgreSqlLedgerConcurrencyTest {
 
     @AfterEach
     void tearDown() throws Exception {
-        if (isPostgreSqlAvailable) {
+        if (environmentAvailable) {
             cleanupTestData();
         }
     }
 
     private Connection getPostgresConnection() throws Exception {
-        return DriverManager.getConnection(url, user, pass);
+        DatabaseIdentityGuard.assertSafeTestDatabase(dbUrl);
+        return DriverManager.getConnection(dbUrl, dbUser, dbPass);
     }
 
     private void setupTestData() throws Exception {
@@ -220,11 +283,9 @@ public class PostgreSqlLedgerConcurrencyTest {
                 f.get(15, TimeUnit.SECONDS);
             }
 
-            // INVARIANT VERIFICATION: Exactly ONE insert succeeded, and 9 were rejected by PostgreSQL partial index
             assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in creating a PENDING correction");
             assertEquals(threadCount - 1, duplicateErrorCount.get(), "All other concurrent threads must fail closed on unique constraint");
 
-            // Verify count directly in PostgreSQL
             try (Connection conn = getPostgresConnection();
                  PreparedStatement ps = conn.prepareStatement(
                      "SELECT COUNT(*) FROM attendance_corrections WHERE attendance_id = ? AND status = 'PENDING'")) {
@@ -289,11 +350,9 @@ public class PostgreSqlLedgerConcurrencyTest {
                 f.get(15, TimeUnit.SECONDS);
             }
 
-            // INVARIANT VERIFICATION: Exactly ONE claim succeeded, 9 failed closed on uq_service_hours_one_active_event_claim
             assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in submitting active claim");
             assertEquals(threadCount - 1, duplicateErrorCount.get(), "All other concurrent submissions must fail closed on unique constraint");
 
-            // Verify database state
             try (Connection conn = getPostgresConnection();
                  PreparedStatement ps = conn.prepareStatement(
                      "SELECT COUNT(*) FROM service_hour_entries WHERE volunteer_id = ? AND event_id = ? AND status IN ('PENDING', 'APPROVED') AND attendance_id IS NULL")) {
@@ -360,11 +419,9 @@ public class PostgreSqlLedgerConcurrencyTest {
                 f.get(15, TimeUnit.SECONDS);
             }
 
-            // INVARIANT VERIFICATION: Exactly ONE credit succeeded, 9 failed closed on uq_service_hours_one_approved_per_attendance
             assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in creating APPROVED credit for attendance");
             assertEquals(threadCount - 1, duplicateErrorCount.get(), "All other concurrent attempts must fail closed on unique constraint");
 
-            // Verify database state
             try (Connection conn = getPostgresConnection();
                  PreparedStatement ps = conn.prepareStatement(
                      "SELECT COUNT(*) FROM service_hour_entries WHERE attendance_id = ? AND status = 'APPROVED'")) {
@@ -388,12 +445,10 @@ public class PostgreSqlLedgerConcurrencyTest {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            // Thread A: Acquires row-level lock on attendance_records, updates status to ABSENT, holds lock for 800ms
             Future<Void> futureA = executor.submit(() -> {
                 try (Connection conn = getPostgresConnection()) {
                     conn.setAutoCommit(false);
 
-                    // Lock row
                     try (PreparedStatement ps = conn.prepareStatement(
                         "SELECT attendance_id, status FROM attendance_records WHERE attendance_id = ? FOR UPDATE")) {
                         ps.setObject(1, testAttendanceId);
@@ -406,7 +461,6 @@ public class PostgreSqlLedgerConcurrencyTest {
                     threadALockedLatch.countDown();
                     threadBAttemptingLatch.await(5, TimeUnit.SECONDS);
 
-                    // Update row while holding lock
                     try (PreparedStatement ps = conn.prepareStatement(
                         "UPDATE attendance_records SET status = 'ABSENT' WHERE attendance_id = ?")) {
                         ps.setObject(1, testAttendanceId);
@@ -420,7 +474,6 @@ public class PostgreSqlLedgerConcurrencyTest {
                 return null;
             });
 
-            // Thread B: Attempts to lock the same row with FOR UPDATE after Thread A has acquired the lock
             Future<String> futureB = executor.submit(() -> {
                 threadALockedLatch.await(5, TimeUnit.SECONDS);
                 threadBAttemptingLatch.countDown();
@@ -431,7 +484,6 @@ public class PostgreSqlLedgerConcurrencyTest {
                 try (Connection conn = getPostgresConnection()) {
                     conn.setAutoCommit(false);
 
-                    // This query must block until Thread A commits!
                     try (PreparedStatement ps = conn.prepareStatement(
                         "SELECT attendance_id, status FROM attendance_records WHERE attendance_id = ? FOR UPDATE")) {
                         ps.setObject(1, testAttendanceId);
@@ -450,33 +502,10 @@ public class PostgreSqlLedgerConcurrencyTest {
             futureA.get(15, TimeUnit.SECONDS);
             String statusSeenByThreadB = futureB.get(15, TimeUnit.SECONDS);
 
-            // INVARIANT VERIFICATION: Thread B serialized cleanly behind Thread A and observed committed status ABSENT
             assertEquals("ABSENT", statusSeenByThreadB, "Thread B must observe committed status from Thread A after lock release");
         } finally {
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
-    }
-
-    private Map<String, String> loadEnvFile() {
-        Map<String, String> map = new HashMap<>();
-        File envFile = new File("../.env");
-        if (!envFile.exists()) {
-            envFile = new File(".env");
-        }
-        if (envFile.exists()) {
-            try {
-                List<String> lines = Files.readAllLines(envFile.toPath());
-                for (String line : lines) {
-                    String trimmed = line.trim();
-                    if (!trimmed.isEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
-                        int idx = trimmed.indexOf('=');
-                        map.put(trimmed.substring(0, idx).trim(), trimmed.substring(idx + 1).trim());
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        }
-        return map;
     }
 }

@@ -39,5 +39,32 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'postgres-concurrency', 'deployment'
+    }
+    exclude '**/deployment/**'
+}
+
+tasks.register('testPostgresConcurrency', Test) {
+    description = 'Runs PostgreSQL ledger concurrency tests against an isolated PostgreSQL instance or Testcontainers.'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'postgres-concurrency'
+    }
+}
+
+tasks.register('verifyRemoteDatabase', JavaExec) {
+    description = 'Executes read-only connectivity and constraint verification against the configured remote database.'
+    group = 'deployment'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'edu.college.nss.deployment.LiveDatabaseDeploymentRunner'
+    args = ['verify']
+}
+
+tasks.register('migrateRemoteDatabase', JavaExec) {
+    description = 'Executes controlled Flyway migrations against the remote database. Requires CONFIRM_REMOTE_MIGRATION=true.'
+    group = 'deployment'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'edu.college.nss.deployment.LiveDatabaseDeploymentRunner'
+    args = ['migrate']
 }
