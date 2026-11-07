@@ -4,6 +4,7 @@ import edu.college.nss.domain.*;
 import edu.college.nss.exception.*;
 import edu.college.nss.repository.*;
 import edu.college.nss.web.dto.AttendanceDTOs.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -188,15 +189,20 @@ public class AttendanceService {
         }
 
         ParsedToken parsed = parseAndVerifyToken(request.token());
-        if (!redisSecurityService.acquireCheckInLock(parsed.sessionId(), volunteer.getVolunteerId())) {
-            throw new DuplicateAttendanceException();
+
+        // Optional Redis concurrency limiter (non-authoritative; DB is authoritative)
+        boolean redisLockAcquired = false;
+        try {
+            redisLockAcquired = redisSecurityService.acquireCheckInLock(parsed.sessionId(), volunteer.getVolunteerId());
+        } catch (Exception ex) {
+            // Redis failures are non-fatal, proceed with database-authoritative execution
         }
 
         try {
             AttendanceSession session = sessionRepository.findById(parsed.sessionId())
                 .orElseThrow(() -> new IllegalArgumentException("Session not found."));
 
-            validateSessionTiming(session, Instant.now());
+            validateSessionAndEvent(session, Instant.now());
 
             EventRegistration registration = registrationRepository
                 .findByEvent_EventIdAndVolunteer_VolunteerId(session.getEvent().getEventId(), volunteer.getVolunteerId())
@@ -213,12 +219,19 @@ public class AttendanceService {
                 throw new AccessDeniedException("Your active NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
             }
 
+            // Database authoritative check: existing record
             if (recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.getSessionId(), volunteer.getVolunteerId())) {
                 throw new DuplicateAttendanceException();
             }
 
-            AttendanceRecord record = new AttendanceRecord(session, volunteer, "QR", "PRESENT");
-            AttendanceRecord savedRecord = recordRepository.save(record);
+            // Database authoritative unique insert: uq_session_volunteer_attendance
+            AttendanceRecord savedRecord;
+            try {
+                AttendanceRecord record = new AttendanceRecord(session, volunteer, "QR", "PRESENT");
+                savedRecord = recordRepository.saveAndFlush(record);
+            } catch (DataIntegrityViolationException dive) {
+                throw new DuplicateAttendanceException();
+            }
 
             creditServiceHours(session.getEvent(), volunteer, savedRecord, null);
 
@@ -244,7 +257,12 @@ public class AttendanceService {
                 "Attendance successfully verified for " + session.getEvent().getTitle()
             );
         } finally {
-            redisSecurityService.releaseCheckInLock(parsed.sessionId(), volunteer.getVolunteerId());
+            if (redisLockAcquired) {
+                try {
+                    redisSecurityService.releaseCheckInLock(parsed.sessionId(), volunteer.getVolunteerId());
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
@@ -254,7 +272,7 @@ public class AttendanceService {
             .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         assertManagerForUnit(principal, session.getEvent().getUnit());
 
-        validateSessionTiming(session, Instant.now());
+        validateSessionAndEvent(session, Instant.now());
 
         String requestedStatus = req.status() != null ? req.status().trim().toUpperCase() : "";
         if (!List.of("PRESENT", "ABSENT", "EXCUSED").contains(requestedStatus)) {
@@ -343,7 +361,9 @@ public class AttendanceService {
         if (req.reason() == null || req.reason().trim().isBlank()) {
             throw new IllegalArgumentException("A valid non-blank audit reason is mandatory for attendance corrections.");
         }
-        AttendanceRecord record = recordRepository.findById(attendanceId)
+
+        // Shared lock on AttendanceRecord serializes correction creation against manual check-in and other corrections
+        AttendanceRecord record = recordRepository.findByIdWithLock(attendanceId)
             .orElseThrow(() -> new IllegalArgumentException("Attendance record not found: " + attendanceId));
 
         assertManagerForUnit(principal, record.getSession().getEvent().getUnit());
@@ -410,6 +430,11 @@ public class AttendanceService {
             throw new IllegalStateException("Correction is not pending review. Current status: " + correction.getStatus());
         }
 
+        // Shared lock on the associated AttendanceRecord ensures reviewCorrection and manualCheckIn share a common serialization boundary
+        UUID attendanceId = correction.getAttendanceRecord().getAttendanceId();
+        AttendanceRecord record = recordRepository.findByIdWithLock(attendanceId)
+            .orElseThrow(() -> new IllegalArgumentException("Associated attendance record not found: " + attendanceId));
+
         User officer = currentUser(principal);
 
         // Self-review prevention:
@@ -418,7 +443,7 @@ public class AttendanceService {
             throw new AccessDeniedException("Reviewer cannot review an attendance correction they submitted.");
         }
         // 2. Target volunteer cannot review own attendance correction
-        Volunteer targetVolunteer = correction.getAttendanceRecord().getVolunteer();
+        Volunteer targetVolunteer = record.getVolunteer();
         if (targetVolunteer != null && targetVolunteer.getUser() != null) {
             if (targetVolunteer.getUser().getUserId().equals(officer.getUserId()) ||
                 targetVolunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
@@ -432,7 +457,6 @@ public class AttendanceService {
 
         if (Boolean.TRUE.equals(req.approved())) {
             correction.setStatus("APPROVED");
-            AttendanceRecord record = correction.getAttendanceRecord();
             record.setStatus(correction.getNewStatus());
             recordRepository.save(record);
             syncServiceHoursOnCorrection(record, correction.getNewStatus(), officer);
@@ -446,20 +470,20 @@ public class AttendanceService {
             principal.getUsername(),
             "ATTENDANCE_CORRECTION_" + correction.getStatus(),
             "ATTENDANCE_RECORD",
-            correction.getAttendanceRecord().getAttendanceId().toString(),
-            correction.getAttendanceRecord().getVolunteer().getCollegeId(),
+            record.getAttendanceId().toString(),
+            record.getVolunteer().getCollegeId(),
             correction.getPreviousStatus(),
             correction.getStatus().equals("APPROVED") ? correction.getNewStatus() : correction.getPreviousStatus(),
             req.remarks() != null ? req.remarks() : "Attendance correction " + correction.getStatus()
         );
 
-        if (correction.getAttendanceRecord().getVolunteer().getUser() != null) {
+        if (record.getVolunteer().getUser() != null) {
             notificationService.sendNotification(
-                correction.getAttendanceRecord().getVolunteer().getUser(),
+                record.getVolunteer().getUser(),
                 "Attendance Correction " + correction.getStatus(),
                 "Your attendance correction request has been " + correction.getStatus() + (req.remarks() != null ? ": " + req.remarks() : ""),
                 "ATTENDANCE",
-                "/events/" + correction.getAttendanceRecord().getSession().getEvent().getEventId()
+                "/events/" + record.getSession().getEvent().getEventId()
             );
         }
 
@@ -517,8 +541,13 @@ public class AttendanceService {
         }).toList();
     }
 
-    private void validateSessionTiming(AttendanceSession session, Instant now) {
-        if (!"OPEN".equals(session.getStatus())) {
+    private void validateSessionAndEvent(AttendanceSession session, Instant now) {
+        Event event = session.getEvent();
+        if (event == null || !"OPEN".equalsIgnoreCase(event.getStatus())) {
+            String eventStatus = event != null ? event.getStatus() : "UNKNOWN";
+            throw new IllegalStateException("Event is not open for attendance (current status: " + eventStatus + "). Attendance cannot be recorded.");
+        }
+        if (!"OPEN".equalsIgnoreCase(session.getStatus())) {
             throw new AttendanceSessionExpiredException("Attendance session is not open.");
         }
         if (now.isBefore(session.getStartsAt())) {
@@ -597,17 +626,27 @@ public class AttendanceService {
             serviceHourRepository.save(entry);
         } else {
             ServiceHourEntry entry = existing.get();
-            entry.setStatus("APPROVED");
-            entry.setApprovedBy(approvedBy);
-            serviceHourRepository.save(entry);
+            if (!"APPROVED".equals(entry.getStatus())) {
+                entry.setStatus("APPROVED");
+                entry.setApprovedBy(approvedBy);
+                String auditTrail = (entry.getEvidenceNote() != null ? entry.getEvidenceNote() + "\n" : "") +
+                    "[RESTORED on " + Instant.now() + " by " + (approvedBy != null ? approvedBy.getName() : "SYSTEM") + "]: Re-approved upon attendance verification";
+                entry.setEvidenceNote(auditTrail);
+                serviceHourRepository.save(entry);
+            }
         }
     }
 
     private void revokeServiceHoursOnDemotion(AttendanceRecord record, User revokedBy) {
         serviceHourRepository.findByAttendanceRecord_AttendanceIdWithLock(record.getAttendanceId()).ifPresent(entry -> {
-            entry.setStatus("REJECTED");
-            entry.setApprovedBy(revokedBy);
-            serviceHourRepository.save(entry);
+            if ("APPROVED".equals(entry.getStatus())) {
+                entry.setStatus("REVOKED");
+                entry.setApprovedBy(revokedBy);
+                String auditTrail = (entry.getEvidenceNote() != null ? entry.getEvidenceNote() + "\n" : "") +
+                    "[REVOKED on " + Instant.now() + " by " + (revokedBy != null ? revokedBy.getName() : "SYSTEM") + "]: Attendance demoted to " + record.getStatus();
+                entry.setEvidenceNote(auditTrail);
+                serviceHourRepository.save(entry);
+            }
         });
     }
 

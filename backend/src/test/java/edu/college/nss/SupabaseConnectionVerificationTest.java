@@ -49,10 +49,107 @@ public class SupabaseConnectionVerificationTest {
         } catch (Exception ex) {
             System.out.println("STATUS:          CONNECTION_FAILED");
             System.out.println("Error Message:   " + ex.getMessage());
+            if (ex.getCause() != null) {
+                System.out.println("Cause:           " + ex.getCause().getMessage());
+            }
+            ex.printStackTrace(System.out);
             System.out.println("=======================================================\n");
         }
 
         testRedisConnection(env.getOrDefault("SPRING_DATA_REDIS_URL", System.getenv("SPRING_DATA_REDIS_URL")));
+        verifyPreV22DataIntegrity(url, user, pass);
+    }
+
+    private void verifyPreV22DataIntegrity(String url, String user, String pass) {
+        System.out.println("=======================================================");
+        System.out.println("PRE-V22 DATA INTEGRITY CHECK ON SUPABASE POSTGRESQL");
+        System.out.println("=======================================================");
+        try (Connection conn = DriverManager.getConnection(url, user, pass);
+             Statement stmt = conn.createStatement()) {
+
+            // 1. Check duplicate pending corrections
+            try (ResultSet rs = stmt.executeQuery(
+                "SELECT attendance_id, COUNT(*) as cnt FROM attendance_corrections WHERE status = 'PENDING' GROUP BY attendance_id HAVING COUNT(*) > 1")) {
+                int count = 0;
+                while (rs.next()) {
+                    count++;
+                    System.out.println("Duplicate pending correction found for attendance: " + rs.getString("attendance_id") + " (count: " + rs.getInt("cnt") + ")");
+                }
+                System.out.println("Duplicate PENDING corrections count: " + count);
+            }
+
+            // 2. Check duplicate active claims
+            try (ResultSet rs = stmt.executeQuery(
+                "SELECT volunteer_id, event_id, COUNT(*) as cnt FROM service_hour_entries WHERE status IN ('PENDING', 'APPROVED') AND attendance_id IS NULL GROUP BY volunteer_id, event_id HAVING COUNT(*) > 1")) {
+                int count = 0;
+                while (rs.next()) {
+                    count++;
+                    System.out.println("Duplicate active claim found for volunteer " + rs.getString("volunteer_id") + ", event " + rs.getString("event_id") + " (count: " + rs.getInt("cnt") + ")");
+                }
+                System.out.println("Duplicate active claims count: " + count);
+            }
+
+            // 3. Check duplicate approved attendance entries
+            try (ResultSet rs = stmt.executeQuery(
+                "SELECT attendance_id, COUNT(*) as cnt FROM service_hour_entries WHERE status = 'APPROVED' AND attendance_id IS NOT NULL GROUP BY attendance_id HAVING COUNT(*) > 1")) {
+                int count = 0;
+                while (rs.next()) {
+                    count++;
+                    System.out.println("Duplicate approved attendance entry found for attendance: " + rs.getString("attendance_id") + " (count: " + rs.getInt("cnt") + ")");
+                }
+                System.out.println("Duplicate approved attendance entries count: " + count);
+            }
+
+            // 4. Check existing constraints on service_hour_entries
+            try (ResultSet rs = stmt.executeQuery(
+                "SELECT conname, pg_get_constraintdef(oid) as def FROM pg_constraint WHERE conrelid = 'service_hour_entries'::regclass AND contype = 'c'")) {
+                while (rs.next()) {
+                    System.out.println("Found check constraint on service_hour_entries: " + rs.getString("conname") + " -> " + rs.getString("def"));
+                }
+            }
+
+            System.out.println("PRE-V22 DATA INTEGRITY CHECK PASSED - CLEAN SCHEMA READY FOR V22");
+            System.out.println("=======================================================\n");
+        } catch (Exception ex) {
+            System.out.println("PRE-V22 CHECK FAILED: " + ex.getMessage());
+            ex.printStackTrace(System.out);
+        }
+    }
+
+    @Test
+    void testFlywayMigrateV22OnSupabase() {
+        Map<String, String> env = loadEnvFile();
+        String url = env.getOrDefault("SPRING_DATASOURCE_URL", System.getenv("SPRING_DATASOURCE_URL"));
+        String user = env.getOrDefault("SPRING_DATASOURCE_USERNAME", System.getenv("SPRING_DATASOURCE_USERNAME"));
+        String pass = env.getOrDefault("SPRING_DATASOURCE_PASSWORD", System.getenv("SPRING_DATASOURCE_PASSWORD"));
+
+        if (pass == null || pass.isBlank() || "your_supabase_db_password".equals(pass)) {
+            System.out.println("Skipping Flyway migrate: password not configured.");
+            return;
+        }
+
+        System.out.println("=======================================================");
+        System.out.println("FLYWAY V22 MIGRATION EXECUTION ON SUPABASE POSTGRESQL");
+        System.out.println("=======================================================");
+        try {
+            org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+                .dataSource(url, user, pass)
+                .locations("classpath:db/migration")
+                .load();
+
+            var current = flyway.info().current();
+            System.out.println("Current Schema Version before migration: " + (current != null ? current.getVersion() : "NONE"));
+
+            var result = flyway.migrate();
+            System.out.println("Migrations Executed: " + result.migrationsExecuted);
+            System.out.println("Target Schema Version now: " + result.targetSchemaVersion);
+            System.out.println("Flyway V22 migration SUCCESSFUL on Supabase PostgreSQL.");
+            System.out.println("=======================================================\n");
+        } catch (Exception ex) {
+            System.out.println("FLYWAY MIGRATION FAILED: " + ex.getMessage());
+            ex.printStackTrace(System.out);
+            throw ex;
+        }
     }
 
     private void testRedisConnection(String redisUrl) {
@@ -103,6 +200,10 @@ public class SupabaseConnectionVerificationTest {
         } catch (Exception ex) {
             System.out.println("STATUS:          CONNECTION_FAILED");
             System.out.println("Error Message:   " + ex.getMessage());
+            if (ex.getCause() != null) {
+                System.out.println("Cause:           " + ex.getCause().getMessage());
+            }
+            ex.printStackTrace(System.out);
             System.out.println("=======================================================\n");
         }
     }

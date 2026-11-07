@@ -143,8 +143,12 @@ public class ServiceHourService {
             req.activityDate()
         );
 
-        ServiceHourEntry saved = serviceHourRepository.save(entry);
-        return toResponse(saved);
+        try {
+            ServiceHourEntry saved = serviceHourRepository.saveAndFlush(entry);
+            return toResponse(saved);
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            throw new IllegalStateException("An active or approved service hour claim already exists for this event.");
+        }
     }
 
     @Transactional(readOnly = true)

@@ -333,10 +333,12 @@ class AttendanceIntegrationTest {
         var hoursAfter = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
         assertEquals(0.0, hoursAfter.doubleValue(), 0.001);
 
-        // Verify ServiceHourEntry status is REJECTED
+        // Verify ServiceHourEntry status is REVOKED with audit note
         List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
         assertEquals(1, entries.size());
-        assertEquals("REJECTED", entries.get(0).getStatus());
+        assertEquals("REVOKED", entries.get(0).getStatus());
+        assertNotNull(entries.get(0).getEvidenceNote());
+        assertTrue(entries.get(0).getEvidenceNote().contains("[REVOKED"));
     }
 
     @Test
@@ -483,7 +485,43 @@ class AttendanceIntegrationTest {
 
         List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
         assertEquals(1, entries.size());
-        assertEquals("REJECTED", entries.get(0).getStatus());
+        assertEquals("REVOKED", entries.get(0).getStatus());
+        assertNotNull(entries.get(0).getEvidenceNote());
+        assertTrue(entries.get(0).getEvidenceNote().contains("[REVOKED"));
+    }
+
+    @Test
+    void checkIn_whenEventCancelled_shouldThrowIllegalState() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        // Cancel event while session is open
+        event.cancel();
+        eventRepository.save(event);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal));
+        assertTrue(ex.getMessage().contains("Event is not open for attendance"));
+    }
+
+    @Test
+    void manualCheckIn_whenEventClosed_shouldThrowIllegalState() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        // Close event while session is open
+        event.close();
+        eventRepository.save(event);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            attendanceService.manualCheckIn(session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal));
+        assertTrue(ex.getMessage().contains("Event is not open for attendance"));
     }
 
     @Test
