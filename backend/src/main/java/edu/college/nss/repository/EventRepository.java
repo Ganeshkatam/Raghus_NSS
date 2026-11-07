@@ -20,6 +20,11 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     Optional<Event> findByIdWithLock(@Param("eventId") UUID eventId);
 
     @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select e from Event e where e.eventId = :eventId")
+    Optional<Event> findByIdWithReadLock(@Param("eventId") UUID eventId);
+
+    @EntityGraph(attributePaths = {"participatingUnits", "unit", "createdBy"})
     @Override
     Optional<Event> findById(UUID eventId);
 

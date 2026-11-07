@@ -242,7 +242,8 @@ public class EventService {
 
     @Transactional
     public EventResponse transition(UUID eventId, String transition, UserDetails principal) {
-        Event e = getEntity(eventId);
+        Event e = eventRepository.findByIdWithLock(eventId)
+            .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         assertManagerForUnit(principal, e.getUnit());
         String previousStatus = e.getStatus();
 

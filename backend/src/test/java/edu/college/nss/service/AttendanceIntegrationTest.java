@@ -15,7 +15,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -548,5 +551,198 @@ class AttendanceIntegrationTest {
             )
         );
         assertTrue(ex.getMessage().contains("already pending review"));
+    }
+
+    @Test
+    void concurrentManualCheckIn_forSameVolunteer_normalizesToDuplicateAttendanceException() throws Exception {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        int threadCount = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger duplicateCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try {
+                        attendanceService.manualCheckIn(
+                            session.sessionId(),
+                            new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"),
+                            adminPrincipal
+                        );
+                        successCount.incrementAndGet();
+                    } catch (DuplicateAttendanceException dae) {
+                        duplicateCount.incrementAndGet();
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            // Exactly ONE thread successfully created attendance, all other concurrent calls failed closed with DuplicateAttendanceException
+            assertEquals(1, successCount.get(), "Exactly one concurrent manual check-in must succeed");
+            assertEquals(threadCount - 1, duplicateCount.get(), "Concurrent duplicate manual check-ins must fail with DuplicateAttendanceException");
+
+            // Database state verification
+            assertEquals(1, recordRepository.count(), "Exactly one AttendanceRecord must exist");
+            assertEquals(1, serviceHourRepository.count(), "Exactly one ServiceHourEntry must exist");
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentCorrectionCreation_forSameRecord_serializesAndAllowsOnlyOnePending() throws Exception {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        int threadCount = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger rejectedCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                final int threadNum = i;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try {
+                        attendanceService.correctAttendance(
+                            checkIn.attendanceId(),
+                            new CorrectionRequest("EXCUSED", "Medical document " + threadNum),
+                            poPrincipal
+                        );
+                        successCount.incrementAndGet();
+                    } catch (IllegalStateException ise) {
+                        if (ise.getMessage().contains("already pending review")) {
+                            rejectedCount.incrementAndGet();
+                        } else {
+                            ise.printStackTrace();
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            // Exactly ONE correction creation succeeds, all concurrent calls are serialized via row locking and fail closed
+            assertEquals(1, successCount.get(), "Exactly one correction request must succeed");
+            assertEquals(threadCount - 1, rejectedCount.get(), "Concurrent correction requests must fail with IllegalStateException");
+
+            // Database state verification
+            assertEquals(1, correctionRepository.count(), "Database must contain exactly 1 correction");
+            assertEquals("PENDING", correctionRepository.findAll().get(0).getStatus());
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentManualDemotionAndCorrectionReview_serializesCleanlyAndPreservesLedgerConsistency() throws Exception {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        // Volunteer has APPROVED service hours entry (event duration is 1 hour: 1800s before to 1800s after)
+        assertEquals(1.0, serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId()).doubleValue(), 0.001);
+
+        // Submit a pending correction to EXCUSED
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("EXCUSED", "Valid absence proof"),
+            poPrincipal
+        );
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(2);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            // Thread A: Manual demotion to ABSENT
+            Future<Void> futureA = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                attendanceService.manualCheckIn(
+                    session.sessionId(),
+                    new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT", "Audited coordinator demotion"),
+                    adminPrincipal
+                );
+                return null;
+            });
+
+            // Thread B: Correction review approving EXCUSED
+            Future<Void> futureB = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                attendanceService.reviewCorrection(
+                    correction.correctionId(),
+                    new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Reviewed and verified"),
+                    adminPrincipal
+                );
+                return null;
+            });
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            futureA.get(15, TimeUnit.SECONDS);
+            futureB.get(15, TimeUnit.SECONDS);
+
+            // Both operations must serialize cleanly via row lock without deadlock
+            AttendanceRecord finalRecord = recordRepository.findById(checkIn.attendanceId()).orElseThrow();
+            assertTrue(List.of("ABSENT", "EXCUSED").contains(finalRecord.getStatus()),
+                "Final record status must be either ABSENT or EXCUSED");
+
+            // In either case, the volunteer is not PRESENT -> service hours entry must be REVOKED (0.0 hours credited)
+            assertEquals(0.0, serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId()).doubleValue(), 0.001);
+            List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+            assertEquals(1, entries.size());
+            assertEquals("REVOKED", entries.get(0).getStatus());
+            assertTrue(entries.get(0).getEvidenceNote().contains("[REVOKED"));
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
     }
 }

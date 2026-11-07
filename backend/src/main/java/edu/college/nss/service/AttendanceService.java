@@ -315,17 +315,24 @@ public class AttendanceService {
         if (existing.isPresent()) {
             record = existing.get();
             previousStatus = record.getStatus();
-            if (!previousStatus.equalsIgnoreCase(requestedStatus)) {
-                if (req.reason() == null || req.reason().trim().isBlank()) {
-                    throw new IllegalArgumentException("A valid non-blank audit reason is mandatory when modifying existing attendance status.");
-                }
+            if (previousStatus.equalsIgnoreCase(requestedStatus)) {
+                throw new DuplicateAttendanceException();
+            }
+            if (req.reason() == null || req.reason().trim().isBlank()) {
+                throw new IllegalArgumentException("A valid non-blank audit reason is mandatory when modifying existing attendance status.");
             }
             record.setStatus(requestedStatus);
             record.setCheckInMethod("MANUAL_COORDINATOR");
         } else {
             record = new AttendanceRecord(session, volunteer, "MANUAL_COORDINATOR", requestedStatus);
         }
-        AttendanceRecord saved = recordRepository.save(record);
+
+        AttendanceRecord saved;
+        try {
+            saved = recordRepository.saveAndFlush(record);
+        } catch (DataIntegrityViolationException dive) {
+            throw new DuplicateAttendanceException();
+        }
 
         if ("PRESENT".equals(requestedStatus)) {
             creditServiceHours(session.getEvent(), volunteer, saved, manager);
@@ -542,10 +549,13 @@ public class AttendanceService {
     }
 
     private void validateSessionAndEvent(AttendanceSession session, Instant now) {
-        Event event = session.getEvent();
-        if (event == null || !"OPEN".equalsIgnoreCase(event.getStatus())) {
-            String eventStatus = event != null ? event.getStatus() : "UNKNOWN";
-            throw new IllegalStateException("Event is not open for attendance (current status: " + eventStatus + "). Attendance cannot be recorded.");
+        if (session.getEvent() == null || session.getEvent().getEventId() == null) {
+            throw new IllegalStateException("Attendance session is not associated with a valid event.");
+        }
+        Event event = eventRepository.findByIdWithReadLock(session.getEvent().getEventId())
+            .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + session.getEvent().getEventId()));
+        if (!"OPEN".equalsIgnoreCase(event.getStatus())) {
+            throw new IllegalStateException("Event is not open for attendance (current status: " + event.getStatus() + "). Attendance cannot be recorded.");
         }
         if (!"OPEN".equalsIgnoreCase(session.getStatus())) {
             throw new AttendanceSessionExpiredException("Attendance session is not open.");

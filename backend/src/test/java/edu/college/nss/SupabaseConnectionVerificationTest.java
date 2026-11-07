@@ -117,7 +117,7 @@ public class SupabaseConnectionVerificationTest {
     }
 
     @Test
-    void testFlywayMigrateV22OnSupabase() {
+    void testFlywayMigrateV23OnSupabase() {
         Map<String, String> env = loadEnvFile();
         String url = env.getOrDefault("SPRING_DATASOURCE_URL", System.getenv("SPRING_DATASOURCE_URL"));
         String user = env.getOrDefault("SPRING_DATASOURCE_USERNAME", System.getenv("SPRING_DATASOURCE_USERNAME"));
@@ -128,27 +128,41 @@ public class SupabaseConnectionVerificationTest {
             return;
         }
 
-        System.out.println("=======================================================");
-        System.out.println("FLYWAY V22 MIGRATION EXECUTION ON SUPABASE POSTGRESQL");
-        System.out.println("=======================================================");
-        try {
-            org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
-                .dataSource(url, user, pass)
-                .locations("classpath:db/migration")
-                .load();
+        if (!url.contains("connectTimeout")) {
+            url = url + (url.contains("?") ? "&" : "?") + "connectTimeout=30&socketTimeout=60";
+        }
 
-            var current = flyway.info().current();
-            System.out.println("Current Schema Version before migration: " + (current != null ? current.getVersion() : "NONE"));
+        System.out.println("=======================================================");
+        System.out.println("FLYWAY V23 MIGRATION EXECUTION ON SUPABASE POSTGRESQL");
+        System.out.println("=======================================================");
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+                    .dataSource(url, user, pass)
+                    .locations("classpath:db/migration")
+                    .load();
 
-            var result = flyway.migrate();
-            System.out.println("Migrations Executed: " + result.migrationsExecuted);
-            System.out.println("Target Schema Version now: " + result.targetSchemaVersion);
-            System.out.println("Flyway V22 migration SUCCESSFUL on Supabase PostgreSQL.");
-            System.out.println("=======================================================\n");
-        } catch (Exception ex) {
-            System.out.println("FLYWAY MIGRATION FAILED: " + ex.getMessage());
-            ex.printStackTrace(System.out);
-            throw ex;
+                var current = flyway.info().current();
+                System.out.println("Current Schema Version before migration: " + (current != null ? current.getVersion() : "NONE"));
+
+                var result = flyway.migrate();
+                System.out.println("Migrations Executed: " + result.migrationsExecuted);
+                System.out.println("Target Schema Version now: " + result.targetSchemaVersion);
+                System.out.println("Flyway V23 migration SUCCESSFUL on Supabase PostgreSQL.");
+                System.out.println("=======================================================\n");
+                return;
+            } catch (Exception ex) {
+                lastException = ex;
+                System.out.println("Flyway attempt " + attempt + " failed: " + ex.getMessage());
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {}
+            }
+        }
+        if (lastException != null) {
+            lastException.printStackTrace(System.out);
+            throw new RuntimeException("Flyway V23 migration failed after 3 attempts", lastException);
         }
     }
 
