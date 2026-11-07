@@ -95,6 +95,17 @@ public class AttendanceService {
         String signedToken = generateSignedToken(saved);
         long registeredCount = registrationRepository.countRegistered(eventId);
 
+        auditService.logEvent(
+            principal.getUsername(),
+            "ATTENDANCE_SESSION_OPEN",
+            "ATTENDANCE_SESSION",
+            saved.getSessionId().toString(),
+            event.getTitle(),
+            "NONE",
+            "OPEN",
+            "Opened attendance session from " + req.startsAt() + " to " + req.expiresAt()
+        );
+
         return toSessionResponse(saved, signedToken, 0, registeredCount);
     }
 
@@ -152,6 +163,17 @@ public class AttendanceService {
         long presentCount = recordRepository.countBySession_SessionIdAndStatus(saved.getSessionId(), "PRESENT");
         long totalRegistered = registrationRepository.countRegistered(saved.getEvent().getEventId());
 
+        auditService.logEvent(
+            principal.getUsername(),
+            "ATTENDANCE_SESSION_CLOSE",
+            "ATTENDANCE_SESSION",
+            saved.getSessionId().toString(),
+            saved.getEvent().getTitle(),
+            "OPEN",
+            "CLOSED",
+            "Closed attendance session with " + presentCount + " present, " + absentRecords.size() + " marked auto-absent."
+        );
+
         return toSessionResponse(saved, null, presentCount, totalRegistered);
     }
 
@@ -160,7 +182,8 @@ public class AttendanceService {
         Volunteer volunteer = volunteerRepository.findByUser_Email(principal.getUsername())
             .orElseThrow(() -> new AccessDeniedException("Only enrolled volunteers can perform QR check-in."));
 
-        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) || !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus())) {
+        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) ||
+            (volunteer.getUser() != null && !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus()))) {
             throw new AccessDeniedException("Volunteer status must be ACTIVE to record attendance.");
         }
 
@@ -183,6 +206,13 @@ public class AttendanceService {
                 throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may check in.");
             }
 
+            UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+                .orElseThrow(() -> new AccessDeniedException("Volunteer must be enrolled in an active NSS unit."));
+
+            if (!session.getEvent().isUnitEligible(activeMembership.getUnit().getUnitId())) {
+                throw new AccessDeniedException("Your active NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
+            }
+
             if (recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.getSessionId(), volunteer.getVolunteerId())) {
                 throw new DuplicateAttendanceException();
             }
@@ -191,6 +221,17 @@ public class AttendanceService {
             AttendanceRecord savedRecord = recordRepository.save(record);
 
             creditServiceHours(session.getEvent(), volunteer, savedRecord, null);
+
+            auditService.logEvent(
+                principal.getUsername(),
+                "ATTENDANCE_CHECKIN_QR",
+                "ATTENDANCE_RECORD",
+                savedRecord.getAttendanceId().toString(),
+                volunteer.getCollegeId(),
+                "NONE",
+                "PRESENT",
+                "QR check-in for " + session.getEvent().getTitle()
+            );
 
             return new CheckInResponse(
                 savedRecord.getAttendanceId(),
@@ -215,11 +256,24 @@ public class AttendanceService {
 
         validateSessionTiming(session, Instant.now());
 
+        String requestedStatus = req.status() != null ? req.status().trim().toUpperCase() : "";
+        if (!List.of("PRESENT", "ABSENT", "EXCUSED").contains(requestedStatus)) {
+            throw new IllegalArgumentException("Invalid status: " + req.status() + ". Allowed values: PRESENT, ABSENT, EXCUSED.");
+        }
+
         Volunteer volunteer = volunteerRepository.findById(req.volunteerId())
             .orElseThrow(() -> new IllegalArgumentException("Volunteer not found: " + req.volunteerId()));
 
-        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) || !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus())) {
+        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) ||
+            (volunteer.getUser() != null && !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus()))) {
             throw new AccessDeniedException("Volunteer status must be ACTIVE to record attendance.");
+        }
+
+        User manager = currentUser(principal);
+        if (volunteer.getUser() != null &&
+            (volunteer.getUser().getUserId().equals(manager.getUserId()) ||
+             volunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername()))) {
+            throw new AccessDeniedException("Self-check-in via manual attendance is strictly prohibited.");
         }
 
         EventRegistration registration = registrationRepository
@@ -230,20 +284,47 @@ public class AttendanceService {
             throw new AccessDeniedException("Only volunteers with active REGISTERED or CONFIRMED status may receive attendance.");
         }
 
-        Optional<AttendanceRecord> existing = recordRepository.findBySession_SessionIdAndVolunteer_VolunteerId(sessionId, volunteer.getVolunteerId());
+        UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
+            .orElseThrow(() -> new AccessDeniedException("Volunteer must be enrolled in an active NSS unit."));
+
+        if (!session.getEvent().isUnitEligible(activeMembership.getUnit().getUnitId())) {
+            throw new AccessDeniedException("Volunteer's active NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
+        }
+
+        Optional<AttendanceRecord> existing = recordRepository.findBySession_SessionIdAndVolunteer_VolunteerIdWithLock(sessionId, volunteer.getVolunteerId());
+        String previousStatus = null;
         AttendanceRecord record;
         if (existing.isPresent()) {
             record = existing.get();
-            record.setStatus(req.status());
+            previousStatus = record.getStatus();
+            if (!previousStatus.equalsIgnoreCase(requestedStatus)) {
+                if (req.reason() == null || req.reason().trim().isBlank()) {
+                    throw new IllegalArgumentException("A valid non-blank audit reason is mandatory when modifying existing attendance status.");
+                }
+            }
+            record.setStatus(requestedStatus);
             record.setCheckInMethod("MANUAL_COORDINATOR");
         } else {
-            record = new AttendanceRecord(session, volunteer, "MANUAL_COORDINATOR", req.status());
+            record = new AttendanceRecord(session, volunteer, "MANUAL_COORDINATOR", requestedStatus);
         }
         AttendanceRecord saved = recordRepository.save(record);
 
-        if ("PRESENT".equals(req.status())) {
-            creditServiceHours(session.getEvent(), volunteer, saved, currentUser(principal));
+        if ("PRESENT".equals(requestedStatus)) {
+            creditServiceHours(session.getEvent(), volunteer, saved, manager);
+        } else {
+            revokeServiceHoursOnDemotion(saved, manager);
         }
+
+        auditService.logEvent(
+            principal.getUsername(),
+            "ATTENDANCE_MANUAL_" + requestedStatus,
+            "ATTENDANCE_RECORD",
+            saved.getAttendanceId().toString(),
+            volunteer.getCollegeId(),
+            previousStatus != null ? previousStatus : "NONE",
+            requestedStatus,
+            req.reason() != null && !req.reason().isBlank() ? req.reason().trim() : "Manual check-in by supervisor"
+        );
 
         return new CheckInResponse(
             saved.getAttendanceId(),
@@ -268,9 +349,16 @@ public class AttendanceService {
         assertManagerForUnit(principal, record.getSession().getEvent().getUnit());
 
         String prevStatus = record.getStatus();
-        String newStatus = req.newStatus().trim().toUpperCase();
+        String newStatus = req.newStatus() != null ? req.newStatus().trim().toUpperCase() : "";
         if (!List.of("PRESENT", "ABSENT", "EXCUSED").contains(newStatus)) {
             throw new IllegalArgumentException("Invalid status. Allowed values: PRESENT, ABSENT, EXCUSED.");
+        }
+        if (newStatus.equalsIgnoreCase(prevStatus)) {
+            throw new IllegalArgumentException("New status must be different from current status (" + prevStatus + ").");
+        }
+
+        if (correctionRepository.existsByAttendanceRecord_AttendanceIdAndStatus(attendanceId, "PENDING")) {
+            throw new IllegalStateException("A correction request is already pending review for this attendance record.");
         }
 
         User officer = currentUser(principal);
@@ -279,11 +367,24 @@ public class AttendanceService {
         );
         AttendanceCorrection savedCorrection = correctionRepository.save(correction);
 
+        auditService.logEvent(
+            principal.getUsername(),
+            "ATTENDANCE_CORRECTION_REQUESTED",
+            "ATTENDANCE_RECORD",
+            record.getAttendanceId().toString(),
+            record.getVolunteer().getCollegeId(),
+            prevStatus,
+            newStatus,
+            req.reason().trim()
+        );
+
         return toCorrectionResponse(savedCorrection);
     }
 
     @Transactional(readOnly = true)
     public List<CorrectionResponse> getPendingCorrections(UserDetails principal) {
+        assertOfficerOrAdmin(principal);
+
         List<AttendanceCorrection> pending = correctionRepository.findByStatusOrderByCorrectedAtDesc("PENDING");
         if (principal != null && !unitSecurity.isGlobalManager(principal)) {
             List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
@@ -300,12 +401,31 @@ public class AttendanceService {
 
     @Transactional
     public CorrectionResponse reviewCorrection(UUID correctionId, edu.college.nss.web.dto.CorrectionReviewRequest req, UserDetails principal) {
-        AttendanceCorrection correction = correctionRepository.findById(correctionId)
+        AttendanceCorrection correction = correctionRepository.findByIdWithLock(correctionId)
             .orElseThrow(() -> new IllegalArgumentException("Correction not found: " + correctionId));
 
-        assertManagerForUnit(principal, correction.getAttendanceRecord().getSession().getEvent().getUnit());
+        assertOfficerForUnit(principal, correction.getAttendanceRecord().getSession().getEvent().getUnit());
+
+        if (!"PENDING".equalsIgnoreCase(correction.getStatus())) {
+            throw new IllegalStateException("Correction is not pending review. Current status: " + correction.getStatus());
+        }
 
         User officer = currentUser(principal);
+
+        // Self-review prevention:
+        // 1. Requester cannot review own correction request
+        if (correction.getCorrectedBy() != null && correction.getCorrectedBy().getUserId().equals(officer.getUserId())) {
+            throw new AccessDeniedException("Reviewer cannot review an attendance correction they submitted.");
+        }
+        // 2. Target volunteer cannot review own attendance correction
+        Volunteer targetVolunteer = correction.getAttendanceRecord().getVolunteer();
+        if (targetVolunteer != null && targetVolunteer.getUser() != null) {
+            if (targetVolunteer.getUser().getUserId().equals(officer.getUserId()) ||
+                targetVolunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
+                throw new AccessDeniedException("Reviewer cannot review an attendance correction for their own record.");
+            }
+        }
+
         correction.setReviewedBy(officer);
         correction.setReviewedAt(Instant.now());
         correction.setReviewRemarks(req.remarks());
@@ -469,24 +589,34 @@ public class AttendanceService {
         long minutes = Math.max(30, Duration.between(event.getStartAt(), event.getEndAt()).toMinutes());
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
-        Optional<ServiceHourEntry> existing = serviceHourRepository.findByAttendanceRecord_AttendanceId(record.getAttendanceId());
+        Optional<ServiceHourEntry> existing = serviceHourRepository.findByAttendanceRecord_AttendanceIdWithLock(record.getAttendanceId());
         if (existing.isEmpty()) {
             ServiceHourEntry entry = new ServiceHourEntry(
                 volunteer, event, record, hours, "APPROVED", approvedBy, "Verified attendance at " + event.getTitle()
             );
             serviceHourRepository.save(entry);
+        } else {
+            ServiceHourEntry entry = existing.get();
+            entry.setStatus("APPROVED");
+            entry.setApprovedBy(approvedBy);
+            serviceHourRepository.save(entry);
         }
     }
 
-    private void syncServiceHoursOnCorrection(AttendanceRecord record, String newStatus, User officer) {
-        serviceHourRepository.findByAttendanceRecord_AttendanceId(record.getAttendanceId()).ifPresent(entry -> {
-            if ("PRESENT".equals(newStatus)) {
-                entry.setStatus("APPROVED");
-            } else {
-                entry.setStatus("REJECTED");
-            }
+    private void revokeServiceHoursOnDemotion(AttendanceRecord record, User revokedBy) {
+        serviceHourRepository.findByAttendanceRecord_AttendanceIdWithLock(record.getAttendanceId()).ifPresent(entry -> {
+            entry.setStatus("REJECTED");
+            entry.setApprovedBy(revokedBy);
             serviceHourRepository.save(entry);
         });
+    }
+
+    private void syncServiceHoursOnCorrection(AttendanceRecord record, String newStatus, User officer) {
+        if ("PRESENT".equalsIgnoreCase(newStatus)) {
+            creditServiceHours(record.getSession().getEvent(), record.getVolunteer(), record, officer);
+        } else {
+            revokeServiceHoursOnDemotion(record, officer);
+        }
     }
 
     private void assertManagerForUnit(UserDetails principal, NssUnit unit) {
@@ -501,6 +631,22 @@ public class AttendanceService {
             if (isMember) return;
         }
         throw new AccessDeniedException("You do not have permission to manage attendance for this NSS unit.");
+    }
+
+    private void assertOfficerForUnit(UserDetails principal, NssUnit unit) {
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR")) return;
+        if (hasRole(principal, "PROGRAMME_OFFICER")) {
+            User user = currentUser(principal);
+            if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
+        }
+        throw new AccessDeniedException("Access denied. Programme Officer or Admin privileges required for this NSS unit.");
+    }
+
+    private void assertOfficerOrAdmin(UserDetails principal) {
+        if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR") || hasRole(principal, "PROGRAMME_OFFICER")) {
+            return;
+        }
+        throw new AccessDeniedException("Access denied. Officer or Admin privileges required.");
     }
 
     private boolean hasRole(UserDetails principal, String role) {

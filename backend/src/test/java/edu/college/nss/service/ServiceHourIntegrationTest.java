@@ -138,4 +138,28 @@ class ServiceHourIntegrationTest {
         assertThrows(AccessDeniedException.class,
             () -> serviceHourService.getPendingClaims(volunteerPrincipal));
     }
+
+    @Test
+    void reviewClaim_selfReview_shouldThrowAccessDenied() {
+        User officerUser = userRepository.save(new User("Dual Officer", "dualofficer@raghunss.edu", "pass", null));
+        Volunteer dualVol = volunteerRepository.save(new Volunteer(officerUser, "21B91A0599", "CSE", 3));
+        membershipRepository.save(new UnitMembership(dualVol, unit));
+
+        UserDetails dualPrincipal = org.springframework.security.core.userdetails.User
+            .withUsername(officerUser.getEmail()).password("pass").authorities("PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER").build();
+
+        ServiceHourClaimRequest request = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(2.00), null, "Self logged activity"
+        );
+        ServiceHourResponse pending = serviceHourService.submitClaim(request, dualPrincipal);
+
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () ->
+            serviceHourService.reviewClaim(
+                pending.entryId(),
+                new ServiceHourReviewRequest("APPROVE", "Self approved"),
+                dualPrincipal
+            )
+        );
+        assertTrue(ex.getMessage().contains("Reviewer cannot approve or reject their own service hour claim"));
+    }
 }

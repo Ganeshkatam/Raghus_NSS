@@ -42,8 +42,13 @@ public class AttendanceDTOs {
 
     public record ManualCheckInRequest(
         @NotNull UUID volunteerId,
-        @NotBlank String status
-    ) {}
+        @NotBlank String status,
+        String reason
+    ) {
+        public ManualCheckInRequest(UUID volunteerId, String status) {
+            this(volunteerId, status, null);
+        }
+    }
 
     public record CorrectionRequest(
         @NotBlank String newStatus,

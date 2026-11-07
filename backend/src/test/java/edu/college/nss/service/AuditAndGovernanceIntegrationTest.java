@@ -44,6 +44,7 @@ public class AuditAndGovernanceIntegrationTest {
     @Autowired private ServiceHourEntryRepository serviceHourRepository;
     @Autowired private EventRegistrationRepository registrationRepository;
     @Autowired private NotificationRepository notificationRepository;
+    @Autowired private AnnouncementRepository announcementRepository;
 
     private User admin;
     private UserDetails adminPrincipal;
@@ -54,6 +55,7 @@ public class AuditAndGovernanceIntegrationTest {
     void setUp() {
         auditLogRepository.deleteAll();
         notificationRepository.deleteAll();
+        announcementRepository.deleteAll();
         serviceHourRepository.deleteAll();
         correctionRepository.deleteAll();
         recordRepository.deleteAll();

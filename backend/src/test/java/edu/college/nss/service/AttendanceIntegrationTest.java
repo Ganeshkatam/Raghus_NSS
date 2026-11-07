@@ -39,8 +39,10 @@ class AttendanceIntegrationTest {
     @Autowired AnnouncementRepository announcementRepository;
 
     private User admin;
-    private NssUnit unit;
     private UserDetails adminPrincipal;
+    private User po;
+    private UserDetails poPrincipal;
+    private NssUnit unit;
     private Event event;
     private Volunteer volunteer;
     private UserDetails volunteerPrincipal;
@@ -66,11 +68,15 @@ class AttendanceIntegrationTest {
         adminPrincipal = new org.springframework.security.core.userdetails.User(
             admin.getEmail(), "pass", List.of(new SimpleGrantedAuthority("ADMIN")));
 
-        unit = unitRepository.save(new NssUnit("Unit 1", "REC-01", admin));
+        po = userRepository.save(new User("Unit Officer", "officer@raghunss.edu", "pass", null));
+        poPrincipal = new org.springframework.security.core.userdetails.User(
+            po.getEmail(), "pass", List.of(new SimpleGrantedAuthority("PROGRAMME_OFFICER")));
+
+        unit = unitRepository.save(new NssUnit("Unit 1", "REC-01", po));
 
         Instant start = Instant.now().minusSeconds(1800);
         Instant end = Instant.now().plusSeconds(1800);
-        event = new Event(unit, admin, "Beach Cleanup", "Campus drive", "SERVICE",
+        event = new Event(unit, po, "Beach Cleanup", "Campus drive", "SERVICE",
             start, end, start.minusSeconds(3600), start, "Beach Road", 50);
         event.publish();
         event.open();
@@ -151,7 +157,7 @@ class AttendanceIntegrationTest {
         CorrectionResponse correction = attendanceService.correctAttendance(
             checkIn.attendanceId(),
             new CorrectionRequest("EXCUSED", "Medical certificate submitted to NSS Unit Officer."),
-            adminPrincipal
+            poPrincipal
         );
 
         assertEquals("PENDING", correction.status());
@@ -171,7 +177,7 @@ class AttendanceIntegrationTest {
         CorrectionResponse correction2 = attendanceService.correctAttendance(
             checkIn.attendanceId(),
             new CorrectionRequest("EXCUSED", "Valid document resubmitted"),
-            adminPrincipal
+            poPrincipal
         );
         attendanceService.reviewCorrection(correction2.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Approved"), adminPrincipal);
         AttendanceRecord approvedRecord = recordRepository.findById(checkIn.attendanceId()).orElseThrow();
@@ -256,5 +262,253 @@ class AttendanceIntegrationTest {
         assertEquals("PRESENT", response.status());
         assertEquals("MANUAL_COORDINATOR", response.checkInMethod());
         assertTrue(recordRepository.existsBySession_SessionIdAndVolunteer_VolunteerId(session.sessionId(), volunteer.getVolunteerId()));
+    }
+
+    @Test
+    void manualCheckIn_selfAward_shouldThrowAccessDenied() {
+        // Volunteer who is also a student leader
+        User leaderUser = userRepository.save(new User("Leader Vol", "leader@raghunss.edu", "pass", null));
+        Volunteer leaderVolunteer = volunteerRepository.save(new Volunteer(leaderUser, "21B91A0599", "CSE", 3));
+        membershipRepository.save(new UnitMembership(leaderVolunteer, unit));
+        registrationRepository.save(new EventRegistration(event, leaderVolunteer));
+
+        UserDetails leaderPrincipal = org.springframework.security.core.userdetails.User
+            .withUsername(leaderUser.getEmail()).password("pass").authorities("STUDENT_LEADER", "ATTENDANCE_MANAGE").build();
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () ->
+            attendanceService.manualCheckIn(
+                session.sessionId(),
+                new ManualCheckInRequest(leaderVolunteer.getVolunteerId(), "PRESENT"),
+                leaderPrincipal
+            )
+        );
+        assertTrue(ex.getMessage().contains("Self-check-in via manual attendance is strictly prohibited"));
+    }
+
+    @Test
+    void manualCheckIn_statusChangeWithoutReason_shouldThrowIllegalArgument() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        // Initial check-in PRESENT
+        attendanceService.manualCheckIn(
+            session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal);
+
+        // Modify to ABSENT with blank reason -> should throw IllegalArgumentException
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+            attendanceService.manualCheckIn(
+                session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT", "  "), adminPrincipal));
+        assertTrue(ex.getMessage().contains("mandatory when modifying existing attendance status"));
+    }
+
+    @Test
+    void manualCheckIn_demoteToAbsent_shouldRevokeServiceHours() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        // Initial check-in PRESENT
+        attendanceService.manualCheckIn(
+            session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "PRESENT"), adminPrincipal);
+
+        var hoursBefore = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertTrue(hoursBefore.doubleValue() > 0);
+
+        // Demote to ABSENT with valid reason
+        attendanceService.manualCheckIn(
+            session.sessionId(),
+            new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT", "Left early without authorization"),
+            adminPrincipal
+        );
+
+        var hoursAfter = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertEquals(0.0, hoursAfter.doubleValue(), 0.001);
+
+        // Verify ServiceHourEntry status is REJECTED
+        List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+        assertEquals(1, entries.size());
+        assertEquals("REJECTED", entries.get(0).getStatus());
+    }
+
+    @Test
+    void reviewCorrection_alreadyReviewed_shouldThrowIllegalState() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("EXCUSED", "Medical leave verified"),
+            poPrincipal
+        );
+
+        attendanceService.reviewCorrection(correction.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Approved"), adminPrincipal);
+
+        // Re-review must fail
+        assertThrows(IllegalStateException.class, () ->
+            attendanceService.reviewCorrection(correction.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(false, "Re-review attempt"), adminPrincipal));
+    }
+
+    @Test
+    void reviewCorrection_selfReview_shouldThrowAccessDenied() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        // PO submits correction
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("EXCUSED", "Medical leave"),
+            poPrincipal
+        );
+
+        // PO attempts to review own correction -> AccessDeniedException
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () ->
+            attendanceService.reviewCorrection(correction.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Self approved"), poPrincipal));
+        assertTrue(ex.getMessage().contains("Reviewer cannot review an attendance correction they submitted"));
+    }
+
+    @Test
+    void reviewCorrection_targetVolunteerReview_shouldThrowAccessDenied() {
+        // Volunteer who is also a Programme Officer on another unit
+        User dualUser = userRepository.save(new User("Dual Role User", "dual@raghunss.edu", "pass", null));
+        Volunteer dualVol = volunteerRepository.save(new Volunteer(dualUser, "21B91A0588", "CSE", 3));
+        membershipRepository.save(new UnitMembership(dualVol, unit));
+        registrationRepository.save(new EventRegistration(event, dualVol));
+
+        UserDetails dualPrincipal = org.springframework.security.core.userdetails.User
+            .withUsername(dualUser.getEmail()).password("pass").authorities("ADMIN", "PROGRAMME_OFFICER").build();
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        CheckInResponse checkIn = attendanceService.manualCheckIn(
+            session.sessionId(), new ManualCheckInRequest(dualVol.getVolunteerId(), "ABSENT"), adminPrincipal);
+
+        // PO submits correction for dualUser
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("PRESENT", "Attended event"),
+            poPrincipal
+        );
+
+        // dualUser attempts to review correction on their own attendance record -> AccessDeniedException
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () ->
+            attendanceService.reviewCorrection(correction.correctionId(), new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Self review"), dualPrincipal));
+        assertTrue(ex.getMessage().contains("Reviewer cannot review an attendance correction for their own record"));
+    }
+
+    @Test
+    void reviewCorrection_absentToPresent_shouldCreateApprovedServiceHours() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+
+        // Marked ABSENT initially
+        CheckInResponse checkIn = attendanceService.manualCheckIn(
+            session.sessionId(), new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT"), adminPrincipal);
+
+        var hoursInitially = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertEquals(0.0, hoursInitially.doubleValue(), 0.001);
+
+        // PO requests correction to PRESENT
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("PRESENT", "Attended and completed duty, missed initial check-in"),
+            poPrincipal
+        );
+
+        // Admin approves correction
+        attendanceService.reviewCorrection(
+            correction.correctionId(),
+            new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Verified on roster"),
+            adminPrincipal
+        );
+
+        // Invariant: Volunteer MUST now have approved service hours!
+        var hoursAfter = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertTrue(hoursAfter.doubleValue() > 0);
+
+        List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+        assertEquals(1, entries.size());
+        assertEquals("APPROVED", entries.get(0).getStatus());
+    }
+
+    @Test
+    void reviewCorrection_presentToAbsent_shouldRevokeServiceHours() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        var hoursInitially = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertTrue(hoursInitially.doubleValue() > 0);
+
+        // PO submits correction to ABSENT
+        CorrectionResponse correction = attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("ABSENT", "Proxy check-in detected by audit"),
+            poPrincipal
+        );
+
+        // Admin approves correction
+        attendanceService.reviewCorrection(
+            correction.correctionId(),
+            new edu.college.nss.web.dto.CorrectionReviewRequest(true, "Proxy confirmed"),
+            adminPrincipal
+        );
+
+        var hoursAfter = serviceHourRepository.sumApprovedHoursForVolunteer(volunteer.getVolunteerId());
+        assertEquals(0.0, hoursAfter.doubleValue(), 0.001);
+
+        List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+        assertEquals(1, entries.size());
+        assertEquals("REJECTED", entries.get(0).getStatus());
+    }
+
+    @Test
+    void correctAttendance_duplicatePendingCorrection_shouldThrowIllegalState() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest req = new CreateSessionRequest(
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(300));
+        SessionResponse session = attendanceService.openSession(event.getEventId(), req, adminPrincipal);
+        CheckInResponse checkIn = attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+
+        attendanceService.correctAttendance(
+            checkIn.attendanceId(),
+            new CorrectionRequest("EXCUSED", "Medical document pending"),
+            poPrincipal
+        );
+
+        // Second correction request while first is still PENDING -> should throw IllegalStateException
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            attendanceService.correctAttendance(
+                checkIn.attendanceId(),
+                new CorrectionRequest("ABSENT", "Another correction"),
+                poPrincipal
+            )
+        );
+        assertTrue(ex.getMessage().contains("already pending review"));
     }
 }

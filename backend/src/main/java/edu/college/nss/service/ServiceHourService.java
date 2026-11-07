@@ -120,10 +120,9 @@ public class ServiceHourService {
                 throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
             }
 
-            boolean duplicate = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId())
-                .stream()
-                .anyMatch(e -> e.getEvent() != null && e.getEvent().getEventId().equals(req.eventId()) &&
-                               ("PENDING".equals(e.getStatus()) || "APPROVED".equals(e.getStatus())));
+            boolean duplicate = serviceHourRepository.existsByVolunteer_VolunteerIdAndEvent_EventIdAndStatusIn(
+                volunteer.getVolunteerId(), req.eventId(), List.of("PENDING", "APPROVED")
+            );
             if (duplicate) {
                 throw new IllegalStateException("An active or approved service hour claim already exists for this event.");
             }
@@ -168,11 +167,21 @@ public class ServiceHourService {
     public ServiceHourResponse reviewClaim(UUID entryId, ServiceHourReviewRequest req, UserDetails principal) {
         assertOfficerOrAdmin(principal);
 
-        ServiceHourEntry entry = serviceHourRepository.findById(entryId)
+        ServiceHourEntry entry = serviceHourRepository.findByIdWithLock(entryId)
             .orElseThrow(() -> new IllegalArgumentException("Service hour entry not found: " + entryId));
 
         if (!"PENDING".equals(entry.getStatus())) {
             throw new IllegalStateException("Only PENDING claims can be reviewed.");
+        }
+
+        User reviewer = currentUser(principal);
+
+        // Self-review prevention: reviewer cannot approve or reject their own claim
+        if (entry.getVolunteer() != null && entry.getVolunteer().getUser() != null) {
+            if (entry.getVolunteer().getUser().getUserId().equals(reviewer.getUserId()) ||
+                entry.getVolunteer().getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
+                throw new AccessDeniedException("Reviewer cannot approve or reject their own service hour claim.");
+            }
         }
 
         if (!unitSecurity.isGlobalManager(principal)) {
@@ -187,7 +196,6 @@ public class ServiceHourService {
             throw new IllegalArgumentException("Action must be either APPROVE or REJECT.");
         }
 
-        User reviewer = currentUser(principal);
         entry.setApprovedBy(reviewer);
 
         if ("APPROVE".equals(action)) {
