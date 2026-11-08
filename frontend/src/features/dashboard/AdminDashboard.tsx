@@ -84,7 +84,7 @@ export const AdminDashboard: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <p className="loading-state">Loading institutional administration console...</p>;
+    return <p className="loading-state">Loading overview...</p>;
   }
 
   return (
@@ -95,9 +95,9 @@ export const AdminDashboard: React.FC = () => {
           <div className="breadcrumbs">
             <span>Raghu Engineering College</span>
             <span>/</span>
-            <span className="current">System Administration</span>
+            <span className="current">Overview</span>
           </div>
-          <h1>Institutional Governance &amp; Administration</h1>
+          <h1>Institutional Overview</h1>
           <p className="subtitle">
             System Administrator: <strong>{user?.name}</strong> &bull; Total Operational Units: <strong>{units.length}</strong>
           </p>
@@ -110,7 +110,7 @@ export const AdminDashboard: React.FC = () => {
             Manage Units
           </Link>
           <Link to="/reports" className="btn-secondary">
-            Reports &amp; Exports
+            Reports
           </Link>
         </div>
       </div>
@@ -178,9 +178,9 @@ export const AdminDashboard: React.FC = () => {
                 <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0" }}>Strict role-based isolation &amp; unit boundaries</p>
               </div>
               <div style={{ padding: "0.75rem", backgroundColor: "var(--bg-secondary, #f9fafb)", borderRadius: "8px" }}>
-                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary, #6b7280)" }}>Audit Trail</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary, #6b7280)" }}>Activity History</div>
                 <strong style={{ color: "#2563eb" }}>Active</strong>
-                <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0" }}>Immutable change ledger enabled</p>
+                <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0" }}>Activity tracking active</p>
               </div>
             </div>
           </div>
@@ -190,11 +190,11 @@ export const AdminDashboard: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div className="card">
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2>Recent Audit Activity</h2>
-              <Link to="/admin" className="btn-secondary-sm">Full Audit</Link>
+              <h2>Recent Activity</h2>
+              <Link to="/admin" className="btn-secondary-sm">View all</Link>
             </div>
             {recentAudits.length === 0 ? (
-              <p className="empty-state">No recent audit log entries.</p>
+              <p className="empty-state">No recent activity records found.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {recentAudits.map((a) => (

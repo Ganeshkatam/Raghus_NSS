@@ -89,7 +89,7 @@ export const StudentLeaderDashboard: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <p className="loading-state">Loading student leadership workspace...</p>;
+    return <p className="loading-state">Loading overview...</p>;
   }
 
   return (
@@ -100,9 +100,9 @@ export const StudentLeaderDashboard: React.FC = () => {
           <div className="breadcrumbs">
             <span>Raghu Engineering College</span>
             <span>/</span>
-            <span className="current">Student Leadership Console</span>
+            <span className="current">Overview</span>
           </div>
-          <h1>{unitInfo.unitName ? `${unitInfo.unitName} (Unit ${unitInfo.unitNumber})` : "Unit Leadership Workspace"}</h1>
+          <h1>{unitInfo.unitName ? `${unitInfo.unitName} (Unit ${unitInfo.unitNumber})` : "Unit Overview"}</h1>
           <p className="subtitle">
             Welcome back, <strong>{user?.name}</strong> &bull; Supporting unit coordination and attendance operations
           </p>

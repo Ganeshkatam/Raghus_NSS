@@ -25,26 +25,26 @@ export interface ApiError {
 
 export function sanitizeErrorMessage(message: string | undefined, statusCode?: number): string {
   if (statusCode === 401) {
-    return "Invalid email or password. Please verify your credentials.";
+    return "Unable to sign in. Check your details and try again.";
   }
   if (statusCode === 403) {
-    return "You do not have permission to perform this action.";
+    return "You do not have permission to do this.";
   }
   if (statusCode === 404) {
-    return "The requested information or record could not be found.";
+    return "We couldn't find what you were looking for.";
   }
   if (statusCode === 409) {
-    return "A conflicting record already exists with the provided information.";
+    return "A record with this information already exists.";
   }
   if (statusCode === 502 || statusCode === 503 || statusCode === 504 || statusCode === 521 || statusCode === 524) {
-    return "The NSS service is currently starting up or temporarily unreachable. Please try again in a moment.";
+    return "The NSS service is starting up. Please try again in a moment.";
   }
   if (statusCode && statusCode >= 500) {
-    return "The NSS service encountered a temporary error. Please try again shortly.";
+    return "A temporary service error occurred. Please try again shortly.";
   }
 
   if (!message || typeof message !== "string") {
-    return "An unexpected issue occurred. Please try again.";
+    return "An unexpected error occurred. Please try again.";
   }
 
   const lower = message.toLowerCase();
@@ -96,7 +96,7 @@ export function sanitizeErrorMessage(message: string | undefined, statusCode?: n
     if (statusCode && statusCode >= 500) {
       return "The NSS service is temporarily unavailable. Please try again shortly.";
     }
-    return "Unable to complete request. Please verify the entered details or try again later.";
+    return "Unable to complete request. Please verify the information entered or try again later.";
   }
 
   return message;
@@ -177,7 +177,7 @@ export async function refreshAccessToken(): Promise<string> {
     }
     const error: ApiError = {
       code: "AUTHENTICATION_EXPIRED",
-      message: "Your login session has expired. Please sign in again.",
+      message: "You have been signed out. Please sign in again.",
       status: 401,
       category: "AUTH_EXPIRED",
       retryable: false,

@@ -153,12 +153,12 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("{\"error\":{\"code\":\"AUTHENTICATION_REQUIRED\",\"message\":\"Authentication required to access this resource.\"}}");
+                    response.getWriter().write("{\"error\":{\"code\":\"AUTHENTICATION_REQUIRED\",\"message\":\"Please sign in to continue.\"}}");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"You do not have permission to access this resource.\"}}");
+                    response.getWriter().write("{\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"You do not have permission to do this.\"}}");
                 })
             )
             .authorizeHttpRequests(auth -> auth

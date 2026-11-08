@@ -239,10 +239,55 @@ Service Hours Ledger Automatically Recalculated
 | **NFR-010** | Reliability | Transactional consistency (ACID) for multi-entity operations; database constraints enforce business invariants. |
 | **NFR-011** | Backup & Recovery | Daily encrypted automated database backups with point-in-time recovery and documented restoration procedures. |
 | **NFR-012** | Observability | Structured JSON application logs, HTTP access telemetry, database connection pool metrics, and Spring Actuator health probes. |
+| **NFR-013** | Language & Communication | Enforce plain, natural, institutional English across all user-facing interfaces and notifications. Eliminate technical jargon, internal database identifiers, HTTP/API errors, and stack traces. |
 
 ---
 
-## 8. Requirements Traceability Matrix
+## 8. NSS User Interface Language and Communication Standard
+
+### 8.1 Objective
+Ensure that all visible copy across the NSS platform—including page headers, navigation labels, status indicators, form inputs, feedback banners, and error alerts—uses clear, respectful, and standard English accessible to all college volunteers, Programme Officers, and coordinators without requiring technical background.
+
+### 8.2 Mandatory Language Requirements
+1. **Plain Language Principle**: All user-visible text must use clear, general English. Technical abbreviations, backend terminology, database concepts, HTTP semantics, and developer jargon are strictly forbidden in end-user views.
+2. **Institutional Term Integrity**: Formal institutional and NSS terminology must remain accurate and consistent:
+   - `NSS` (National Service Scheme)
+   - `Programme Officer` (not Unit Admin or Manager)
+   - `Faculty Coordinator` (not Super Admin)
+   - `Volunteer` (not Client or Member)
+   - `Student Leader` (not Sub-admin)
+   - `Special Camp` (not Event or Program)
+   - `Attendance` (not Telemetry or Tracking)
+   - `Service Hours` (not Work units or Credit points)
+3. **Information Disclosure Prevention**: Error messages must never expose database schemas, relation names, foreign keys, SQL statements, token internals, stack traces, or raw exception class names.
+4. **Actionable Feedback**: When operations fail or input is invalid, messages must guide the user on what action to take next rather than stating internal fault conditions.
+5. **Phase 0.5 Quality Gate**: A feature cannot be certified as complete (100% implementation status) if any end-user screen presents confusing wording, technical jargon, or unformatted technical error responses.
+
+### 8.3 Terminology Translation Table
+
+| Avoid Technical Wording | Standard Plain English | Context / Scope |
+|---|---|---|
+| Dashboard | Overview / My NSS | Main landing and workspace views |
+| Authentication failed | Unable to sign in. Check your details and try again. | Sign-in failures |
+| Authentication required | Please sign in to continue. | Protected route interception |
+| Authorization denied / Access denied | You do not have permission to do this. | Access control boundaries |
+| Resource not found | We couldn't find what you were looking for. | 404 views and missing records |
+| Validation error / Invalid parameters | Please check the information you entered. | Form input validation |
+| Pending approval / PENDING | Waiting for approval | Volunteer and claim statuses |
+| Approved service-hour ledger | Approved service hours | Volunteer hour accounting |
+| Attendance correction | Correct attendance / Attendance request | Supervisor correction queues |
+| Event registration | Join event | Volunteer activity participation |
+| Registration capacity exceeded / Capacity Full | This event is full. | Event enrollment limits |
+| Token expired | This code has expired. Please get a new one. | QR and attendance sessions |
+| Session revoked | You have been signed out. Please sign in again. | Authentication expiration |
+| Academic rollover | Start a new academic year | Annual student progression |
+| Export CSV | Download report | Reporting and data downloads |
+| Audit trail | Activity history | Administrative history inspection |
+| System configuration | System settings | Administrative management console |
+
+---
+
+## 9. Requirements Traceability Matrix
 
 | Business Goal | Related Functional Requirements | Verification Method |
 |---|---|---|
@@ -256,7 +301,7 @@ Service Hours Ledger Automatically Recalculated
 
 ---
 
-## 9. Approval and Change Control
+## 10. Approval and Change Control
 
 This Software Requirements Specification represents the binding engineering baseline for the NSS College Management Application. Any modification to service-hour accreditation policies, attendance integrity criteria, data privacy parameters, or role capabilities requires formal review and a versioned revision of this document.
 

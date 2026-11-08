@@ -161,7 +161,7 @@ export const Volunteers: React.FC = () => {
 
   const statusPills = [
     { label: "All", value: "" },
-    { label: "Pending Approval", value: "PENDING_APPROVAL" },
+    { label: "Waiting for approval", value: "PENDING_APPROVAL" },
     { label: "Active", value: "ACTIVE" },
     { label: "Inactive", value: "INACTIVE" },
     { label: "Alumni", value: "ALUMNI" },
@@ -275,7 +275,7 @@ export const Volunteers: React.FC = () => {
                   options={[
                     { value: "", label: "All Statuses" },
                     { value: "ACTIVE", label: "ACTIVE" },
-                    { value: "PENDING_APPROVAL", label: "PENDING_APPROVAL" },
+                    { value: "PENDING_APPROVAL", label: "Waiting for approval" },
                     { value: "INACTIVE", label: "INACTIVE" },
                     { value: "SUSPENDED", label: "SUSPENDED" },
                     { value: "ALUMNI", label: "ALUMNI" },
@@ -349,7 +349,7 @@ export const Volunteers: React.FC = () => {
                                   : "badge-muted"
                               }`}
                             >
-                              {vol.status}
+                              {vol.status === "PENDING_APPROVAL" ? "Waiting for approval" : vol.status}
                             </span>
                           </td>
                           <td>
@@ -442,13 +442,13 @@ export const Volunteers: React.FC = () => {
                     </p>
                     <form onSubmit={handleQuickStatusSubmit} className="form-stack" style={{ padding: 0 }}>
                       <div className="form-group">
-                        <label htmlFor="modalRemarksInput">Audit Remarks / Decision Note</label>
+                        <label htmlFor="modalRemarksInput">Decision Note</label>
                         <textarea
                           id="modalRemarksInput"
                           rows={3}
                           value={transitionRemarks}
                           onChange={(e) => setTransitionRemarks(e.target.value)}
-                          placeholder="Provide reasoning for institutional audit trail"
+                          placeholder="Provide a reason for this decision"
                         />
                       </div>
                       <div className="modal-actions">

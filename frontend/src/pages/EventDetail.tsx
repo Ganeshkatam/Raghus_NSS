@@ -624,7 +624,7 @@ export const EventDetail: React.FC = () => {
                   marginBottom: "0.35rem",
                 }}
               >
-                <span>Capacity Saturation</span>
+                <span>Attendance capacity</span>
                 <span>
                   {Math.round((event.registeredCount / Math.max(1, event.capacity)) * 100)}%
                 </span>
@@ -732,7 +732,7 @@ export const EventDetail: React.FC = () => {
                       disabled={busy}
                       onClick={() => register(event.remainingCapacity <= 0)}
                     >
-                      {event.remainingCapacity > 0 ? "Re-Register for Event" : "Join Waitlist"}
+                      {event.remainingCapacity > 0 ? "Re-join event" : "Join Waitlist"}
                     </button>
                   )}
                 </div>
@@ -741,16 +741,16 @@ export const EventDetail: React.FC = () => {
                   event.remainingCapacity > 0 ? (
                     <div>
                       <p style={{ marginBottom: "1rem" }}>
-                        Seats are available. Click below to register for this event.
+                        Spaces are available. Click below to join this event.
                       </p>
                       <button className="btn-primary" disabled={busy} onClick={() => register(false)}>
-                        Register for Event
+                        Join event
                       </button>
                     </div>
                   ) : (
                     <div>
                       <p style={{ color: "#d97706", fontWeight: 600, marginBottom: "0.5rem" }}>
-                        Event is currently at maximum capacity.
+                        This event is full.
                       </p>
                       <p style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "1rem" }}>
                         You can join the FIFO waitlist. If an existing attendee cancels, you will be
@@ -766,7 +766,7 @@ export const EventDetail: React.FC = () => {
                 )
               ) : (
                 <p style={{ color: "#dc2626" }}>
-                  You must be an active enrolled member of {event.unitName} to register.
+                  You must be an active enrolled member of {event.unitName} to join this event.
                 </p>
               )}
             </section>
@@ -823,7 +823,7 @@ export const EventDetail: React.FC = () => {
                 }}
               >
                 <div>
-                  <h3 style={{ margin: 0 }}>Registered Volunteers List</h3>
+                  <h3 style={{ margin: 0 }}>Joined Volunteers</h3>
                   <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>
                     {confirmedCount} Confirmed &bull; {waitlistCount} Waitlisted &bull;{" "}
                     {cancelledCount} Cancelled
@@ -971,13 +971,13 @@ export const EventDetail: React.FC = () => {
                 </div>
               ) : (
                 <div>
-                  <p>You have not registered for this event yet.</p>
+                  <p>You have not joined this event yet.</p>
                   <button
                     className="btn-primary-sm"
                     onClick={() => setActiveTab("overview")}
                     style={{ marginTop: "0.5rem" }}
                   >
-                    Go to Overview to Register
+                    Go to Overview to Join
                   </button>
                 </div>
               )}

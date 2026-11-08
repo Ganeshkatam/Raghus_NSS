@@ -151,3 +151,29 @@ interface AuthContextType {
    - Modals trap focus and specify `role="dialog"`, `aria-modal="true"`, and `aria-labelledby`.
    - Non-color-only status cues: Status badges combine color with explicit text labels and icon glyphs.
 
+---
+
+## 6. User Interface Language and Communication Standard
+
+### 6.1 Core Copywriting Principles
+1. **Plain, Respectful English**: Write for real college students, faculty, and administrators. Keep sentences concise, direct, and free of unnecessary technical jargon.
+2. **Elimination of Developer Terminology**:
+   - Navigation and workspace headers use "Overview" or "My NSS" instead of "Dashboard".
+   - Data downloads use "Download report" instead of "Export CSV".
+   - Administrative auditing views use "Activity history" instead of "Audit trail".
+   - Event participation uses "Join event" instead of "Register".
+   - Event limits use "This event is full" instead of "Registration capacity exceeded".
+   - Verification failures use "This code has expired. Please get a new one." instead of "Token expired".
+   - Approval workflows use "Waiting for approval" instead of "PENDING".
+   - Attendance updates use "Correct attendance" instead of "Attendance correction".
+3. **Preservation of NSS Institutional Terms**: Always retain established National Service Scheme terminology:
+   - `NSS`, `Programme Officer`, `Faculty Coordinator`, `Student Leader`, `Volunteer`, `Special Camp`, `Attendance`, and `Service Hours`.
+4. **Friendly, Actionable Error States**:
+   - Authentication errors: "Unable to sign in. Check your details and try again."
+   - Session termination: "You have been signed out. Please sign in again."
+   - Permission errors: "You do not have permission to do this."
+   - Not found errors: "We couldn't find what you were looking for."
+   - Validation errors: "Please check the information you entered."
+   - Never expose raw SQL exceptions, foreign key violations, HTTP error codes, or stack traces in UI banners or modals.
+5. **Phase 0.5 Implementation Gate**: A feature cannot be marked 100% complete if any user-facing screen exposes developer jargon, confusing phrasing, or unformatted backend exception text.
+

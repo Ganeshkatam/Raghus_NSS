@@ -593,24 +593,24 @@ public class AttendanceService {
             String signature = parts[4];
 
             if (Instant.now().toEpochMilli() > expiresAt) {
-                throw new AttendanceSessionExpiredException("QR check-in token has expired. Please rescan.");
+                throw new AttendanceSessionExpiredException("This code has expired. Please get a new one.");
             }
 
             AttendanceSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found."));
+                .orElseThrow(() -> new IllegalArgumentException("Attendance session could not be found."));
 
             String payload = sessionId + ":" + eventId + ":" + issuedAt + ":" + expiresAt;
             String expectedSignature = hmacSha256(payload, session.getQrSecret());
 
             if (!MessageDigest.isEqual(signature.getBytes(StandardCharsets.UTF_8), expectedSignature.getBytes(StandardCharsets.UTF_8))) {
-                throw new AccessDeniedException("Cryptographic QR token validation failed.");
+                throw new AccessDeniedException("This code is not valid. Please scan the current code displayed by the supervisor.");
             }
 
             return new ParsedToken(sessionId, eventId, expiresAt);
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid QR check-in token: " + e.getMessage());
+            throw new IllegalArgumentException("This code is not valid. Please scan again.");
         }
     }
 

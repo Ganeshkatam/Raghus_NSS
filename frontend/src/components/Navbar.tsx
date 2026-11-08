@@ -28,7 +28,7 @@ export const Navbar: React.FC = () => {
               to="/dashboard"
               className={`nav-link ${isActive("/dashboard") ? "active" : ""}`}
             >
-              Dashboard
+              Overview
             </Link>
             <Link
               to="/volunteers"

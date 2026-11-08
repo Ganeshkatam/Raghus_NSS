@@ -542,7 +542,7 @@ export const Events: React.FC = () => {
                             className="badge badge-success"
                             style={{ fontWeight: 700, padding: "0.35rem 0.65rem" }}
                           >
-                            Registered
+                            Joined
                           </span>
                         ) : myReg.status === "WAITLISTED" ? (
                           <span
@@ -557,7 +557,7 @@ export const Events: React.FC = () => {
                       ) : windowState.state === "OPEN" ? (
                         event.remainingCapacity > 0 ? (
                           <Link to={"/events/" + event.eventId} className="btn-primary-sm">
-                            Register
+                            Join event
                           </Link>
                         ) : (
                           <Link
@@ -571,7 +571,7 @@ export const Events: React.FC = () => {
                       ) : (
                         <span className="availability-text" style={{ fontSize: "0.8rem" }}>
                           {event.status === "OPEN" && event.remainingCapacity === 0
-                            ? "Capacity Full"
+                            ? "This event is full"
                             : windowState.label}
                         </span>
                       )}

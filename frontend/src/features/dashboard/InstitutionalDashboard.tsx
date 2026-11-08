@@ -66,7 +66,7 @@ export const InstitutionalDashboard: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <p className="loading-state">Loading central institutional dashboard...</p>;
+    return <p className="loading-state">Loading overview...</p>;
   }
 
   const assignedOfficersCount = units.filter(
@@ -82,9 +82,9 @@ export const InstitutionalDashboard: React.FC = () => {
           <div className="breadcrumbs">
             <span>Raghu Engineering College</span>
             <span>/</span>
-            <span className="current">Central NSS Oversight</span>
+            <span className="current">Overview</span>
           </div>
-          <h1>{isAdmin ? "Institutional System Administration" : "Central College NSS Oversight"}</h1>
+          <h1>{isAdmin ? "Institutional Overview" : "College NSS Overview"}</h1>
           <p className="subtitle">
             Governance authority: <strong>{user?.name}</strong> &bull; Total Operational Units: <strong>{units.length}</strong>
           </p>
@@ -98,7 +98,7 @@ export const InstitutionalDashboard: React.FC = () => {
           </Link>
           {isAdmin && (
             <Link to="/admin" className="btn-secondary">
-              Administration Console
+              System Settings
             </Link>
           )}
         </div>

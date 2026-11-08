@@ -119,7 +119,7 @@ export const VolunteerDashboard: React.FC = () => {
   const certificate240Percent = Math.min(100, Math.round((approvedHours / 240) * 100));
 
   if (loading) {
-    return <p className="loading-state">Loading volunteer dashboard...</p>;
+    return <p className="loading-state">Loading overview...</p>;
   }
 
   return (
@@ -130,7 +130,7 @@ export const VolunteerDashboard: React.FC = () => {
           <div className="breadcrumbs">
             <span>Raghu Engineering College</span>
             <span>/</span>
-            <span className="current">Volunteer Portal</span>
+            <span className="current">Overview</span>
           </div>
           <h1>Welcome, {user?.name}</h1>
           <p className="subtitle">
@@ -142,7 +142,7 @@ export const VolunteerDashboard: React.FC = () => {
             Browse Events
           </Link>
           <Link to="/attendance" className="btn-secondary">
-            Check-In to Event
+            Attendance Check-In
           </Link>
           <Link to="/service-hours" className="btn-secondary">
             Submit Claim
@@ -182,7 +182,7 @@ export const VolunteerDashboard: React.FC = () => {
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#64748b" }}>
           <span>Overall 2-Year University Certificate: {approvedHours} / 240 hrs ({certificate240Percent}%)</span>
-          <span>Pending Audit Claims: {hoursSummary?.pendingCount || 0}</span>
+          <span>Claims waiting for approval: {hoursSummary?.pendingCount || 0}</span>
         </div>
       </div>
 
@@ -193,7 +193,7 @@ export const VolunteerDashboard: React.FC = () => {
           <div className="section-header">
             <div>
               <h3>Upcoming NSS Programmes</h3>
-              <p className="subtitle">Enroll early to secure confirmed seats or waitlist priority.</p>
+              <p className="subtitle">Join early to reserve your spot.</p>
             </div>
             <Link to="/events" className="btn-secondary-sm">
               All Events
@@ -242,10 +242,10 @@ export const VolunteerDashboard: React.FC = () => {
           <div className="section-header">
             <div>
               <h3>Recent Verified Activity</h3>
-              <p className="subtitle">Audited service hour entries credited to your transcript.</p>
+              <p className="subtitle">Approved service hours credited to your record.</p>
             </div>
             <Link to="/service-hours" className="btn-secondary-sm">
-              View Ledger
+              View all hours
             </Link>
           </div>
 
@@ -275,7 +275,7 @@ export const VolunteerDashboard: React.FC = () => {
                       </td>
                       <td>
                         <span className={`badge ${e.status === "APPROVED" ? "badge-success" : "badge-warning"}`}>
-                          {e.status}
+                          {e.status === "APPROVED" ? "Approved" : "Waiting for approval"}
                         </span>
                       </td>
                       <td>

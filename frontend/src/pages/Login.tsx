@@ -124,11 +124,11 @@ export const Login: React.FC = () => {
           >
             <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>
               {errorInfo.category === "SERVER_WARMUP"
-                ? "Backend Starting Up"
+                ? "Starting Service"
                 : errorInfo.category === "NETWORK_OFFLINE"
                 ? "Connection Issue"
                 : errorInfo.category === "AUTH_INVALID"
-                ? "Authentication Failed"
+                ? "Unable to Sign In"
                 : "Unable to Sign In"}
             </div>
             <div>{errorInfo.message}</div>

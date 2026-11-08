@@ -246,7 +246,7 @@ export const Admin: React.FC = () => {
         <div>
           <h1>Institutional System Administration</h1>
           <p className="subtitle">
-            System governance, user directory, role delegation, security audit logs, and operational unit provisioning.
+            System settings, user accounts, role permissions, activity history, and NSS units.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -349,7 +349,7 @@ export const Admin: React.FC = () => {
         </div>
 
         <div className="metric-card">
-          <div className="metric-label">Audit Records</div>
+          <div className="metric-label">Activity Records</div>
           <div className="metric-value" style={{ color: "#ea580c" }}>
             {loading ? "..." : auditLogs.length}
           </div>
@@ -418,7 +418,7 @@ export const Admin: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          Security &amp; State Audit Trail ({auditLogs.length})
+          Activity History ({auditLogs.length})
         </button>
         <button
           type="button"
@@ -655,12 +655,12 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: AUDIT TRAIL */}
+      {/* TAB 3: ACTIVITY HISTORY */}
       {activeTab === "audit" && (
         <div className="section-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
-              <h2 style={{ margin: 0 }}>Security &amp; State Audit Trail</h2>
+              <h2 style={{ margin: 0 }}>Activity History</h2>
               <p className="subtitle" style={{ margin: 0 }}>
                 Immutable ledger of volunteer status approvals, unit transfers, and role actions.
               </p>
@@ -668,16 +668,16 @@ export const Admin: React.FC = () => {
             <SearchBar
               value={auditSearch}
               onChange={setAuditSearch}
-              placeholder="Search audit events by name, actor, reason..."
+              placeholder="Search activity records by name, user, or reason..."
               style={{ minWidth: "280px", maxWidth: "420px" }}
             />
           </div>
 
           {loading ? (
-            <p className="loading-state">Loading audit history...</p>
+            <p className="loading-state">Loading activity history...</p>
           ) : filteredAuditLogs.length === 0 ? (
             <div className="empty-state">
-              <p>No audit trail records found.</p>
+              <p>No activity records found.</p>
             </div>
           ) : (
             <div className="table-wrapper">
@@ -777,7 +777,7 @@ export const Admin: React.FC = () => {
                   <span className="badge badge-primary">Full Institutional Scope</span>
                 </div>
                 <p style={{ fontSize: "0.82rem", color: "#64748b", margin: 0 }}>
-                  System governance, unit creation, role delegation, cross-unit audit, and server configuration.
+                  System settings, unit setup, user permissions, and institutional activity history.
                 </p>
               </div>
 

@@ -83,7 +83,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
     : null;
 
   if (loading) {
-    return <p className="loading-state">Loading operational officer dashboard...</p>;
+    return <p className="loading-state">Loading overview...</p>;
   }
 
   return (
@@ -94,7 +94,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           <div className="breadcrumbs">
             <span>Raghu Engineering College</span>
             <span>/</span>
-            <span className="current">Programme Officer Console</span>
+            <span className="current">Overview</span>
           </div>
           <h1>{assignedUnit ? `${assignedUnit.unitName} (Unit ${assignedUnit.unitNumber})` : "Programme Operations"}</h1>
           <p className="subtitle">
@@ -115,7 +115,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             + Create Event
           </Link>
           <Link to="/attendance" className="btn-secondary">
-            Attendance Console
+            Attendance
           </Link>
           <Link to="/service-hours" className="btn-secondary">
             Review Claims
@@ -168,7 +168,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
         <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #f59e0b", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-              Pending Approvals
+              Waiting for Approval
             </div>
             <div style={{ fontSize: "2rem", fontWeight: 800, color: "#d97706", marginTop: "0.25rem" }}>
               {pendingApprovalsCount}
@@ -208,11 +208,11 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           </Link>
         </div>
 
-        {/* Card 4: Attendance Corrections */}
+        {/* Card 4: Attendance Requests */}
         <div className="section-card" style={{ padding: "1.25rem", borderLeft: "4px solid #8b5cf6", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-              Attendance Corrections
+              Attendance Requests
             </div>
             <div style={{ fontSize: "2rem", fontWeight: 800, color: "#7c3aed", marginTop: "0.25rem" }}>
               {pendingCorrectionsCount}
@@ -226,7 +226,7 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
             className="table-action-link"
             style={{ fontSize: "0.8rem", marginTop: "0.75rem", display: "inline-block", alignSelf: "flex-start" }}
           >
-            Review Corrections
+            Review Requests
           </Link>
         </div>
       </div>
@@ -238,10 +238,10 @@ export const ProgrammeOfficerDashboard: React.FC = () => {
           <div className="section-header">
             <div>
               <h3>Scheduled Unit Programmes</h3>
-              <p className="subtitle">Live activities, seat reservations, and registration capacity.</p>
+              <p className="subtitle">Scheduled activities, attendance, and spaces available.</p>
             </div>
             <Link to="/events" className="btn-secondary-sm">
-              Event Manager
+              View all events
             </Link>
           </div>
 

@@ -94,7 +94,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 marginBottom: "1.5rem",
               }}
             >
-              A technical display error was prevented from affecting your account. You can reload the page or return to the main dashboard.
+              Something went wrong while displaying this page. You can reload the page or return to your overview.
             </p>
 
             <div
@@ -130,7 +130,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   cursor: "pointer",
                 }}
               >
-                Go to Dashboard
+                Go to Overview
               </button>
             </div>
           </div>

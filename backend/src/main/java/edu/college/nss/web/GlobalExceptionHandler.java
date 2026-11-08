@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ErrorResponse> handleAppException(AppException ex) {
-        String safeMessage = sanitizeMessage(ex.getMessage(), "The requested operation could not be completed.");
+        String safeMessage = sanitizeMessage(ex.getMessage(), "This action could not be completed. Please try again.");
         return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getCode(), safeMessage));
     }
 
@@ -39,31 +39,31 @@ public class GlobalExceptionHandler {
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
-        ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", "Invalid input parameters", errors);
+        ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", "Please check the information you entered.", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
-        ErrorResponse response = new ErrorResponse("AUTHENTICATION_REQUIRED", "Invalid email or password.");
+        ErrorResponse response = new ErrorResponse("AUTHENTICATION_REQUIRED", "Unable to sign in. Check your details and try again.");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ErrorResponse> handleDisabledAccount(DisabledException ex) {
-        ErrorResponse response = new ErrorResponse("FORBIDDEN", "Account is deactivated.");
+        ErrorResponse response = new ErrorResponse("FORBIDDEN", "This account is inactive. Please contact your administrator.");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(LockedException.class)
     public ResponseEntity<ErrorResponse> handleLockedAccount(LockedException ex) {
-        ErrorResponse response = new ErrorResponse("FORBIDDEN", "Account is suspended.");
+        ErrorResponse response = new ErrorResponse("FORBIDDEN", "This account has been suspended. Please contact your administrator.");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        String message = sanitizeMessage(ex.getMessage(), "Access is denied.");
+        String message = sanitizeMessage(ex.getMessage(), "You do not have permission to do this.");
         ErrorResponse response = new ErrorResponse("FORBIDDEN", message);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
@@ -74,14 +74,14 @@ public class GlobalExceptionHandler {
         if (ex.getCause() instanceof DataAccessException || 
             ex.getCause() instanceof PersistenceException || 
             ex.getCause() instanceof SQLException) {
-            ErrorResponse response = new ErrorResponse("SERVICE_UNAVAILABLE", "The NSS service is temporarily reconnecting to the database. Please try again shortly.");
+            ErrorResponse response = new ErrorResponse("SERVICE_UNAVAILABLE", "The NSS service is temporarily reconnecting. Please try again shortly.");
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
         }
-        String safeMessage = "Invalid email or password.";
+        String safeMessage = "Unable to sign in. Check your details and try again.";
         if (ex instanceof DisabledException) {
-            safeMessage = "Account is deactivated.";
+            safeMessage = "This account is inactive. Please contact your administrator.";
         } else if (ex instanceof LockedException) {
-            safeMessage = "Account is suspended.";
+            safeMessage = "This account has been suspended. Please contact your administrator.";
         }
         ErrorResponse response = new ErrorResponse("AUTHENTICATION_REQUIRED", safeMessage);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
@@ -90,58 +90,58 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({DataAccessException.class, PersistenceException.class, SQLException.class})
     public ResponseEntity<ErrorResponse> handleDatabaseExceptions(Exception ex) {
         log.error("Database persistence exception intercepted: ", ex);
-        ErrorResponse response = new ErrorResponse("SERVICE_UNAVAILABLE", "A temporary database error occurred. Please try again shortly.");
+        ErrorResponse response = new ErrorResponse("SERVICE_UNAVAILABLE", "A temporary service error occurred. Please try again shortly.");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
-        String message = sanitizeMessage(ex.getMessage(), "Invalid request parameters.");
+        String message = sanitizeMessage(ex.getMessage(), "Please check the information you entered.");
         ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
-        String message = sanitizeMessage(ex.getMessage(), "Action cannot be completed in current state.");
+        String message = sanitizeMessage(ex.getMessage(), "This action cannot be completed right now.");
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse("CONFLICT", message));
     }
 
     @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
-        String name = ex.getName() != null ? ex.getName() : "parameter";
-        ErrorResponse response = new ErrorResponse("INVALID_PARAMETER", "The provided value for '" + name + "' is invalid.");
+        String name = ex.getName() != null ? ex.getName() : "field";
+        ErrorResponse response = new ErrorResponse("INVALID_PARAMETER", "The value entered for '" + name + "' is not valid.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
-        ErrorResponse response = new ErrorResponse("MALFORMED_REQUEST", "The request payload is malformed or invalid.");
+        ErrorResponse response = new ErrorResponse("MALFORMED_REQUEST", "Please check the information you entered.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException ex) {
-        ErrorResponse response = new ErrorResponse("MISSING_PARAMETER", "Required parameter '" + ex.getParameterName() + "' is missing.");
+        ErrorResponse response = new ErrorResponse("MISSING_PARAMETER", "Required information '" + ex.getParameterName() + "' is missing.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
-        ErrorResponse response = new ErrorResponse("METHOD_NOT_ALLOWED", "This HTTP method is not supported for this endpoint.");
+        ErrorResponse response = new ErrorResponse("METHOD_NOT_ALLOWED", "This action is not supported.");
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
-        ErrorResponse response = new ErrorResponse("NOT_FOUND", "The requested resource could not be found.");
+        ErrorResponse response = new ErrorResponse("NOT_FOUND", "We couldn't find what you were looking for.");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unhandled internal server exception: ", ex);
-        ErrorResponse response = new ErrorResponse("INTERNAL_ERROR", "An unexpected server error occurred. Please try again later.");
+        ErrorResponse response = new ErrorResponse("INTERNAL_ERROR", "An unexpected error occurred. Please try again later.");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 

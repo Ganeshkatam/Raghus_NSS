@@ -291,8 +291,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
                     onClick={() => setProfileOpen(false)}
                   >
                     {primaryRole === "VOLUNTEER" || primaryRole === "STUDENT_LEADER"
-                      ? "My Dashboard"
-                      : "Management Dashboard"}
+                      ? "My Overview"
+                      : "Overview"}
                   </Link>
                   {primaryRole === "VOLUNTEER" && (
                     <Link

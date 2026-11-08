@@ -184,10 +184,10 @@ export const Reports: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      setExportNotice(`Export generated successfully: ${baseFilename}`);
+      setExportNotice(`Report downloaded successfully: ${baseFilename}`);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      alert("Failed to export report: " + (apiErr.message || "Network error"));
+      alert("Unable to download report: " + (apiErr.message || "Please try again later"));
     } finally {
       setDownloading(null);
     }
@@ -221,7 +221,7 @@ export const Reports: React.FC = () => {
         <div>
           <h1>Reports &amp; Institutional Analytics</h1>
           <p className="subtitle">
-            Accreditation compliance lists, NSS unit comparative matrices, and filtered audit exports.
+            Accreditation compliance lists, NSS unit comparisons, and downloadable reports.
           </p>
         </div>
       </div>
@@ -358,15 +358,15 @@ export const Reports: React.FC = () => {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: "#1e293b" }}>
-                Accreditation Data Export Center
+                Download Reports
               </h3>
               <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
-                Generates audit-ready CSV datasets applying active unit and date filters.
+                Download comprehensive reports with your selected unit and date filters.
               </p>
             </div>
             {downloading && (
               <span style={{ fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>
-                Generating and streaming CSV download...
+                Preparing your report download...
               </span>
             )}
           </div>
@@ -382,7 +382,7 @@ export const Reports: React.FC = () => {
                 disabled={downloading === "nss_volunteers_lists.csv"}
                 className="btn-primary-sm"
               >
-                {downloading === "nss_volunteers_lists.csv" ? "Exporting..." : "Export CSV"}
+                {downloading === "nss_volunteers_lists.csv" ? "Downloading..." : "Download report"}
               </button>
             </div>
 
@@ -396,13 +396,13 @@ export const Reports: React.FC = () => {
                 disabled={downloading === "nss_events_lists.csv"}
                 className="btn-primary-sm"
               >
-                {downloading === "nss_events_lists.csv" ? "Exporting..." : "Export CSV"}
+                {downloading === "nss_events_lists.csv" ? "Downloading..." : "Download report"}
               </button>
             </div>
 
             <div style={{ background: "#ffffff", padding: "1.25rem", borderRadius: "0.5rem", border: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Ledger</div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a" }}>Service Hours Report</div>
                 <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.2rem" }}>Verified 120-hour accreditation credit</div>
               </div>
               <button
@@ -410,7 +410,7 @@ export const Reports: React.FC = () => {
                 disabled={downloading === "nss_service_hours_accreditation.csv"}
                 className="btn-primary-sm"
               >
-                {downloading === "nss_service_hours_accreditation.csv" ? "Exporting..." : "Export CSV"}
+                {downloading === "nss_service_hours_accreditation.csv" ? "Downloading..." : "Download report"}
               </button>
             </div>
           </div>

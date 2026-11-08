@@ -100,7 +100,7 @@ export const ROLE_WORKSPACE_CONFIG: Record<
   ADMIN: {
     displayName: "System Administrator",
     workspaceTitle: "System Administration Workspace",
-    overviewLabel: "Institutional Admin",
+    overviewLabel: "Institutional Overview",
     searchScopePlaceholder: "Search users, units, volunteers, system logs...",
   },
 };
@@ -228,7 +228,7 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           id: "reports",
           title: "Reports & Analytics",
           items: [
-            { id: "reports", label: "Reports & Exports", path: "/reports", iconKey: "reports" },
+            { id: "reports", label: "Reports", path: "/reports", iconKey: "reports" },
           ],
         },
         {
@@ -283,7 +283,7 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           id: "reports",
           title: "Reports & Analytics",
           items: [
-            { id: "reports", label: "Reports & Analytics", path: "/reports", iconKey: "reports" },
+            { id: "reports", label: "Reports", path: "/reports", iconKey: "reports" },
           ],
         },
         {
@@ -301,7 +301,7 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           id: "overview",
           title: "Overview",
           items: [
-            { id: "dash", label: "Institutional Admin", path: "/dashboard", iconKey: "overview" },
+            { id: "dash", label: "Institutional Overview", path: "/dashboard", iconKey: "overview" },
           ],
         },
         {
@@ -338,7 +338,7 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           id: "reports",
           title: "Reports & Analytics",
           items: [
-            { id: "reports", label: "Reports & Analytics", path: "/reports", iconKey: "reports" },
+            { id: "reports", label: "Reports", path: "/reports", iconKey: "reports" },
           ],
         },
         {

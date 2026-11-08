@@ -5,6 +5,14 @@
 ### Phase 0 — Baseline (Completed)
 - Requirements, roles, workflows, API conventions, and data model frozen and documented.
 
+### Phase 0.5 — End-User Language Review (Mandatory Requirement)
+- Strict completion gate: A feature cannot receive 100% implementation status if its user-facing language is confusing, inconsistent, or exposes internal technical details.
+- User interface language standard codified in `docs/SRS.md` (Section 8) and `docs/FRONTEND.md` (Section 6).
+- End-user terminology audit completed across all 25 features:
+  - Technical terms replaced with clear, general English ("Dashboard" -> "Overview", "Export CSV" -> "Download report", "Audit trail" -> "Activity history", "Pending approval" -> "Waiting for approval", "Registration capacity exceeded" -> "This event is full", "Attendance correction" -> "Correct attendance", "Token expired" -> "This code has expired. Please get a new one.").
+  - Zero raw SQL, schema, HTTP, or exception stack trace details exposed to end users.
+  - Institutional NSS terminology (`NSS`, `Programme Officer`, `Faculty Coordinator`, `Student Leader`, `Special Camp`, `Attendance`, `Service Hours`) strictly preserved.
+
 ### Phase 1 — Foundation (Completed)
 - Multi-tier architecture: Spring Boot 3 backend, React 19 + TypeScript frontend, PostgreSQL 17, Redis 8.
 - Multi-stage Dockerfiles and container orchestration via Docker Compose.

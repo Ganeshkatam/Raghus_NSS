@@ -254,9 +254,9 @@ export const ServiceHours: React.FC = () => {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>Service Hours Ledger</h1>
+          <h1>Service Hours</h1>
           <p className="subtitle">
-            Institutional verified hours accumulation, milestone certifications, and audit tracking
+            Track your verified community service hours, certifications, and approvals.
           </p>
         </div>
 
@@ -299,7 +299,7 @@ export const ServiceHours: React.FC = () => {
             cursor: "pointer"
           }}
         >
-          My Service Ledger
+          My Service Hours
         </button>
 
         {isOfficerOrAdmin && (
@@ -388,7 +388,7 @@ export const ServiceHours: React.FC = () => {
                     {personalSummary.otherHours || 0} <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#64748b" }}>hrs</span>
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
-                    {personalSummary.approvedCount} approved, {personalSummary.pendingCount} pending
+                    {personalSummary.approvedCount} approved, {personalSummary.pendingCount} waiting for approval
                   </div>
                 </div>
               </div>
@@ -397,7 +397,7 @@ export const ServiceHours: React.FC = () => {
               <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                 <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Activity Ledger Entries</h3>
+                    <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Service Hour History</h3>
                     <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
                       {filteredEntries.length} of {entriesList.length} Total records
                     </span>
@@ -415,11 +415,11 @@ export const ServiceHours: React.FC = () => {
 
                 {entriesList.length === 0 ? (
                   <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
-                    No service hour entries found on your ledger yet. Attend events or submit manual claims to accrue hours.
+                    No service hours recorded yet. Participate in events or submit a claim to earn hours.
                   </div>
                 ) : filteredEntries.length === 0 ? (
                   <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
-                    No ledger entries match your search query.
+                    No entries match your search query.
                   </div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
@@ -469,11 +469,11 @@ export const ServiceHours: React.FC = () => {
                                         : "#b91c1c"
                                 }}
                               >
-                                {entry.status}
+                                {entry.status === "APPROVED" ? "Approved" : entry.status === "PENDING" ? "Waiting for approval" : "Rejected"}
                               </span>
                             </td>
                             <td style={{ padding: "0.75rem 1rem", color: "#64748b" }}>
-                              {entry.approvedByName || "Pending review"}
+                              {entry.approvedByName || "Waiting for review"}
                             </td>
                           </tr>
                         ))}
@@ -485,7 +485,7 @@ export const ServiceHours: React.FC = () => {
             </>
           ) : (
             <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
-              Sign in with an active volunteer account to view your personal service hours ledger.
+              Sign in with an active volunteer account to view your service hours.
             </div>
           )}
         </div>
@@ -496,9 +496,9 @@ export const ServiceHours: React.FC = () => {
         <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border-color, #e2e8f0)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Pending Review Queue</h3>
+              <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>Claims Waiting for Review</h3>
               <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                {filteredClaims.length} of {claimsList.length} Claims awaiting action
+                {filteredClaims.length} of {claimsList.length} claims waiting for review
               </span>
             </div>
             {claimsList.length > 0 && (
@@ -514,7 +514,7 @@ export const ServiceHours: React.FC = () => {
 
           {claimsList.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>
-              No pending service hour claims to review at this time.
+              No claims waiting for review at this time.
             </div>
           ) : filteredClaims.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center", color: "#64748b" }}>

@@ -200,7 +200,7 @@ export const Attendance: React.FC = () => {
       setManualTokenInput("");
       loadVolunteerHistory();
     } catch (err: any) {
-      setError(err.message || "Check-in failed. Ensure session token is valid and not expired.");
+      setError(err.message || "Check-in failed. This code has expired or is invalid. Please get a new one.");
     } finally {
       setCheckingIn(false);
     }
@@ -210,7 +210,7 @@ export const Attendance: React.FC = () => {
     e.preventDefault();
     if (!correctingRecord || !correctingRecord.attendanceId) return;
     if (!correctionReason.trim()) {
-      setError("An audit reason is required for corrections.");
+      setError("Please provide a reason for this attendance update.");
       return;
     }
     setSubmittingCorrection(true);
@@ -222,12 +222,12 @@ export const Attendance: React.FC = () => {
           reason: correctionReason.trim(),
         }),
       });
-      setSuccess(`Record for ${correctingRecord.fullName} corrected to ${correctionStatus}.`);
+      setSuccess(`Attendance for ${correctingRecord.fullName} updated to ${correctionStatus}.`);
       setCorrectingRecord(null);
       setCorrectionReason("");
       if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
-      setError(err.message || "Attendance correction failed.");
+      setError(err.message || "Could not update attendance. Please try again.");
     } finally {
       setSubmittingCorrection(false);
     }
@@ -262,13 +262,13 @@ export const Attendance: React.FC = () => {
           remarks: reviewRemarks.trim() || undefined
         })
       });
-      setSuccess(`Correction request ${reviewAction.toLowerCase()}d successfully.`);
+      setSuccess(`Attendance request ${reviewAction.toLowerCase()}d successfully.`);
       setReviewModalCorrection(null);
       setReviewRemarks("");
       loadPendingCorrections();
       if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
-      setError(err.message || `Failed to ${reviewAction.toLowerCase()} correction.`);
+      setError(err.message || `Failed to ${reviewAction.toLowerCase()} attendance request.`);
     } finally {
       setReviewing(false);
     }
@@ -321,14 +321,14 @@ export const Attendance: React.FC = () => {
               <div>
                 <h2>Live Event Check-In</h2>
                 <p className="subtitle">
-                  Enter the 6-character session token displayed on screen by your Programme Officer:
+                  Enter the 6-character code displayed on screen by your Programme Officer:
                 </p>
               </div>
             </div>
 
             <form onSubmit={handleVolunteerCheckIn} className="form-stack" style={{ padding: 0 }}>
               <div className="form-group">
-                <label htmlFor="tokenInput">Attendance Session Token *</label>
+                <label htmlFor="tokenInput">Attendance Code *</label>
                 <input
                   id="tokenInput"
                   type="text"
@@ -347,7 +347,7 @@ export const Attendance: React.FC = () => {
                   }}
                 />
                 <span className="cell-sub" style={{ textAlign: "center", display: "block", marginTop: "0.25rem" }}>
-                  Tokens expire 45 minutes after the session is opened.
+                  Codes expire 45 minutes after the session is opened.
                 </span>
               </div>
 
@@ -488,7 +488,7 @@ export const Attendance: React.FC = () => {
                 gap: "0.5rem"
               }}
             >
-              Pending Corrections Review
+              Attendance Requests Waiting for Review
               {pendingCorrections.length > 0 && (
                 <span style={{ backgroundColor: "#ef4444", color: "#ffffff", borderRadius: "9999px", padding: "0.1rem 0.45rem", fontSize: "0.75rem", fontWeight: 700 }}>
                   {pendingCorrections.length}
@@ -501,7 +501,7 @@ export const Attendance: React.FC = () => {
             <div className="section-card">
               <div className="section-header">
                 <div>
-                  <h2>Pending Attendance Corrections Queue</h2>
+                  <h2>Attendance Requests Waiting for Review</h2>
                   <p className="subtitle">Audit and review requested attendance adjustments from event coordinators.</p>
                 </div>
                 <button type="button" onClick={loadPendingCorrections} className="btn-secondary-sm">
@@ -511,8 +511,8 @@ export const Attendance: React.FC = () => {
 
               {pendingCorrections.length === 0 ? (
                 <div className="empty-state">
-                  <h3>No Pending Corrections</h3>
-                  <p>All attendance corrections have been reviewed and audited.</p>
+                  <h3>No Requests Waiting for Review</h3>
+                  <p>All attendance update requests have been reviewed.</p>
                 </div>
               ) : (
                 <div className="table-wrapper">
@@ -652,7 +652,7 @@ export const Attendance: React.FC = () => {
 
                   {activeSession.qrToken && (
                     <div className="session-token-wrapper">
-                      <span className="token-label">Live Attendance Session Token (Project on screen for volunteers):</span>
+                      <span className="token-label">Live Attendance Code (Display on screen for volunteers):</span>
                       <div className="token-code-row">
                         <span className="token-code">{activeSession.qrToken}</span>
                         <button
@@ -660,7 +660,7 @@ export const Attendance: React.FC = () => {
                           className="btn-secondary-sm"
                           onClick={() => navigator.clipboard.writeText(activeSession.qrToken || "")}
                         >
-                          Copy Token
+                          Copy Code
                         </button>
                       </div>
                     </div>
@@ -800,7 +800,7 @@ export const Attendance: React.FC = () => {
                 <div className="modal-backdrop">
                   <div className="modal-card">
                     <div className="modal-header">
-                      <h2>Audited Attendance Correction</h2>
+                      <h2>Correct Attendance</h2>
                       <button
                         type="button"
                         className="btn-close"
@@ -812,7 +812,7 @@ export const Attendance: React.FC = () => {
                     <div className="modal-body">
                       <p className="subtitle" style={{ marginBottom: "1rem" }}>
                         Updating attendance for <strong>{correctingRecord.fullName}</strong> ({correctingRecord.rollNumber}).
-                        Every adjustment is recorded in the institutional audit ledger.
+                        Every adjustment is recorded in the institutional activity history.
                       </p>
                       <form onSubmit={handleAuditCorrection} className="form-stack" style={{ padding: 0 }}>
                         <div className="form-group">
@@ -830,7 +830,7 @@ export const Attendance: React.FC = () => {
                         </div>
 
                         <div className="form-group">
-                          <label htmlFor="reasonInput">Audit Justification / Reason *</label>
+                          <label htmlFor="reasonInput">Reason for update *</label>
                           <textarea
                             id="reasonInput"
                             rows={3}
@@ -855,7 +855,7 @@ export const Attendance: React.FC = () => {
                             className="btn-primary"
                             disabled={submittingCorrection || !correctionReason.trim()}
                           >
-                            {submittingCorrection ? "Recording Audit..." : "Commit Correction"}
+                            {submittingCorrection ? "Saving..." : "Save attendance update"}
                           </button>
                         </div>
                       </form>
@@ -871,7 +871,7 @@ export const Attendance: React.FC = () => {
             <div className="modal-backdrop">
               <div className="modal-card">
                 <div className="modal-header">
-                  <h2>Review Correction Request</h2>
+                  <h2>Review Attendance Request</h2>
                   <button
                     type="button"
                     className="btn-close"

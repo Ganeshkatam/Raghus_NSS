@@ -249,11 +249,11 @@ export const VolunteerDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Status History Audit Trail */}
+      {/* Status History */}
       {isManager && (
         <div className="section-card" style={{ marginTop: "1.5rem" }}>
           <div className="section-header">
-            <h3>Status Transition &amp; Onboarding Audit Trail</h3>
+            <h3>Status History</h3>
           </div>
           {statusHistory.length === 0 ? (
             <p className="empty-state">No status transition history recorded for this volunteer.</p>
@@ -305,7 +305,7 @@ export const VolunteerDetail: React.FC = () => {
       {isManager && (
         <div className="section-card" style={{ marginTop: "1.5rem" }}>
           <div className="section-header">
-            <h3>Unit Transfer Audit Trail</h3>
+            <h3>Unit Transfer History</h3>
           </div>
           {transferHistory.length === 0 ? (
             <p className="empty-state">No historical unit transfers recorded.</p>
