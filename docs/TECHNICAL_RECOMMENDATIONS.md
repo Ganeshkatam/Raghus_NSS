@@ -72,3 +72,12 @@ This document captures the architectural evaluation, identified technical gaps, 
 3. **Security Integration**: Configure Spring Security, JWT filters, authentication endpoints (`/api/v1/auth/login`, `/api/v1/auth/refresh`), and user service.
 4. **Compose Enhancement**: Add `frontend` and `analytics` to `docker-compose.yml`.
 5. **Frontend Core**: Configure React Router, HTTP interceptor, and Auth Provider.
+
+
+## 5. Analytics Microservice Decision Update
+
+The earlier recommendation to expose the Python reporting module through FastAPI is recorded as a proposed workload-isolation initiative, not an implemented capability. Repository inspection confirms that `analytics/main.py` remains an offline utility while Spring Boot's `ReportService` and `ReportController` currently serve institutional metrics and CSV exports.
+
+The target design keeps authentication, capability checks, and unit-scope authorization in Spring Boot; calls FastAPI only over private service networking; and grants the analytics process a dedicated PostgreSQL identity with read-only access to explicitly approved reporting views. A private network alone is not authentication. Report generation must be asynchronous and bounded, and artifacts must use private durable storage when persistence across instance restarts is required.
+
+This decision is narrower than a general microservice migration: isolate the compute-heavy reporting workload while retaining the transactional backend as the system of record. The detailed security model, API contract, deployment configuration, acceptance criteria, and rollout sequence are in [ANALYTICS_MICROSERVICE.md](ANALYTICS_MICROSERVICE.md).
