@@ -232,3 +232,16 @@ Return Immutable Response DTO Record (HTTP 200 / 201 / 204)
 - **Readiness Endpoint**: `GET /actuator/health/readiness` (Confirms database connection pool is healthy).
 - **Graceful Shutdown**: Configured with 30-second shutdown phase (`server.shutdown: graceful`).
 - **Flyway Migrations**: Applied automatically on application startup before the web container accepts traffic.
+
+
+## Analytics Service Integration (Target Architecture)
+
+Spring Boot remains the public API and the user authorization boundary. The existing `ReportController` and `ReportService` currently provide institutional metrics and CSV exports. Those routes must remain compatible during migration.
+
+For advanced reports, Spring Boot will use a typed internal HTTP client to call the private FastAPI analytics service. The backend must authenticate and authorize the current principal before submission, derive the effective unit scope from server-side authorization state, and persist/correlate the requesting principal with the returned job ID. Status and artifact downloads must re-check job ownership and report permissions. The React application must never call FastAPI directly and must never receive the internal service credential.
+
+The internal client must use server-side secrets, explicit connection/response timeouts, bounded connection pools and response sizes, correlation IDs, DTO validation, safe structured error mapping, and bounded retries only for idempotent transient operations. Failures in analytics must fail fast without consuming attendance request capacity. Do not log credentials, SQL, or report contents.
+
+The analytics service's database identity is separate from the backend identity and is read-only on explicitly granted reporting views. It cannot write transactional records or own application schemas. Unit-level report scopes are validated in Spring Boot and enforced again in the query contract; a browser-supplied unit ID is never trusted as authorization evidence.
+
+The target endpoint/job contract and rollout requirements are specified in [ANALYTICS_MICROSERVICE.md](ANALYTICS_MICROSERVICE.md). These are design requirements, not claims that the client or service is already implemented.
