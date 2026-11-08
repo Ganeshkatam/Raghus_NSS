@@ -25,7 +25,7 @@ The platform digitizes, automates, and audits end-to-end NSS institutional opera
 | **Backend** | Microservice REST API | Java 21, Spring Boot 3.3.4, Spring Security, Hibernate 6 | Business logic, JWT auth, RBAC method security, transactional boundaries |
 | **Database** | Relational Persistence | PostgreSQL 17 (Supabase Managed) | 3NF normalized relational schema, Flyway migrations, ACID transactions |
 | **Cache & Revocation** | In-Memory Store | Redis 8 (Alpine) | JWT blocklist, short-lived QR attendance tokens, bulletin caching |
-| **Analytics Engine** | Data Processing Service | Python 3.13, Pandas, ReportLab | Offline institutional report compilation and batch data reconciliation |
+| **Analytics Engine (target)** | Private reporting service | FastAPI, Python, Pandas, ReportLab | Isolated institutional aggregation and asynchronous CSV/PDF report jobs; status tracked in `docs/ANALYTICS_MICROSERVICE.md` |
 | **Orchestration** | Container Runtime | Docker, Docker Compose | Local multi-container development and CI verification |
 
 ---
@@ -48,12 +48,13 @@ The platform enforces a five-tier hierarchical security model across 19 atomic c
 
 All architectural specifications, database schemas, feature requirements, and UI/UX design tokens derived from institutional engineering reports are catalogued in `docs/`:
 
-- [Software Requirements Specification (SRS)](file:///e:/REC_NSS/docs/SRS.md): Complete institutional requirements catalog covering 30 Functional Requirements (FR-001 to FR-030), 12 Non-Functional Requirements (NFR-001 to NFR-012), actor taxonomies, and traceability matrix.
-- [System Architecture Report](file:///e:/REC_NSS/docs/ARCHITECTURE.md): Multi-tier deployment topology, component interactions, security envelopes, data consistency boundaries, fault tolerance, and trade-off analyses.
-- [Backend Implementation Specification](file:///e:/REC_NSS/docs/BACKEND.md): Spring Boot 3 modular design, RESTful API contracts, global exception handling, database transaction management, and automated test strategies.
-- [Database & ER Model Specification](file:///e:/REC_NSS/docs/DATABASE.md): Third Normal Form (3NF) relational schema, Mermaid ER diagrams, column specifications, UUID primary key design, performance indexes, and Flyway migration catalogue.
-- [Feature-Wise Implementation Specification](file:///e:/REC_NSS/docs/FEATURES.md): Technical specifications for all 25 features across IAM, Volunteer Management, Events, Attendance, Service Hours, Communications, and Administration.
-- [Frontend Architecture & UI/UX Specification](file:///e:/REC_NSS/docs/FRONTEND.md): React/TypeScript client architecture, design system tokens (typography, color palettes, spacing), component patterns, URL state management, and WCAG 2.1 AA accessibility guidelines.
+- [Software Requirements Specification (SRS)](docs/SRS.md): Complete institutional requirements catalog covering 30 Functional Requirements (FR-001 to FR-030), 12 Non-Functional Requirements (NFR-001 to NFR-012), actor taxonomies, and traceability matrix.
+- [System Architecture Report](docs/ARCHITECTURE.md): Multi-tier deployment topology, component interactions, security envelopes, data consistency boundaries, fault tolerance, and trade-off analyses.
+- [Backend Implementation Specification](docs/BACKEND.md): Spring Boot 3 modular design, RESTful API contracts, global exception handling, database transaction management, and automated test strategies.
+- [Database & ER Model Specification](docs/DATABASE.md): Third Normal Form (3NF) relational schema, Mermaid ER diagrams, column specifications, UUID primary key design, performance indexes, and Flyway migration catalogue.
+- [Feature-Wise Implementation Specification](docs/FEATURES.md): Technical specifications for all 25 features across IAM, Volunteer Management, Events, Attendance, Service Hours, Communications, and Administration.
+- [Frontend Architecture & UI/UX Specification](docs/FRONTEND.md): React/TypeScript client architecture, design system tokens (typography, color palettes, spacing), component patterns, URL state management, and WCAG 2.1 AA accessibility guidelines.
+- [Analytics Microservice Architecture & Operations](docs/ANALYTICS_MICROSERVICE.md): Target FastAPI service boundary, internal API contract, PostgreSQL least-privilege access, Render deployment, job lifecycle, security, and rollout criteria.
 
 ---
 
@@ -70,7 +71,7 @@ REC_NSS/
 │   ├── src/context/    # AuthContext, dynamic capability guards (can, hasCapability)
 │   ├── src/pages/      # Route pages (Dashboard, Volunteers, Units, Events, Attendance, etc.)
 │   └── src/services/   # Centralized API clients with bearer token injection
-├── analytics/          # Python 3.13 reporting and data processing service
+├── analytics/          # Existing offline Python reporting utility; target service contract in docs/ANALYTICS_MICROSERVICE.md
 ├── docs/               # In-depth architectural specifications and diagrams
 │   └── architecture/   # Source institutional PDF reports and reference material
 ├── scripts/            # Cross-platform development and deployment automation

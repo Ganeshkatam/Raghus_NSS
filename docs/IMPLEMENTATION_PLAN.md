@@ -37,8 +37,17 @@
 - Audience-scoped announcements (college-wide or unit-specific).
 - Notification engine with per-user unread tracking.
 
-### Phase 8 — Reporting & Institutional Analytics (Completed)
-- Executive metrics, unit engagement matrix, and 1-click CSV exports for Volunteers, Events, and Service Hours.
+### Phase 8 — Reporting & Institutional Analytics (Existing baseline)
+- Spring Boot currently provides institutional metrics and CSV exports for Volunteers, Events, and Service Hours.
+- The Python `analytics/` directory is currently an offline utility, not a deployed FastAPI service.
+
+### Phase 8A — Analytics Microservice Extraction (Planned)
+- Add a private FastAPI service under `analytics/` with health probes, internal service authentication, validated report-job APIs, and bounded asynchronous execution.
+- Provision a dedicated PostgreSQL read-only role and reviewed reporting views; do not reuse the application's unrestricted database credentials.
+- Integrate Spring Boot through a typed internal client while retaining Spring Boot as the public authentication, authorization, and unit-scope boundary.
+- Add private durable artifact storage, report retention, observability, contract tests, security tests, and Render staging deployment.
+- Migrate report types incrementally after output parity and authorization tests; preserve existing CSV endpoints as a rollback path.
+- Detailed acceptance criteria: [Analytics Microservice Architecture & Operations](ANALYTICS_MICROSERVICE.md).
 
 ### Phase 10 — Production Hardening (Completed)
 - Hikari connection pooling, Flyway safety controls, and graceful shutdown.
