@@ -40,7 +40,7 @@ The application replaces fragmented, error-prone workflows based on physical pap
 ## 2. Overall Description
 
 ### 2.1 Product Perspective
-The NSS Application operates as a centralized institutional web platform. The React frontend interacts with a secure Spring Boot REST API over TLS/HTTPS. The backend enforces all domain business rules, role-based capabilities, and input validation. PostgreSQL serves as the authoritative transactional database, with object storage preserving documents and photographs.
+The NSS Application operates as a centralized institutional web platform. The React frontend interacts with a secure Spring Boot REST API over TLS/HTTPS. The backend enforces all domain business rules, role-based capabilities, and input validation. PostgreSQL serves as the authoritative transactional database for 100% relational operations without external cloud object storage dependencies.
 
 ### 2.2 High-Level Organization Hierarchy
 ```
@@ -58,11 +58,9 @@ College
 4. **Event Lifecycle**: Draft, publish, registration window, capacity limits, ongoing, completion, cancellation.
 5. **Attendance Verification**: Controlled attendance sessions, rotating/short-lived QR codes, manual check-in, supervisor corrections with audit trails.
 6. **Service-Hour Ledger**: Double-entry style credit/debit ledger derived strictly from verified participation.
-7. **Activity Reports & Documents**: Post-event documentation, photo attachments, university submission packages.
-8. **Communication**: Audience-targeted bulletins, in-app notifications, delivery tracking.
-9. **Achievements & Certification**: Honors tracking, digital participation credentials, verification codes.
-10. **Analytics & Institutional Reports**: Accreditation dashboards, cross-tabulated CSV/PDF exports.
-11. **Administrative Governance**: Comprehensive audit logging, configuration, user account management.
+7. **Communication**: Audience-targeted bulletins, in-app notifications, delivery tracking.
+8. **Analytics & Institutional Reports**: Accreditation dashboards, cross-tabulated CSV/PDF exports.
+9. **Administrative Governance**: Comprehensive audit logging, configuration, user account management.
 
 ### 2.4 Assumptions and Dependencies
 - The college establishes official service-hour thresholds (e.g. 120 hours per academic cycle).
@@ -112,11 +110,11 @@ College
 | **FR-016** | Service-Hour Derivation | Calculate service hours strictly from verified attendance records according to approved event credit hours. |
 | **FR-017** | Service-Hour Ledger | Store hours as an auditable, append-only ledger; prohibit untracked direct modifications to cumulative hour totals. |
 | **FR-018** | Activity Reporting | Programme Officers compile post-event activity reports detailing outcomes, participant counts, total hours, and photo documentation. |
-| **FR-019** | Document Management | Store document metadata in the database and maintain uploaded files in secure, authorized object storage. |
+| **FR-019** | Document Management | [Out of Scope - Deferred to External Third-Party Systems] Geotagged photo uploads and binary file storage deferred to reduce storage costs. |
 | **FR-020** | Targeted Announcements | Publish notices scoped to college-wide audiences or specific NSS units with expiration timestamps. |
 | **FR-021** | In-App Notifications | Generate system notifications for registration confirmations, session openings, service-hour approvals, and circulars. |
-| **FR-022** | Achievements & Honors | Record and showcase institutional recognitions, awards, and leadership citations. |
-| **FR-023** | Certificate Issuance | Track eligibility milestones (e.g. 120 service hours + Special Camp) and manage verified completion certificates. |
+| **FR-022** | Achievements & Honors | [Out of Scope - Deferred to External Third-Party Systems] Award nominations and leadership honor citations deferred. |
+| **FR-023** | Certificate Issuance | [Out of Scope - Deferred to External Third-Party Systems] Digital certificate generation and issuance deferred; 120/240-hour milestone eligibility tracked via service hours. |
 | **FR-024** | Search & Filtering | Provide fast, server-side paginated search across volunteers, events, units, and attendance lists. |
 | **FR-025** | Operational Dashboards | Deliver personalized dashboards displaying real-time metrics, upcoming schedules, and pending approval queues. |
 | **FR-026** | Institutional Analytics | Aggregate participation by department, gender, unit, and event category for administrative review. |

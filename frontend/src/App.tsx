@@ -23,7 +23,6 @@ const ServiceHours = React.lazy(() => import("./pages/ServiceHours").then(m => (
 const Announcements = React.lazy(() => import("./pages/Announcements").then(m => ({ default: m.Announcements })));
 const Reports = React.lazy(() => import("./pages/Reports").then(m => ({ default: m.Reports })));
 const Admin = React.lazy(() => import("./pages/Admin").then(m => ({ default: m.Admin })));
-const ModulePlaceholder = React.lazy(() => import("./pages/ModulePlaceholder").then(m => ({ default: m.ModulePlaceholder })));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -167,21 +166,7 @@ export const AppContent: React.FC = () => {
       />
       <Route
         path="/camps"
-        element={
-          <ProtectedRoute>
-            <ModulePlaceholder
-              title="Special Camps"
-              category="Programmes"
-              description="7-day rural immersion camps, village adoption activities, and special residential initiatives."
-              phase="Future Scope"
-              features={[
-                "Rural village camp allocation and student leadership lists",
-                "Daily camp schedule and multi-session service hours logging",
-                "Community impact assessment and project reporting"
-              ]}
-            />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/events" replace />}
       />
 
       {/* Participation */}
@@ -202,44 +187,6 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      {/* Recognition */}
-      <Route
-        path="/achievements"
-        element={
-          <ProtectedRoute>
-            <ModulePlaceholder
-              title="Achievements & Recognition"
-              category="Recognition"
-              description="Best volunteer awards, leadership citations, and institutional honors."
-              phase="Future Scope"
-              features={[
-                "Annual Best Volunteer and Special Contribution awards",
-                "Institutional honors review and nomination workflows",
-                "Public recognition wall and student portfolio showcases"
-              ]}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/certificates"
-        element={
-          <ProtectedRoute>
-            <ModulePlaceholder
-              title="Institutional Certificates"
-              category="Recognition"
-              description="Digitally verified completion certificates, activity credentials, and verifiable downloads."
-              phase="Future Scope"
-              features={[
-                "Official NSS Participation and Special Camp completion certificates",
-                "Cryptographic verification codes and PDF credential generation",
-                "University academic transcript integration"
-              ]}
-            />
-          </ProtectedRoute>
-        }
-      />
-
       {/* Communication */}
       <Route
         path="/announcements"
@@ -254,44 +201,6 @@ export const AppContent: React.FC = () => {
         element={
           <ProtectedRoute>
             <Announcements />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Documents */}
-      <Route
-        path="/activity-reports"
-        element={
-          <ProtectedRoute>
-            <ModulePlaceholder
-              title="Activity Reports"
-              category="Documents"
-              description="Standardized post-programme documentation, photos, and compliance submissions."
-              phase="Future Scope"
-              features={[
-                "Structured activity reports linking directly to event and attendance records",
-                "Photo gallery and geo-tagged community service documentation",
-                "University NSS Cell submission exports"
-              ]}
-            />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/documents"
-        element={
-          <ProtectedRoute>
-            <ModulePlaceholder
-              title="Document Repository"
-              category="Documents"
-              description="Government circulars, NSS operational manuals, and institutional forms."
-              phase="Future Scope"
-              features={[
-                "Categorized repository for Ministry of Youth Affairs circulars and guidelines",
-                "Enrollment forms, medical fitness templates, and parent consent forms",
-                "Version-controlled institutional archive"
-              ]}
-            />
           </ProtectedRoute>
         }
       />

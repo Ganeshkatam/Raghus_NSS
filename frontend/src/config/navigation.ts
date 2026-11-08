@@ -23,11 +23,7 @@ export type NavIconKey =
   | "camps"
   | "attendance"
   | "hours"
-  | "achievements"
-  | "certificates"
   | "announcements"
-  | "activityReports"
-  | "documents"
   | "reports"
   | "admin";
 
@@ -140,14 +136,6 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           ],
         },
         {
-          id: "recognition",
-          title: "Recognition",
-          items: [
-            { id: "achievements", label: "Achievements", path: "/achievements", iconKey: "achievements", badge: "Future" },
-            { id: "certificates", label: "Certificates", path: "/certificates", iconKey: "certificates", badge: "Future" },
-          ],
-        },
-        {
           id: "communication",
           title: "Communication",
           items: [
@@ -186,14 +174,6 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           items: [
             { id: "attendance", label: "Attendance Assistance", path: "/attendance", iconKey: "attendance" },
             { id: "hours", label: "Service Hours", path: "/service-hours", iconKey: "hours" },
-          ],
-        },
-        {
-          id: "recognition",
-          title: "Recognition",
-          items: [
-            { id: "achievements", label: "Achievements", path: "/achievements", iconKey: "achievements", badge: "Future" },
-            { id: "certificates", label: "Certificates", path: "/certificates", iconKey: "certificates", badge: "Future" },
           ],
         },
         {
@@ -242,14 +222,6 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           items: [
             { id: "attendance", label: "Attendance Operations", path: "/attendance", iconKey: "attendance" },
             { id: "hours", label: "Service Hours Review", path: "/service-hours", iconKey: "hours" },
-          ],
-        },
-        {
-          id: "documents",
-          title: "Documents",
-          items: [
-            { id: "activityReports", label: "Activity Reports", path: "/activity-reports", iconKey: "activityReports", badge: "Future" },
-            { id: "documents", label: "Repository", path: "/documents", iconKey: "documents", badge: "Future" },
           ],
         },
         {
@@ -305,14 +277,6 @@ export function getNavigationForRole(role: UserRole): NavGroup[] {
           items: [
             { id: "attendance", label: "Attendance Operations", path: "/attendance", iconKey: "attendance" },
             { id: "hours", label: "Service Hours", path: "/service-hours", iconKey: "hours" },
-          ],
-        },
-        {
-          id: "documents",
-          title: "Documents",
-          items: [
-            { id: "activityReports", label: "Activity Reports", path: "/activity-reports", iconKey: "activityReports", badge: "Future" },
-            { id: "documents", label: "Repository", path: "/documents", iconKey: "documents", badge: "Future" },
           ],
         },
         {
@@ -444,14 +408,10 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/camps": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/attendance": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/service-hours": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
-  "/achievements": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
-  "/certificates": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/announcements": ["VOLUNTEER", "STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/volunteers": ["STUDENT_LEADER", "PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/units": ["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/reports": ["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
-  "/activity-reports": ["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
-  "/documents": ["PROGRAMME_OFFICER", "FACULTY_COORDINATOR", "ADMIN"],
   "/admin": ["ADMIN"],
 };
 

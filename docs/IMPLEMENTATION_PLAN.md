@@ -66,21 +66,13 @@ The following modules are catalogued as future enhancements beyond the current c
 - 7-day rural immersion camp management and allocation.
 - Village adoption tracking and multi-session camp service hour logging.
 
-### Phase 9B — Achievements & Recognition (Future)
-- Annual awards, leadership citations, and nomination workflows.
-- Public recognition showcase.
-
-### Phase 9C — Digital Certificates (Future)
-- Cryptographically verifiable participation and camp completion certificates.
-- Automated PDF credential generation and university transcript integration.
-
-### Phase 9D — Activity Reports (Future)
-- Structured post-programme documentation and geo-tagged photo uploads.
-- University NSS Cell compliance reporting.
-
-### Phase 9E — Document Repository (Future)
-- Cloud storage integration for Ministry circulars, operational guidelines, and enrollment forms.
-
 ### Phase 11 — Advanced Administration (Future)
 - Detailed administrative audit log query console.
 - In-depth system health diagnostics and runtime cache management.
+
+## Out of Scope (Deferred to External Third-Party Systems)
+
+To eliminate cloud object storage dependencies (AWS S3, Supabase Storage), multipart file uploads, and binary hosting costs, the following modules are formally deferred:
+- **Digital Certificates**: Generation and cryptographic verification deferred to external academic transcript/credential systems. Milestone tracking (120/240 hours) remains fully operational via relational service-hour ledgers.
+- **Achievements & Recognition**: Award nomination workflows and citations deferred to external institutional channels.
+- **Document & Media Storage**: Binary storage of circulars, photos, and compliance attachments deferred to institutional cloud drives.

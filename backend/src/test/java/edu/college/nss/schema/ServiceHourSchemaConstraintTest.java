@@ -521,6 +521,30 @@ public class ServiceHourSchemaConstraintTest {
         }
     }
 
+    @Test
+    @DisplayName("Assert V28 successfully dropped all storage-dependent tables from public schema")
+    void assertV28StorageDependentTablesDropped() throws Exception {
+        String sql = """
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+              AND table_name IN ('certificates', 'achievements', 'activity_reports', 'documents', 'event_media', 'activity_documents');
+            """;
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            List<String> survivingTables = new ArrayList<>();
+            while (rs.next()) {
+                survivingTables.add(rs.getString("table_name"));
+            }
+
+            assertTrue(survivingTables.isEmpty(),
+                "Storage-dependent tables must be dropped by V28. Found surviving tables: " + survivingTables);
+        }
+    }
+
     public static Set<String> parseStatusesFromConstraintDef(String def) {
         if (def == null) return Collections.emptySet();
         Set<String> statuses = new TreeSet<>();
