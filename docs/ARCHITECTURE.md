@@ -257,3 +257,14 @@ Automated Cloud Deployment
 3. **Decoupled Object Storage vs Relational Byte Storage**:
    - *Decision*: Store document metadata in PostgreSQL and binary files in object storage.
    - *Rationale*: Prevents database bloat, keeps backups lightweight, and allows fast direct streaming of event photographs and activity documentation.
+
+
+## 12. Analytics Microservice — Target Architecture
+
+The current backend remains a modular monolith for transactional NSS workflows. Analytics is the first separately deployable workload proposed for extraction because multi-year aggregation and PDF compilation have a different CPU/memory profile from QR attendance and transactional APIs. This is workload isolation, not a general decomposition of the domain model into microservices.
+
+**Current state:** `analytics/main.py` is an offline utility; Spring Boot currently owns the reports endpoints and authorization. **Target state:** a private FastAPI service executes asynchronous report jobs using a dedicated PostgreSQL read-only identity. The frontend continues to call Spring Boot only. Spring Boot authenticates the user, enforces `REPORTS_VIEW`/`REPORTS_EXPORT` and unit scope, then invokes analytics over Render private networking with a separate service credential.
+
+The analytics process must query explicitly granted reporting views, not use the application's unrestricted database credentials. Approved service-hour totals include only `APPROVED` ledger entries. Report artifacts must be stored privately and durably if they need to survive Render instance restarts. Job execution must have bounded concurrency, queue capacity, query timeouts, execution deadlines, and artifact retention.
+
+The detailed target topology, internal API contract, data-access rules, Render configuration contract, Spring Boot integration requirements, acceptance tests, and staged rollout are maintained in [Analytics Microservice Architecture & Operations](ANALYTICS_MICROSERVICE.md). The design remains proposed until implementation, CI verification, and a staging Render deployment are complete.
