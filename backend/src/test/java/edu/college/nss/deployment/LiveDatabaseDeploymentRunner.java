@@ -12,6 +12,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Controlled manual runner for remote/production database verification and migration.
@@ -117,12 +119,21 @@ public class LiveDatabaseDeploymentRunner {
                         if (colList.size() != 1 || !"status".equals(colList.get(0))) {
                             throw new IllegalStateException("INVARIANT VIOLATION: chk_service_hour_entries_status must constrain ONLY the 'status' column! Found: " + colList);
                         }
-                        String normalizedDef = def.replace(" ", "").toUpperCase();
-                        if (!normalizedDef.contains("APPROVED") || !normalizedDef.contains("PENDING") ||
-                            !normalizedDef.contains("REJECTED") || !normalizedDef.contains("REVOKED")) {
-                            throw new IllegalStateException("INVARIANT VIOLATION: chk_service_hour_entries_status missing allowed status! Def: " + def);
+
+                        // Exact AST token extraction from ARRAY[...]
+                        Set<String> parsedStatuses = new TreeSet<>();
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("'([^']+)'").matcher(def);
+                        while (m.find()) {
+                            String token = m.group(1);
+                            if (!token.contains(" ") && !token.equalsIgnoreCase("text")) {
+                                parsedStatuses.add(token.toUpperCase(java.util.Locale.ROOT));
+                            }
                         }
-                        System.out.println("    -> VERIFIED: 'chk_service_hour_entries_status' constrains strictly ['status'] to exactly {'APPROVED', 'PENDING', 'REJECTED', 'REVOKED'}.");
+                        Set<String> expectedStatuses = Set.of("APPROVED", "PENDING", "REJECTED", "REVOKED");
+                        if (!expectedStatuses.equals(parsedStatuses)) {
+                            throw new IllegalStateException("INVARIANT VIOLATION: Allowed statuses must be EXACTLY " + expectedStatuses + ", but found: " + parsedStatuses);
+                        }
+                        System.out.println("    -> VERIFIED EXACT SET: 'chk_service_hour_entries_status' constrains strictly ['status'] to exactly " + expectedStatuses + " (count=" + parsedStatuses.size() + ").");
                     }
                 }
                 if (!foundStatusCheck) {

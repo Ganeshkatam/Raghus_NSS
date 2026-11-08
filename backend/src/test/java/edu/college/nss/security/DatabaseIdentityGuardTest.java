@@ -20,31 +20,43 @@ class DatabaseIdentityGuardTest {
         "jdbc:postgresql://my-aurora-cluster.cluster-xyz.amazonaws.com:5432/nss",
         "jdbc:postgresql://localhost:5432/rec_nss_production",
         "jdbc:postgresql://localhost:5432/prod_database",
-        "jdbc:postgresql://10.0.0.1:5432/ProductionNSS"
+        "jdbc:postgresql://10.0.0.1:5432/ProductionNSS",
+        "jdbc:postgresql://10.0.0.1:5432/rec_nss_test",
+        "jdbc:postgresql://192.168.1.100:5432/rec_nss_test",
+        "jdbc:postgresql://remote-postgres.corp.internal:5432/rec_nss_test",
+        "jdbc:postgresql://external-db.example.com:5432/rec_nss_test",
+        "jdbc:postgresql://localhost:5432/postgres",
+        "jdbc:postgresql://localhost:5432/rec_nss",
+        "jdbc:postgresql://127.0.0.1:5432/rec_nss_dev",
+        "jdbc:postgresql://127.0.0.1:5432/development",
+        "jdbc:mysql://localhost:3306/rec_nss_test",
+        "jdbc:oracle:thin:@localhost:1521:rec_nss_test"
     })
-    @DisplayName("Should refuse known cloud, remote, or production database URLs")
-    void shouldRefuseCloudAndProductionUrls(String cloudOrProdUrl) {
+    @DisplayName("Should refuse known cloud, remote hosts, or non-test database names")
+    void shouldRefuseCloudRemoteAndNonTestUrls(String prohibitedUrl) {
         SecurityException ex = assertThrows(
             SecurityException.class,
-            () -> DatabaseIdentityGuard.assertSafeTestDatabase(cloudOrProdUrl),
-            "Expected SecurityException for prohibited URL: " + cloudOrProdUrl
+            () -> DatabaseIdentityGuard.assertSafeTestDatabase(prohibitedUrl),
+            "Expected SecurityException for prohibited URL: " + prohibitedUrl
         );
         assertTrue(ex.getMessage().contains("CRITICAL SECURITY VIOLATION"));
-        assertFalse(DatabaseIdentityGuard.isSafeTestDatabase(cloudOrProdUrl));
+        assertFalse(DatabaseIdentityGuard.isSafeTestDatabase(prohibitedUrl));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
+        "jdbc:postgresql://localhost:5432/rec_nss_test",
+        "jdbc:postgresql://127.0.0.1:5432/rec_nss_test?sslmode=disable",
+        "jdbc:postgresql://127.0.0.1:5433/rec_nss_concurrency_test",
+        "jdbc:postgresql://[::1]:5432/rec_nss_schema_test",
         "jdbc:postgresql://localhost:5432/nss_test",
-        "jdbc:postgresql://127.0.0.1:5432/test_rec_nss",
-        "jdbc:postgresql://127.0.0.1:5433/isolated_test_db",
-        "jdbc:tc:postgresql:17-alpine:///test_db",
+        "jdbc:tc:postgresql:17-alpine:///rec_nss_test",
         "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"
     })
-    @DisplayName("Should accept isolated local test database URLs")
-    void shouldAcceptLocalTestUrls(String localTestUrl) {
-        assertDoesNotThrow(() -> DatabaseIdentityGuard.assertSafeTestDatabase(localTestUrl));
-        assertTrue(DatabaseIdentityGuard.isSafeTestDatabase(localTestUrl));
+    @DisplayName("Should positively accept approved loopback test database URLs")
+    void shouldAcceptApprovedTestUrls(String approvedTestUrl) {
+        assertDoesNotThrow(() -> DatabaseIdentityGuard.assertSafeTestDatabase(approvedTestUrl));
+        assertTrue(DatabaseIdentityGuard.isSafeTestDatabase(approvedTestUrl));
     }
 
     @Test
