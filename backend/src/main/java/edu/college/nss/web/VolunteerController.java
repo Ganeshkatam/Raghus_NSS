@@ -30,14 +30,14 @@ public class VolunteerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE')")
     public ResponseEntity<VolunteerResponse> createVolunteer(@Valid @RequestBody VolunteerRequest request) {
         VolunteerResponse response = volunteerService.createVolunteer(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('VOLUNTEERS_VIEW') or hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_VIEW') or hasAuthority('VOLUNTEERS_MANAGE')")
     public ResponseEntity<Page<VolunteerResponse>> listVolunteers(
         @RequestParam(required = false) String search,
         @RequestParam(required = false) String status,
@@ -96,7 +96,7 @@ public class VolunteerController {
     }
 
     @PostMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('VOLUNTEERS_MANAGE')")
     public ResponseEntity<VolunteerResponse> updateVolunteerStatus(
         @PathVariable UUID id,
         @Valid @RequestBody edu.college.nss.web.dto.VolunteerStatusUpdateRequest request,

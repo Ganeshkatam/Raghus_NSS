@@ -67,9 +67,7 @@ public class ReportService {
             }
             totalVolunteersCount += volCount;
             totalEventsCount += evCount;
-            completedEventsCount += eventRepository.findAll().stream()
-                .filter(e -> u.getUnitId().equals(e.getUnit().getUnitId()) && "COMPLETED".equalsIgnoreCase(e.getStatus()))
-                .count();
+            completedEventsCount += eventRepository.countByUnit_UnitIdAndStatus(u.getUnitId(), "COMPLETED");
 
             unitMetrics.add(new UnitPerformanceMetric(
                 u.getUnitId(),
@@ -298,9 +296,17 @@ public class ReportService {
 
     private String escapeCsv(String val) {
         if (val == null) return "";
-        if (val.contains(",") || val.contains("\"") || val.contains("\n")) {
-            return "\"" + val.replace("\"", "\"\"") + "\"";
+        String sanitized = val;
+        String trimmed = sanitized.stripLeading();
+        if (!trimmed.isEmpty()) {
+            char first = trimmed.charAt(0);
+            if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
+                sanitized = "'" + sanitized;
+            }
         }
-        return val;
+        if (sanitized.contains(",") || sanitized.contains("\"") || sanitized.contains("\n") || sanitized.contains("\r")) {
+            return "\"" + sanitized.replace("\"", "\"\"") + "\"";
+        }
+        return sanitized;
     }
 }

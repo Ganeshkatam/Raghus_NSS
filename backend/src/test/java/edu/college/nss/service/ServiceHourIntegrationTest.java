@@ -162,4 +162,71 @@ class ServiceHourIntegrationTest {
         );
         assertTrue(ex.getMessage().contains("Reviewer cannot approve or reject their own service hour claim"));
     }
+
+    @Test
+    void submitClaim_forEvent_whenAttendanceIsAbsent_shouldBeRejected() {
+        Event pastEvent = eventRepository.save(new Event(
+            unit, admin, "Past Service Event", "Description", "SERVICE",
+            Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600),
+            Instant.now().minusSeconds(14400), Instant.now().minusSeconds(7300),
+            "Campus Grounds", 50
+        ));
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            pastEvent, admin, Instant.now().minusSeconds(7000), Instant.now().minusSeconds(4000), "secret"
+        ));
+        recordRepository.save(new AttendanceRecord(session, volunteer, "MANUAL", "ABSENT"));
+
+        ServiceHourClaimRequest request = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(1.00), pastEvent.getEventId(), "Claiming hours despite absence"
+        );
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+            () -> serviceHourService.submitClaim(request, volunteerPrincipal));
+        assertTrue(ex.getMessage().contains("ABSENT"));
+    }
+
+    @Test
+    void reviewClaim_forEvent_derivesAccreditedHoursFromEventAndLinksAttendanceRecord() {
+        Event pastEvent = eventRepository.save(new Event(
+            unit, admin, "Past Two Hour Workshop", "Description", "TRAINING_WORKSHOP",
+            Instant.now().minusSeconds(7200), Instant.now().minusSeconds(0), // 2 hours
+            Instant.now().minusSeconds(14400), Instant.now().minusSeconds(7300),
+            "Seminar Hall", 50
+        ));
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            pastEvent, admin, Instant.now().minusSeconds(7000), Instant.now().minusSeconds(100), "secret"
+        ));
+        AttendanceRecord attRecord = recordRepository.save(new AttendanceRecord(session, volunteer, "QR", "PRESENT"));
+
+        // Volunteer claims 1.0 hour, but event is configured for 2.0 hours
+        ServiceHourClaimRequest request = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(1.00), pastEvent.getEventId(), "Attended 2 hour workshop"
+        );
+        ServiceHourResponse pending = serviceHourService.submitClaim(request, volunteerPrincipal);
+
+        ServiceHourResponse approved = serviceHourService.reviewClaim(
+            pending.entryId(),
+            new ServiceHourReviewRequest("APPROVE", "Verified via attendance"),
+            adminPrincipal
+        );
+
+        assertEquals("APPROVED", approved.status());
+        // Derived from event.getServiceHours() = 2.00 hours
+        assertEquals(BigDecimal.valueOf(2.0).setScale(2), approved.hours().setScale(2));
+
+        ServiceHourEntry entry = serviceHourRepository.findById(approved.entryId()).orElseThrow();
+        assertNotNull(entry.getAttendanceRecord());
+        assertEquals(attRecord.getAttendanceId(), entry.getAttendanceRecord().getAttendanceId());
+    }
+
+    @Test
+    void submitClaim_exceedingCeiling_shouldBeRejected() {
+        ServiceHourClaimRequest request = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(65.00), null, "Excessive hours claim"
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> serviceHourService.submitClaim(request, volunteerPrincipal));
+        assertTrue(ex.getMessage().contains("cannot exceed 60 hours"));
+    }
 }

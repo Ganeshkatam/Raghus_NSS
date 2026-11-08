@@ -170,6 +170,14 @@ public class Event {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
+    public java.math.BigDecimal getServiceHours() {
+        if (startAt == null || endAt == null) {
+            return java.math.BigDecimal.ZERO;
+        }
+        long minutes = Math.max(30, java.time.Duration.between(startAt, endAt).toMinutes());
+        return java.math.BigDecimal.valueOf(minutes).divide(java.math.BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+    }
+
     public String getEventScope() { return eventScope; }
     public void setEventScope(String eventScope) {
         if (eventScope != null && !eventScope.isBlank()) {

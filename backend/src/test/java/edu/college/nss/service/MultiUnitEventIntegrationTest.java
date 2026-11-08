@@ -336,4 +336,47 @@ class MultiUnitEventIntegrationTest {
         assertThrows(IllegalArgumentException.class, () ->
             eventService.update(created.eventId(), invalidReduction, po1Principal));
     }
+
+    @Test
+    void create_invalidEventType_shouldThrowIllegalArgumentException() {
+        EventCreateRequest req = new EventCreateRequest(
+            unit1.getUnitId(), "Invalid Type Event", null, "INVALID_RANDOM_TYPE",
+            Instant.now().plusSeconds(3600), Instant.now().plusSeconds(7200),
+            Instant.now().minusSeconds(60), Instant.now().plusSeconds(3500),
+            "Auditorium", 50
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> eventService.create(req, po1Principal));
+        assertTrue(ex.getMessage().contains("Invalid event type"));
+    }
+
+    @Test
+    void search_multiUnitOfficerWithoutUnitFilter_returnsEventsFromAllManagedUnits() {
+        // Assign po1 as officer for unit2 as well
+        unit2.setOfficer(po1);
+        unitRepository.save(unit2);
+
+        // Create an event in unit1
+        EventCreateRequest req1 = new EventCreateRequest(
+            unit1.getUnitId(), "Unit 1 Drive", null, "SERVICE",
+            Instant.now().plusSeconds(3600), Instant.now().plusSeconds(7200),
+            null, null, "Campus 1", 50
+        );
+        EventResponse e1 = eventService.create(req1, po1Principal);
+
+        // Create an event in unit2
+        EventCreateRequest req2 = new EventCreateRequest(
+            unit2.getUnitId(), "Unit 2 Drive", null, "SERVICE",
+            Instant.now().plusSeconds(3600), Instant.now().plusSeconds(7200),
+            null, null, "Campus 2", 50
+        );
+        EventResponse e2 = eventService.create(req2, po1Principal);
+
+        // Search with unitId = null as multi-unit PO
+        var page = eventService.search(null, null, org.springframework.data.domain.PageRequest.of(0, 10), po1Principal);
+        List<UUID> returnedIds = page.getContent().stream().map(EventResponse::eventId).toList();
+        assertTrue(returnedIds.contains(e1.eventId()), "Must contain event from unit 1");
+        assertTrue(returnedIds.contains(e2.eventId()), "Must contain event from unit 2");
+    }
 }

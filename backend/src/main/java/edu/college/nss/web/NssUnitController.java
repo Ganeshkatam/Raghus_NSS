@@ -55,7 +55,7 @@ public class NssUnitController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE')")
     public ResponseEntity<UnitResponse> updateUnit(
         @PathVariable UUID id,
         @Valid @RequestBody UnitUpdateRequest request,
@@ -66,7 +66,7 @@ public class NssUnitController {
     }
 
     @PostMapping("/{id}/members")
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE')")
     public ResponseEntity<MembershipResponse> addMember(
         @PathVariable UUID id,
         @Valid @RequestBody MembershipRequest request,
@@ -87,7 +87,7 @@ public class NssUnitController {
     }
 
     @PatchMapping("/{id}/members/{membershipId}")
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE')")
     public ResponseEntity<MembershipResponse> deactivateMember(
         @PathVariable UUID id,
         @PathVariable UUID membershipId,
@@ -98,7 +98,7 @@ public class NssUnitController {
     }
 
     @PostMapping("/{id}/transfer")
-    @PreAuthorize("hasAuthority('UNITS_MANAGE') or hasAnyRole('ADMIN', 'FACULTY_COORDINATOR', 'PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('UNITS_MANAGE')")
     public ResponseEntity<MembershipResponse> transferVolunteer(
         @PathVariable UUID id,
         @Valid @RequestBody edu.college.nss.web.dto.UnitTransferRequest request,

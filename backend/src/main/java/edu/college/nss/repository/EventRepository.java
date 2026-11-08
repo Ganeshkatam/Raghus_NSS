@@ -30,6 +30,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     long countByStatus(String status);
     long countByUnit_UnitId(UUID unitId);
+    long countByUnit_UnitIdAndStatus(UUID unitId, String status);
 
     @Query("SELECT count(e) FROM Event e WHERE e.status in ('PUBLISHED', 'OPEN') and e.endAt >= :now")
     long countActiveDrives(@Param("now") Instant now);
@@ -60,17 +61,35 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
         value = """
             select distinct e from Event e
             left join e.participatingUnits pu
-            where (:unitId is null or e.unit.unitId = :unitId or pu.unitId = :unitId or e.eventScope = 'COLLEGE_WIDE')
-              and e.status in ('PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED')
+            where (e.unit.unitId in :unitIds or (e.status != 'DRAFT' and (pu.unitId in :unitIds or e.eventScope = 'COLLEGE_WIDE')))
               and (:status is null or e.status = :status)
             order by e.startAt asc
             """,
         countQuery = """
             select count(distinct e) from Event e
             left join e.participatingUnits pu
-            where (:unitId is null or e.unit.unitId = :unitId or pu.unitId = :unitId or e.eventScope = 'COLLEGE_WIDE')
-              and e.status in ('PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED')
+            where (e.unit.unitId in :unitIds or (e.status != 'DRAFT' and (pu.unitId in :unitIds or e.eventScope = 'COLLEGE_WIDE')))
               and (:status is null or e.status = :status)
+            """
+    )
+    Page<Event> searchForUnits(@Param("unitIds") java.util.List<UUID> unitIds, @Param("status") String status, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"unit", "createdBy"})
+    @Query(
+        value = """
+            select distinct e from Event e
+            left join e.participatingUnits pu
+            where (:unitId is null or e.unit.unitId = :unitId or pu.unitId = :unitId or e.eventScope = 'COLLEGE_WIDE')
+            and e.status in ('PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED')
+            and (:status is null or e.status = :status)
+            order by e.startAt asc
+            """,
+        countQuery = """
+            select count(distinct e) from Event e
+            left join e.participatingUnits pu
+            where (:unitId is null or e.unit.unitId = :unitId or pu.unitId = :unitId or e.eventScope = 'COLLEGE_WIDE')
+            and e.status in ('PUBLISHED', 'OPEN', 'CLOSED', 'COMPLETED')
+            and (:status is null or e.status = :status)
             """
     )
     Page<Event> searchPublic(@Param("unitId") UUID unitId, @Param("status") String status, Pageable pageable);

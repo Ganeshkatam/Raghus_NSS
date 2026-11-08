@@ -140,4 +140,48 @@ class AnnouncementIntegrationTest {
         assertThrows(AccessDeniedException.class,
             () -> announcementService.createAnnouncement(req, volunteerPrincipal));
     }
+
+    @Test
+    void getAnnouncements_unassignedVolunteer_shouldOnlySeeCollegeWideNotices() {
+        // Create unit-specific and college-wide announcements
+        announcementRepository.save(new Announcement(admin, unit, "Unit 1 Private Notice", "Internal", java.time.Instant.now(), null));
+        announcementRepository.save(new Announcement(admin, null, "College-Wide Notice", "Public to all", java.time.Instant.now(), null));
+
+        // Create unassigned volunteer with no active unit membership
+        User unassignedUser = userRepository.save(new User("Unassigned Vol", "unassigned@raghunss.edu", "pass", null));
+        volunteerRepository.save(new Volunteer(unassignedUser, "21B91A0590", "CIVIL", 1));
+        UserDetails unassignedPrincipal = org.springframework.security.core.userdetails.User
+            .withUsername(unassignedUser.getEmail()).password("pass").roles("VOLUNTEER").build();
+
+        List<AnnouncementResponse> notices = announcementService.getAnnouncements(unassignedPrincipal);
+        assertEquals(1, notices.size(), "Unassigned volunteer must only see college-wide notices");
+        assertEquals("College-Wide Notice", notices.get(0).title());
+    }
+
+    @Test
+    void getAnnouncements_multiUnitOfficer_shouldSeeNoticesForBothUnitsAndCollegeWide() {
+        User poUser = userRepository.save(new User("Multi PO", "multipo@raghunss.edu", "pass", null));
+        NssUnit unit2 = unitRepository.save(new NssUnit("Unit 2", "REC-02", poUser));
+        NssUnit unit3 = unitRepository.save(new NssUnit("Unit 3", "REC-03", admin)); // Managed by someone else
+
+        // Assign poUser as officer to Unit 1 as well
+        unit.setOfficer(poUser);
+        unitRepository.save(unit);
+
+        UserDetails poPrincipal = org.springframework.security.core.userdetails.User
+            .withUsername(poUser.getEmail()).password("pass").authorities("PROGRAMME_OFFICER", "ROLE_PROGRAMME_OFFICER").build();
+
+        announcementRepository.save(new Announcement(admin, unit, "Unit 1 Notice", "Unit 1 only", java.time.Instant.now(), null));
+        announcementRepository.save(new Announcement(admin, unit2, "Unit 2 Notice", "Unit 2 only", java.time.Instant.now(), null));
+        announcementRepository.save(new Announcement(admin, unit3, "Unit 3 Notice", "Unit 3 only", java.time.Instant.now(), null));
+        announcementRepository.save(new Announcement(admin, null, "General Notice", "All", java.time.Instant.now(), null));
+
+        List<AnnouncementResponse> notices = announcementService.getAnnouncements(poPrincipal);
+        assertEquals(3, notices.size(), "Multi-unit PO must see Unit 1, Unit 2, and College-Wide notices, but not Unit 3");
+        List<String> titles = notices.stream().map(AnnouncementResponse::title).toList();
+        assertTrue(titles.contains("Unit 1 Notice"));
+        assertTrue(titles.contains("Unit 2 Notice"));
+        assertTrue(titles.contains("General Notice"));
+        assertFalse(titles.contains("Unit 3 Notice"));
+    }
 }

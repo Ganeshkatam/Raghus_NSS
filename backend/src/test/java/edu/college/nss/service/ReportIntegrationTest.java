@@ -124,4 +124,18 @@ class ReportIntegrationTest {
         assertTrue(csv.contains("3.50"));
         assertTrue(csv.contains("Pulse Polio Drive"));
     }
+
+    @Test
+    void exportVolunteersCsv_formulaInjectionPayloads_shouldBeNeutralizedWithPrefix() {
+        User maliciousUser = userRepository.save(new User("=cmd|'/C calc'!A0", "exploit@raghunss.edu", "pass", null));
+        Volunteer maliciousVolunteer = volunteerRepository.save(new Volunteer(maliciousUser, "+912345678", "-CSE", 1));
+        membershipRepository.save(new UnitMembership(maliciousVolunteer, unit));
+
+        byte[] csvBytes = reportService.exportVolunteersCsv();
+        String csv = new String(csvBytes, StandardCharsets.UTF_8);
+
+        assertTrue(csv.contains("'=cmd|'/C calc'!A0"));
+        assertTrue(csv.contains("'+912345678"));
+        assertTrue(csv.contains("'-CSE"));
+    }
 }

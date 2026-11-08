@@ -20,6 +20,9 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, UUID
     @Query("SELECT a FROM Announcement a WHERE a.unit.unitId = :unitId OR a.unit IS NULL ORDER BY a.publishedAt DESC")
     List<Announcement> findVisibleForUnit(@Param("unitId") UUID unitId);
 
+    @Query("SELECT a FROM Announcement a WHERE a.unit.unitId IN :unitIds OR a.unit IS NULL ORDER BY a.publishedAt DESC")
+    List<Announcement> findVisibleForUnits(@Param("unitIds") List<UUID> unitIds);
+
     @Query("SELECT a FROM Announcement a WHERE a.publishedAt <= :now AND (a.expiresAt IS NULL OR a.expiresAt > :now) ORDER BY a.publishedAt DESC")
     List<Announcement> findActivePublic(@Param("now") Instant now);
 

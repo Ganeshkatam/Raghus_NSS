@@ -82,7 +82,12 @@ public class EventService {
             }
         }
 
-        Event event = new Event(organizingUnit, creator, req.title().trim(), req.description(), req.eventType().trim(),
+        if (!EventType.isValid(req.eventType())) {
+            throw new IllegalArgumentException("Invalid event type: " + req.eventType());
+        }
+        String normalizedType = EventType.normalize(req.eventType());
+
+        Event event = new Event(organizingUnit, creator, req.title().trim(), req.description(), normalizedType,
             req.startAt(), req.endAt(), req.registrationOpenAt(), req.registrationCloseAt(),
             req.venue().trim(), req.capacity(), scope, participating);
         return toResponse(eventRepository.save(event));
@@ -121,7 +126,10 @@ public class EventService {
                 }
             } else {
                 if (!poUnitIds.isEmpty()) {
-                    return eventRepository.search(poUnitIds.get(0), effectiveStatus, pageable).map(this::toResponse);
+                    if (poUnitIds.size() == 1) {
+                        return eventRepository.search(poUnitIds.get(0), effectiveStatus, pageable).map(this::toResponse);
+                    }
+                    return eventRepository.searchForUnits(poUnitIds, effectiveStatus, pageable).map(this::toResponse);
                 } else {
                     if ("DRAFT".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
                         return Page.empty(pageable);
@@ -176,7 +184,12 @@ public class EventService {
 
         if (req.title() != null && !req.title().isBlank()) e.setTitle(req.title().trim());
         if (req.description() != null) e.setDescription(req.description());
-        if (req.eventType() != null && !req.eventType().isBlank()) e.setEventType(req.eventType().trim());
+        if (req.eventType() != null && !req.eventType().isBlank()) {
+            if (!EventType.isValid(req.eventType())) {
+                throw new IllegalArgumentException("Invalid event type: " + req.eventType());
+            }
+            e.setEventType(EventType.normalize(req.eventType()));
+        }
         if (req.startAt() != null) e.setStartAt(req.startAt());
         if (req.endAt() != null) e.setEndAt(req.endAt());
         if (req.registrationOpenAt() != null) e.setRegistrationOpenAt(req.registrationOpenAt());

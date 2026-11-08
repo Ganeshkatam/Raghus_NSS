@@ -23,7 +23,7 @@ public class AttendanceController {
     }
 
     @PostMapping("/events/{eventId}/attendance/sessions")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<SessionResponse> openSession(@PathVariable UUID eventId,
                                                        @Valid @RequestBody CreateSessionRequest request,
                                                        @AuthenticationPrincipal UserDetails principal) {
@@ -31,7 +31,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/events/{eventId}/attendance/sessions/active")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<SessionResponse> getActiveSession(@PathVariable UUID eventId,
                                                             @AuthenticationPrincipal UserDetails principal) {
         SessionResponse response = service.getActiveSession(eventId, principal);
@@ -40,21 +40,21 @@ public class AttendanceController {
     }
 
     @PostMapping("/attendance/sessions/{sessionId}/close")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<SessionResponse> closeSession(@PathVariable UUID sessionId,
                                                         @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.closeSession(sessionId, principal));
     }
 
     @PostMapping("/attendance/check-in")
-    @PreAuthorize("hasAuthority('ATTENDANCE_CHECKIN') or hasAnyRole('VOLUNTEER', 'STUDENT_LEADER') or isAuthenticated()")
+    @PreAuthorize("hasAuthority('ATTENDANCE_CHECKIN') or isAuthenticated()")
     public ResponseEntity<CheckInResponse> checkIn(@Valid @RequestBody CheckInRequest request,
                                                    @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.checkInWithQr(request, principal));
     }
 
     @PostMapping("/attendance/sessions/{sessionId}/manual")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<CheckInResponse> manualCheckIn(@PathVariable UUID sessionId,
                                                          @Valid @RequestBody ManualCheckInRequest request,
                                                          @AuthenticationPrincipal UserDetails principal) {
@@ -62,7 +62,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/events/{eventId}/attendance/lists")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<List<AttendanceListItem>> getList(@PathVariable UUID eventId,
                                                                @RequestParam(required = false) UUID sessionId,
                                                                @AuthenticationPrincipal UserDetails principal) {
@@ -70,7 +70,7 @@ public class AttendanceController {
     }
 
     @PostMapping("/attendance/records/{attendanceId}/correct")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER','STUDENT_LEADER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<CorrectionResponse> correctAttendance(@PathVariable UUID attendanceId,
                                                                 @Valid @RequestBody CorrectionRequest request,
                                                                 @AuthenticationPrincipal UserDetails principal) {
@@ -78,13 +78,13 @@ public class AttendanceController {
     }
 
     @GetMapping("/attendance/corrections/pending")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<List<CorrectionResponse>> getPendingCorrections(@AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.getPendingCorrections(principal));
     }
 
     @PostMapping("/attendance/corrections/{id}/review")
-    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('ATTENDANCE_MANAGE')")
     public ResponseEntity<CorrectionResponse> reviewCorrection(@PathVariable UUID id,
                                                                 @Valid @RequestBody edu.college.nss.web.dto.CorrectionReviewRequest request,
                                                                 @AuthenticationPrincipal UserDetails principal) {

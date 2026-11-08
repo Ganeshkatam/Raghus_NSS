@@ -112,21 +112,20 @@ public class AnnouncementService {
         }
 
         if (hasRole(principal, "PROGRAMME_OFFICER")) {
-            User officer = currentUser(principal);
-            List<NssUnit> officerUnits = unitRepository.findByOfficer_UserId(officer.getUserId());
-            if (!officerUnits.isEmpty()) {
-                return announcementRepository.findVisibleForUnit(officerUnits.get(0).getUnitId())
+            List<UUID> managedUnitIds = unitSecurity.getManagedUnitIds(principal);
+            if (!managedUnitIds.isEmpty()) {
+                return announcementRepository.findVisibleForUnits(managedUnitIds)
                     .stream().map(this::toResponse).toList();
             }
-            return announcementRepository.findAllByOrderByPublishedAtDesc()
+            return announcementRepository.findByUnitIsNullOrderByPublishedAtDesc()
                 .stream().map(this::toResponse).toList();
         }
 
-        // Volunteer: check active membership
+        // Volunteer or unassigned authenticated users: check active membership
         return volunteerRepository.findByUser_Email(principal.getUsername())
             .flatMap(v -> membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(v.getVolunteerId()))
             .map(m -> announcementRepository.findVisibleForUnit(m.getUnit().getUnitId()))
-            .orElseGet(announcementRepository::findAllByOrderByPublishedAtDesc)
+            .orElseGet(announcementRepository::findByUnitIsNullOrderByPublishedAtDesc)
             .stream().map(this::toResponse).toList();
     }
 

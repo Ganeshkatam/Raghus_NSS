@@ -23,6 +23,7 @@ public class ServiceHourService {
     private final NotificationService notificationService;
     private final UnitMembershipRepository membershipRepository;
     private final EventRegistrationRepository registrationRepository;
+    private final AttendanceRecordRepository recordRepository;
     private final edu.college.nss.security.UnitSecurityService unitSecurity;
     private final AuditService auditService;
 
@@ -33,6 +34,7 @@ public class ServiceHourService {
                               NotificationService notificationService,
                               UnitMembershipRepository membershipRepository,
                               EventRegistrationRepository registrationRepository,
+                              AttendanceRecordRepository recordRepository,
                               edu.college.nss.security.UnitSecurityService unitSecurity,
                               AuditService auditService) {
         this.serviceHourRepository = serviceHourRepository;
@@ -42,6 +44,7 @@ public class ServiceHourService {
         this.notificationService = notificationService;
         this.membershipRepository = membershipRepository;
         this.registrationRepository = registrationRepository;
+        this.recordRepository = recordRepository;
         this.unitSecurity = unitSecurity;
         this.auditService = auditService;
     }
@@ -108,6 +111,7 @@ public class ServiceHourService {
         }
 
         Event event = null;
+        AttendanceRecord eventAttendanceRecord = null;
         if (req.eventId() != null) {
             event = eventRepository.findById(req.eventId())
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + req.eventId()));
@@ -121,6 +125,19 @@ public class ServiceHourService {
 
             if (!event.isUnitEligible(activeMembership.getUnit().getUnitId())) {
                 throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
+            }
+
+            // If an attendance record exists, ensure volunteer was not marked ABSENT
+            List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(event.getEventId(), volunteer.getVolunteerId());
+            if (!presentRecords.isEmpty()) {
+                eventAttendanceRecord = presentRecords.get(0);
+            } else {
+                List<AttendanceRecord> anyRecords = recordRepository.findByEventId(event.getEventId()).stream()
+                    .filter(r -> r.getVolunteer().getVolunteerId().equals(volunteer.getVolunteerId()))
+                    .toList();
+                if (anyRecords.stream().anyMatch(r -> "ABSENT".equalsIgnoreCase(r.getStatus()))) {
+                    throw new IllegalStateException("Cannot claim service hours for an event where attendance is marked ABSENT.");
+                }
             }
 
             // Lock parent EventRegistration if exists to serialize with concurrent check-in; otherwise lock Volunteer
@@ -142,7 +159,7 @@ public class ServiceHourService {
         ServiceHourEntry entry = new ServiceHourEntry(
             volunteer,
             event,
-            null,
+            eventAttendanceRecord,
             req.hours(),
             "PENDING",
             null,
@@ -213,6 +230,18 @@ public class ServiceHourService {
 
         if ("APPROVE".equals(action)) {
             entry.setStatus("APPROVED");
+            if (entry.getEvent() != null) {
+                // Accredited hours are derived from the event's configured service hours
+                entry.setHours(entry.getEvent().getServiceHours());
+                if (entry.getAttendanceRecord() == null) {
+                    List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(
+                        entry.getEvent().getEventId(), entry.getVolunteer().getVolunteerId()
+                    );
+                    if (!presentRecords.isEmpty()) {
+                        entry.setAttendanceRecord(presentRecords.get(0));
+                    }
+                }
+            }
             notificationService.sendNotification(
                 entry.getVolunteer().getUser(),
                 "Service Hour Claim Approved",

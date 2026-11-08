@@ -625,8 +625,7 @@ public class AttendanceService {
     }
 
     private void creditServiceHours(Event event, Volunteer volunteer, AttendanceRecord record, User approvedBy) {
-        long minutes = Math.max(30, Duration.between(event.getStartAt(), event.getEndAt()).toMinutes());
-        BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        BigDecimal hours = event.getServiceHours();
 
         // Lock parent EventRegistration if present to serialize against concurrent claims; otherwise lock Volunteer
         var regLock = registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(event.getEventId(), volunteer.getVolunteerId());

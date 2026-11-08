@@ -30,20 +30,20 @@ public class ServiceHourController {
     }
 
     @PostMapping("/claim")
-    @PreAuthorize("hasAuthority('SERVICE_HOURS_LOG') or hasAnyRole('VOLUNTEER', 'STUDENT_LEADER') or isAuthenticated()")
+    @PreAuthorize("hasAuthority('SERVICE_HOURS_LOG') or isAuthenticated()")
     public ResponseEntity<ServiceHourResponse> submitClaim(@Valid @RequestBody ServiceHourClaimRequest request,
                                                            @AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.submitClaim(request, principal));
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAuthority('SERVICE_HOURS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('SERVICE_HOURS_MANAGE')")
     public ResponseEntity<List<ServiceHourResponse>> getPendingClaims(@AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(service.getPendingClaims(principal));
     }
 
     @PostMapping("/{entryId}/review")
-    @PreAuthorize("hasAuthority('SERVICE_HOURS_MANAGE') or hasAnyRole('ADMIN','FACULTY_COORDINATOR','PROGRAMME_OFFICER')")
+    @PreAuthorize("hasAuthority('SERVICE_HOURS_MANAGE')")
     public ResponseEntity<ServiceHourResponse> reviewClaim(@PathVariable UUID entryId,
                                                            @Valid @RequestBody ServiceHourReviewRequest request,
                                                            @AuthenticationPrincipal UserDetails principal) {
