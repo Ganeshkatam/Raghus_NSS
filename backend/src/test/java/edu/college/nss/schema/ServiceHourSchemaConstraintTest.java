@@ -483,38 +483,40 @@ public class ServiceHourSchemaConstraintTest {
     }
 
     @Test
-    @DisplayName("Assert V26 view lockdown loop sets security_invoker=true and fails closed on invalid operations")
-    void assertV26ViewSecurityInvokerEnforcement_succeedsAndFailsClosed() throws Exception {
-        try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPass)) {
-            try (Statement stmt = conn.createStatement()) {
-                // 1. Create a test view in public schema
-                stmt.execute("CREATE OR REPLACE VIEW public.test_v26_view AS SELECT 1 AS test_col;");
-
-                // 2. Execute V26 view hardening loop logic (without silent exception swallowing)
+    @DisplayName("Assert V27 view hardening sets security_invoker=true and fails closed on invalid operations")
+    void assertV27ViewSecurityInvokerEnforcement_succeedsAndFailsClosed() throws Exception {
+        try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPass);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE OR REPLACE VIEW public.test_v27_view AS SELECT 1 AS test_col;");
+            try {
+                List<String> viewNames = new ArrayList<>();
                 try (ResultSet rs = stmt.executeQuery(
-                        "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'test_v26_view'")) {
-                    assertTrue(rs.next(), "test_v26_view must be discovered in information_schema.views");
-                    String viewName = rs.getString("table_name");
+                        "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'test_v27_view'")) {
+                    while (rs.next()) {
+                        viewNames.add(rs.getString("table_name"));
+                    }
+                }
+
+                assertEquals(List.of("test_v27_view"), viewNames,
+                    "V27 must discover the public test view before hardening it");
+                for (String viewName : viewNames) {
                     stmt.execute("ALTER VIEW public." + viewName + " SET (security_invoker = true);");
                 }
 
-                // 3. Verify security_invoker is explicitly active in pg_class.reloptions
                 try (ResultSet rs = stmt.executeQuery(
-                        "SELECT reloptions::text FROM pg_class WHERE relname = 'test_v26_view' AND relnamespace = 'public'::regnamespace")) {
-                    assertTrue(rs.next(), "pg_class record for test_v26_view must exist");
+                        "SELECT reloptions::text FROM pg_class WHERE relname = 'test_v27_view' AND relnamespace = 'public'::regnamespace")) {
+                    assertTrue(rs.next(), "pg_class record for test_v27_view must exist");
                     String options = rs.getString(1);
                     assertNotNull(options, "reloptions must not be null");
-                    assertTrue(options.contains("security_invoker=true"), "View reloptions must contain security_invoker=true. Found: " + options);
+                    assertTrue(options.contains("security_invoker=true"),
+                        "View reloptions must contain security_invoker=true. Found: " + options);
                 }
 
-                // 4. Verify fail-closed behavior: invalid view alterations throw SQLException and are not swallowed
                 SQLException ex = assertThrows(SQLException.class, () ->
-                    stmt.execute("ALTER VIEW public.test_v26_view SET (invalid_security_option = true);")
-                );
+                    stmt.execute("ALTER VIEW public.test_v27_view SET (invalid_security_option = true);"));
                 assertNotNull(ex.getMessage());
-
-                // 5. Cleanup test view
-                stmt.execute("DROP VIEW IF EXISTS public.test_v26_view;");
+            } finally {
+                stmt.execute("DROP VIEW IF EXISTS public.test_v27_view;");
             }
         }
     }
