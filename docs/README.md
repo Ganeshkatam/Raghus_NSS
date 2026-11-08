@@ -12,6 +12,7 @@ This directory contains the project documentation baseline for the B.Tech colleg
 - FEATURES.md — feature-wise specification
 - DATABASE.md — database and ER-model contract
 - TECHNICAL_RECOMMENDATIONS.md — technical evaluation and architectural recommendations
+- ANALYTICS_MICROSERVICE.md — target analytics service architecture, security, API, deployment, and rollout contract
 - COMMIT_CONVENTIONS.md — commit message guidelines and verification standards
 
 ## Core workflow
@@ -24,7 +25,8 @@ Users → Volunteers → Unit Memberships → NSS Units → Events → Registrat
 - Backend: Java 21 + Spring Boot
 - Database: PostgreSQL
 - Cache: Redis
-- Analytics: Python + Pandas
+- Analytics (current): offline Python utility using Pandas
+- Analytics (target): private FastAPI service with PostgreSQL read-only reporting access and asynchronous report jobs
 - API contract: OpenAPI
 - Testing: JUnit/Mockito, Testcontainers, Playwright
 - Deployment: Docker
