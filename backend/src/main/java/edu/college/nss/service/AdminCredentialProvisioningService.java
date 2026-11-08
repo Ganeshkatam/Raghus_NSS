@@ -54,7 +54,6 @@ public class AdminCredentialProvisioningService {
     private final TransactionTemplate transactionTemplate;
     private final String configuredOperatorKey;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public AdminCredentialProvisioningService(
         UserRepository userRepository,
         AuthSessionRepository authSessionRepository,
@@ -62,16 +61,17 @@ public class AdminCredentialProvisioningService {
         PasswordEncoder passwordEncoder,
         TransactionTemplate transactionTemplate
     ) {
-        this(userRepository, authSessionRepository, auditLogRepository, passwordEncoder, transactionTemplate, System.getenv("OPERATOR_RECOVERY_KEY"));
+        this(userRepository, authSessionRepository, auditLogRepository, passwordEncoder, transactionTemplate, (String) null);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AdminCredentialProvisioningService(
         UserRepository userRepository,
         AuthSessionRepository authSessionRepository,
         AuditLogRepository auditLogRepository,
         PasswordEncoder passwordEncoder,
         TransactionTemplate transactionTemplate,
-        String configuredOperatorKey
+        @org.springframework.beans.factory.annotation.Value("${app.recovery.operator-key:${OPERATOR_RECOVERY_KEY:}}") String configuredOperatorKey
     ) {
         this.userRepository = userRepository;
         this.authSessionRepository = authSessionRepository;

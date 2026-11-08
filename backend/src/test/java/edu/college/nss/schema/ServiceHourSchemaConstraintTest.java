@@ -246,24 +246,29 @@ public class ServiceHourSchemaConstraintTest {
                 );
 
                 for (String invalidStatus : rejectedStatuses) {
-                    UUID entryId = UUID.randomUUID();
-                    SQLException ex = assertThrows(SQLException.class, () -> {
-                        try (PreparedStatement ps = conn.prepareStatement(
-                            "INSERT INTO service_hour_entries (entry_id, volunteer_id, event_id, hours, status, category, description) " +
-                            "VALUES (?, ?, ?, 2.0, ?, 'REGULAR_ACTIVITY', 'Invalid status test')")) {
-                            ps.setObject(1, entryId);
-                            ps.setObject(2, volunteerId);
-                            ps.setObject(3, eventId);
-                            ps.setString(4, invalidStatus);
-                            ps.executeUpdate();
-                        }
-                    }, "Insert with invalid status '" + invalidStatus + "' must fail check constraint");
+                    Savepoint sp = conn.setSavepoint();
+                    try {
+                        UUID entryId = UUID.randomUUID();
+                        SQLException ex = assertThrows(SQLException.class, () -> {
+                            try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO service_hour_entries (entry_id, volunteer_id, event_id, hours, status, category, description) " +
+                                "VALUES (?, ?, ?, 2.0, ?, 'REGULAR_ACTIVITY', 'Invalid status test')")) {
+                                ps.setObject(1, entryId);
+                                ps.setObject(2, volunteerId);
+                                ps.setObject(3, eventId);
+                                ps.setString(4, invalidStatus);
+                                ps.executeUpdate();
+                            }
+                        }, "Insert with invalid status '" + invalidStatus + "' must fail check constraint");
 
-                    // PostgreSQL check violation code is 23514
-                    assertEquals("23514", ex.getSQLState(),
-                        "Failure for status '" + invalidStatus + "' must be check_violation (SQLSTATE 23514)");
-                    assertTrue(ex.getMessage().contains("chk_service_hour_entries_status"),
-                        "Error message must reference chk_service_hour_entries_status. Found: " + ex.getMessage());
+                        // PostgreSQL check violation code is 23514
+                        assertEquals("23514", ex.getSQLState(),
+                            "Failure for status '" + invalidStatus + "' must be check_violation (SQLSTATE 23514)");
+                        assertTrue(ex.getMessage().contains("chk_service_hour_entries_status"),
+                            "Error message must reference chk_service_hour_entries_status. Found: " + ex.getMessage());
+                    } finally {
+                        conn.rollback(sp);
+                    }
                 }
 
             } finally {
@@ -348,7 +353,8 @@ public class ServiceHourSchemaConstraintTest {
 
                 UUID sessionId = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO attendance_sessions (session_id, event_id, status, created_by) VALUES (?, ?, 'ACTIVE', ?)")) {
+                    "INSERT INTO attendance_sessions (session_id, event_id, status, opened_by, starts_at, expires_at) " +
+                    "VALUES (?, ?, 'OPEN', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1 hour')")) {
                     ps.setObject(1, sessionId);
                     ps.setObject(2, eventId);
                     ps.setObject(3, userId);
@@ -472,6 +478,43 @@ public class ServiceHourSchemaConstraintTest {
 
             } finally {
                 conn.rollback();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Assert V26 view lockdown loop sets security_invoker=true and fails closed on invalid operations")
+    void assertV26ViewSecurityInvokerEnforcement_succeedsAndFailsClosed() throws Exception {
+        try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPass)) {
+            try (Statement stmt = conn.createStatement()) {
+                // 1. Create a test view in public schema
+                stmt.execute("CREATE OR REPLACE VIEW public.test_v26_view AS SELECT 1 AS test_col;");
+
+                // 2. Execute V26 view hardening loop logic (without silent exception swallowing)
+                try (ResultSet rs = stmt.executeQuery(
+                        "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'test_v26_view'")) {
+                    assertTrue(rs.next(), "test_v26_view must be discovered in information_schema.views");
+                    String viewName = rs.getString("table_name");
+                    stmt.execute("ALTER VIEW public." + viewName + " SET (security_invoker = true);");
+                }
+
+                // 3. Verify security_invoker is explicitly active in pg_class.reloptions
+                try (ResultSet rs = stmt.executeQuery(
+                        "SELECT reloptions::text FROM pg_class WHERE relname = 'test_v26_view' AND relnamespace = 'public'::regnamespace")) {
+                    assertTrue(rs.next(), "pg_class record for test_v26_view must exist");
+                    String options = rs.getString(1);
+                    assertNotNull(options, "reloptions must not be null");
+                    assertTrue(options.contains("security_invoker=true"), "View reloptions must contain security_invoker=true. Found: " + options);
+                }
+
+                // 4. Verify fail-closed behavior: invalid view alterations throw SQLException and are not swallowed
+                SQLException ex = assertThrows(SQLException.class, () ->
+                    stmt.execute("ALTER VIEW public.test_v26_view SET (invalid_security_option = true);")
+                );
+                assertNotNull(ex.getMessage());
+
+                // 5. Cleanup test view
+                stmt.execute("DROP VIEW IF EXISTS public.test_v26_view;");
             }
         }
     }
