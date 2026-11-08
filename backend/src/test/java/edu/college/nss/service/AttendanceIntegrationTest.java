@@ -5,6 +5,7 @@ import edu.college.nss.exception.AttendanceSessionExpiredException;
 import edu.college.nss.exception.DuplicateAttendanceException;
 import edu.college.nss.repository.*;
 import edu.college.nss.web.dto.AttendanceDTOs.*;
+import edu.college.nss.web.dto.ServiceHourDTOs.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 class AttendanceIntegrationTest {
     @Autowired AttendanceService attendanceService;
+    @Autowired ServiceHourService serviceHourService;
     @Autowired AttendanceSessionRepository sessionRepository;
     @Autowired AttendanceRecordRepository recordRepository;
     @Autowired AttendanceCorrectionRepository correctionRepository;
@@ -744,5 +747,117 @@ class AttendanceIntegrationTest {
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
+    }
+
+    @Test
+    void closeSession_autoGeneratesAbsentRecords_forConfirmedRegistrantsWhoNeverCheckedIn() {
+        // Volunteer 1 registers and checks in
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        // Volunteer 2 registers but never checks in
+        User vol2User = userRepository.save(new User("Suresh Babu", "suresh@raghunss.edu", "pass", null));
+        Volunteer volunteer2 = volunteerRepository.save(new Volunteer(vol2User, "21B91A0502", "ECE", 3));
+        membershipRepository.save(new UnitMembership(volunteer2, unit));
+        registrationRepository.save(new EventRegistration(event, volunteer2));
+
+        CreateSessionRequest sessionReq = new CreateSessionRequest(
+            Instant.now().minusSeconds(60),
+            Instant.now().plusSeconds(300)
+        );
+        SessionResponse session = attendanceService.openSession(event.getEventId(), sessionReq, adminPrincipal);
+
+        // Check in volunteer 1
+        CheckInRequest checkInReq = new CheckInRequest(session.qrToken());
+        attendanceService.checkInWithQr(checkInReq, volunteerPrincipal);
+
+        // Close the session
+        SessionResponse closedSession = attendanceService.closeSession(session.sessionId(), adminPrincipal);
+        assertEquals("CLOSED", closedSession.status());
+
+        // Verify volunteer 1 record is PRESENT with QR
+        List<AttendanceRecord> records = recordRepository.findBySession_SessionId(session.sessionId());
+        assertEquals(2, records.size());
+
+        AttendanceRecord record1 = records.stream()
+            .filter(r -> r.getVolunteer().getVolunteerId().equals(volunteer.getVolunteerId()))
+            .findFirst().orElseThrow();
+        assertEquals("PRESENT", record1.getStatus());
+        assertEquals("QR", record1.getCheckInMethod());
+
+        // Verify volunteer 2 record was auto-generated as ABSENT with method AUTO_ABSENT
+        AttendanceRecord record2 = records.stream()
+            .filter(r -> r.getVolunteer().getVolunteerId().equals(volunteer2.getVolunteerId()))
+            .findFirst().orElseThrow();
+        assertEquals("ABSENT", record2.getStatus());
+        assertEquals("AUTO_ABSENT", record2.getCheckInMethod());
+    }
+
+    @Test
+    void claimThenQrCheckIn_reconcilesPendingClaimAndAvoidsDuplicateActiveEntries() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        // Volunteer submits a manual claim first (PENDING)
+        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(1.0),
+            event.getEventId(),
+            "Submitted prior to event check-in",
+            "REGULAR_ACTIVITY",
+            "Photo proof",
+            java.time.LocalDate.now()
+        );
+        ServiceHourResponse claimResp = serviceHourService.submitClaim(claimReq, volunteerPrincipal);
+        assertEquals("PENDING", claimResp.status());
+
+        // Later, volunteer checks in via QR session
+        CreateSessionRequest sessionReq = new CreateSessionRequest(
+            Instant.now().minusSeconds(60),
+            Instant.now().plusSeconds(300)
+        );
+        SessionResponse session = attendanceService.openSession(event.getEventId(), sessionReq, adminPrincipal);
+        CheckInRequest checkInReq = new CheckInRequest(session.qrToken());
+        CheckInResponse checkInResp = attendanceService.checkInWithQr(checkInReq, volunteerPrincipal);
+        assertNotNull(checkInResp.attendanceId());
+
+        // Verify: Exactly 1 active service hour entry exists for volunteer and event
+        List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+        assertEquals(1, entries.size(), "Must not create a duplicate service hour entry");
+
+        ServiceHourEntry reconciled = entries.get(0);
+        assertEquals("APPROVED", reconciled.getStatus(), "Pending claim must be upgraded to APPROVED upon check-in");
+        assertNotNull(reconciled.getAttendanceRecord(), "Attendance record must be linked to the pre-existing claim");
+        assertEquals(checkInResp.attendanceId(), reconciled.getAttendanceRecord().getAttendanceId());
+        assertTrue(reconciled.getEvidenceNote().contains("Pending claim linked and approved upon attendance verification"));
+    }
+
+    @Test
+    void qrCheckInThenClaim_rejectsDuplicateClaim() {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest sessionReq = new CreateSessionRequest(
+            Instant.now().minusSeconds(60),
+            Instant.now().plusSeconds(300)
+        );
+        SessionResponse session = attendanceService.openSession(event.getEventId(), sessionReq, adminPrincipal);
+        CheckInRequest checkInReq = new CheckInRequest(session.qrToken());
+        attendanceService.checkInWithQr(checkInReq, volunteerPrincipal);
+
+        // Verify service hour entry created and approved
+        List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+        assertEquals(1, entries.size());
+        assertEquals("APPROVED", entries.get(0).getStatus());
+
+        // Now attempt to submit a manual claim for the same event
+        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(1.0),
+            event.getEventId(),
+            "Attempted duplicate claim after QR scan",
+            "REGULAR_ACTIVITY",
+            "Proof",
+            java.time.LocalDate.now()
+        );
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            serviceHourService.submitClaim(claimReq, volunteerPrincipal)
+        );
+        assertTrue(ex.getMessage().contains("An active or approved service hour claim already exists for this event"));
     }
 }

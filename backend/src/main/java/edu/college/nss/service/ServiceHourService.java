@@ -22,6 +22,7 @@ public class ServiceHourService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final UnitMembershipRepository membershipRepository;
+    private final EventRegistrationRepository registrationRepository;
     private final edu.college.nss.security.UnitSecurityService unitSecurity;
     private final AuditService auditService;
 
@@ -31,6 +32,7 @@ public class ServiceHourService {
                               UserRepository userRepository,
                               NotificationService notificationService,
                               UnitMembershipRepository membershipRepository,
+                              EventRegistrationRepository registrationRepository,
                               edu.college.nss.security.UnitSecurityService unitSecurity,
                               AuditService auditService) {
         this.serviceHourRepository = serviceHourRepository;
@@ -39,6 +41,7 @@ public class ServiceHourService {
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.membershipRepository = membershipRepository;
+        this.registrationRepository = registrationRepository;
         this.unitSecurity = unitSecurity;
         this.auditService = auditService;
     }
@@ -120,9 +123,12 @@ public class ServiceHourService {
                 throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
             }
 
-            boolean duplicate = serviceHourRepository.existsByVolunteer_VolunteerIdAndEvent_EventIdAndStatusIn(
+            // Lock parent EventRegistration if exists to serialize with concurrent check-in
+            registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(req.eventId(), volunteer.getVolunteerId());
+
+            boolean duplicate = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
                 volunteer.getVolunteerId(), req.eventId(), List.of("PENDING", "APPROVED")
-            );
+            ).isPresent();
             if (duplicate) {
                 throw new IllegalStateException("An active or approved service hour claim already exists for this event.");
             }

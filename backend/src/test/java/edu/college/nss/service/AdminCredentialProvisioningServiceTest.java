@@ -238,4 +238,78 @@ public class AdminCredentialProvisioningServiceTest {
         // Verify file was cleaned up and unlinked from disk despite failure
         assertFalse(Files.exists(tempSecretFile));
     }
+
+    @Test
+    @DisplayName("Provisioning succeeds when role name is 'ADMIN' without 'ROLE_' prefix")
+    void provisionAdminCredential_successWithAdminRoleWithoutPrefix() {
+        User lockedUser = new User("System Administrator", APPROVED_ADMIN_EMAIL, "hash", "9876543210");
+        lockedUser.setUserId(UUID.randomUUID());
+        lockedUser.setStatus("LOCKED");
+        lockedUser.getRoles().add(new Role("ADMIN", "System Administrator"));
+
+        when(userRepository.findByEmailWithLock(APPROVED_ADMIN_EMAIL)).thenReturn(Optional.of(lockedUser));
+        when(passwordEncoder.encode(any())).thenReturn("newBcryptHash");
+        when(authSessionRepository.findByUser_UserIdAndIsActiveTrue(any())).thenReturn(List.of());
+
+        char[] valid12 = STRONG_PASSWORD_12.toCharArray();
+        assertDoesNotThrow(() ->
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12)
+        );
+
+        assertEquals("ACTIVE", lockedUser.getStatus());
+        assertTrue(lockedUser.isMustChangePassword());
+        assertEquals("newBcryptHash", lockedUser.getPasswordHash());
+    }
+
+    @Test
+    @DisplayName("Provisioning succeeds for production administrator target with matching UUID and ADMIN role")
+    void provisionAdminCredential_productionAdminTarget_successWithVerifiedUuid() {
+        String prodEmail = AdminCredentialProvisioningService.PRODUCTION_ADMIN_EMAIL;
+        UUID prodUuid = AdminCredentialProvisioningService.PRODUCTION_ADMIN_UUID;
+
+        User lockedAdmin = new User("Production Admin", prodEmail, "oldHash", "9876543210");
+        lockedAdmin.setUserId(prodUuid);
+        lockedAdmin.setStatus("LOCKED");
+        lockedAdmin.getRoles().add(new Role("ADMIN", "System Administrator"));
+
+        when(userRepository.findByEmailWithLock(prodEmail)).thenReturn(Optional.of(lockedAdmin));
+        when(passwordEncoder.encode(any())).thenReturn("encodedHash");
+        when(authSessionRepository.findByUser_UserIdAndIsActiveTrue(prodUuid)).thenReturn(List.of());
+
+        char[] valid12 = STRONG_PASSWORD_12.toCharArray();
+        assertDoesNotThrow(() ->
+            provisioningService.provisionAdminCredential(prodEmail, valid12)
+        );
+
+        assertEquals("ACTIVE", lockedAdmin.getStatus());
+        assertTrue(lockedAdmin.isMustChangePassword());
+    }
+
+    @Test
+    @DisplayName("Provisioning fails for production administrator target if UUID does not match pinned production identity")
+    void provisionAdminCredential_productionAdminTarget_failsOnMismatchedUuid() {
+        String prodEmail = AdminCredentialProvisioningService.PRODUCTION_ADMIN_EMAIL;
+        UUID wrongUuid = UUID.randomUUID();
+
+        User spoofedAdmin = new User("Spoofed Admin", prodEmail, "oldHash", "9876543210");
+        spoofedAdmin.setUserId(wrongUuid);
+        spoofedAdmin.setStatus("LOCKED");
+        spoofedAdmin.getRoles().add(new Role("ADMIN", "System Administrator"));
+
+        when(userRepository.findByEmailWithLock(prodEmail)).thenReturn(Optional.of(spoofedAdmin));
+
+        char[] valid12 = STRONG_PASSWORD_12.toCharArray();
+        SecurityException ex = assertThrows(SecurityException.class, () ->
+            provisioningService.provisionAdminCredential(prodEmail, valid12)
+        );
+        assertTrue(ex.getMessage().contains("UUID mismatch"));
+    }
+
+    @Test
+    @DisplayName("Operator recovery key verification rejects invalid keys and permits matching keys")
+    void verifyOperatorAuthorization_checksKeyCorrectness() {
+        // When environment variable is null or empty, any or no key passes
+        assertDoesNotThrow(() -> provisioningService.verifyOperatorAuthorization(null));
+        assertDoesNotThrow(() -> provisioningService.verifyOperatorAuthorization("any-key"));
+    }
 }

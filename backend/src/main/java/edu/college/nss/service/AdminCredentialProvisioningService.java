@@ -27,19 +27,24 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class AdminCredentialProvisioningService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminCredentialProvisioningService.class);
 
+    public static final String PRODUCTION_ADMIN_EMAIL = "katamganesh61@gmail.com";
+    public static final UUID PRODUCTION_ADMIN_UUID = UUID.fromString("50875b8e-e462-4891-90b6-027fb8572ac3");
+
     public static final Set<String> APPROVED_ADMIN_EMAILS = Set.of(
-        "admin@raghunss.edu",
-        "katamganesh61@gmail.com"
+        PRODUCTION_ADMIN_EMAIL,
+        "admin@raghunss.edu"
     );
 
     private final UserRepository userRepository;
@@ -77,8 +82,26 @@ public class AdminCredentialProvisioningService {
         return password;
     }
 
+    public void verifyOperatorAuthorization(String operatorRecoveryKey) {
+        String envKey = System.getenv("OPERATOR_RECOVERY_KEY");
+        if (envKey != null && !envKey.isBlank()) {
+            if (operatorRecoveryKey == null || operatorRecoveryKey.isBlank()) {
+                throw new SecurityException("OPERATOR_RECOVERY_KEY is enforced in this environment, but none was provided.");
+            }
+            byte[] expected = envKey.getBytes(StandardCharsets.UTF_8);
+            byte[] actual = operatorRecoveryKey.getBytes(StandardCharsets.UTF_8);
+            if (!MessageDigest.isEqual(expected, actual)) {
+                throw new SecurityException("Invalid OPERATOR_RECOVERY_KEY provided. Access denied.");
+            }
+        }
+    }
+
     public void provisionAdminCredential(String targetEmail, char[] newPassword) {
-        provisionAdminCredential(targetEmail, newPassword, OperatorIdentity.resolveCurrent());
+        provisionAdminCredential(targetEmail, newPassword, OperatorIdentity.resolveCurrent(), null);
+    }
+
+    public void provisionAdminCredential(String targetEmail, char[] newPassword, OperatorIdentity operator) {
+        provisionAdminCredential(targetEmail, newPassword, operator, null);
     }
 
     /**
@@ -89,11 +112,13 @@ public class AdminCredentialProvisioningService {
      * @param targetEmail The administrator account email to provision
      * @param newPassword The new temporary password character array (zeroed in finally block)
      * @param operator Trusted identity of the executing operator
-     * @throws SecurityException if target email is not approved or target lacks ROLE_ADMIN
+     * @param operatorRecoveryKey Optional recovery key verified against OPERATOR_RECOVERY_KEY
+     * @throws SecurityException if target email is not approved or target lacks ROLE_ADMIN/ADMIN
      * @throws IllegalStateException if account is missing or not locked
      * @throws IllegalArgumentException if password fails policy requirements
      */
-    public void provisionAdminCredential(String targetEmail, char[] newPassword, OperatorIdentity operator) {
+    public void provisionAdminCredential(String targetEmail, char[] newPassword, OperatorIdentity operator, String operatorRecoveryKey) {
+        verifyOperatorAuthorization(operatorRecoveryKey);
         if (targetEmail == null || targetEmail.isBlank()) {
             throw new IllegalArgumentException("Target administrator email is required.");
         }
@@ -121,6 +146,11 @@ public class AdminCredentialProvisioningService {
                         "Target account does not exist. Automatic account creation is prohibited; an existing administrator identity must be present."
                     ));
 
+                // Target UUID verification for production administrator identity
+                if (PRODUCTION_ADMIN_EMAIL.equalsIgnoreCase(normalizedEmail) && !PRODUCTION_ADMIN_UUID.equals(user.getUserId())) {
+                    throw new SecurityException("Target user UUID mismatch for " + PRODUCTION_ADMIN_EMAIL + ". Expected " + PRODUCTION_ADMIN_UUID + ", but found " + user.getUserId());
+                }
+
                 // Verify account is currently LOCKED
                 if (!"LOCKED".equalsIgnoreCase(user.getStatus())) {
                     throw new IllegalStateException(
@@ -128,16 +158,19 @@ public class AdminCredentialProvisioningService {
                     );
                 }
 
-                // Verify account is ALREADY an administrator (prevent privilege escalation)
+                // Verify account is ALREADY an administrator (accepting either ROLE_ADMIN or ADMIN)
                 boolean hasAdminRole = user.getRoles() != null && user.getRoles().stream()
-                    .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getName()));
+                    .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getName()) || "ADMIN".equalsIgnoreCase(r.getName()));
                 if (!hasAdminRole) {
-                    throw new SecurityException("Target account does not possess ROLE_ADMIN. Promoting non-administrator accounts is strictly prohibited.");
+                    throw new SecurityException("Target account does not possess ROLE_ADMIN or ADMIN. Promoting non-administrator accounts is strictly prohibited.");
                 }
 
                 // Update credentials and enforce forced password change
                 CharBuffer charBuffer = CharBuffer.wrap(newPassword);
                 user.setPasswordHash(passwordEncoder.encode(charBuffer));
+                // Immediately wipe cleartext buffer once BCrypt hash is produced
+                Arrays.fill(newPassword, '\0');
+
                 user.setStatus("ACTIVE");
                 user.setMustChangePassword(true);
                 user.setUpdatedAt(Instant.now());
@@ -167,13 +200,17 @@ public class AdminCredentialProvisioningService {
                     user.getUserId(), effectiveOperator.identifier(), effectiveOperator.source());
             });
         } finally {
-            // Securely wipe sensitive in-memory password character array
+            // Defense-in-depth: guarantee wiping sensitive in-memory password character array
             Arrays.fill(newPassword, '\0');
         }
     }
 
     public void provisionFromFile(Path secretFilePath, String targetEmail) throws IOException {
-        provisionFromFile(secretFilePath, targetEmail, OperatorIdentity.resolveCurrent());
+        provisionFromFile(secretFilePath, targetEmail, OperatorIdentity.resolveCurrent(), null);
+    }
+
+    public void provisionFromFile(Path secretFilePath, String targetEmail, OperatorIdentity operator) throws IOException {
+        provisionFromFile(secretFilePath, targetEmail, operator, null);
     }
 
     /**
@@ -181,7 +218,7 @@ public class AdminCredentialProvisioningService {
      * opens atomically rejecting symlinks (LinkOption.NOFOLLOW_LINKS), provisions the account,
      * and guarantees in-place zero-byte overwrite and deletion on BOTH success and failure paths.
      */
-    public void provisionFromFile(Path secretFilePath, String targetEmail, OperatorIdentity operator) throws IOException {
+    public void provisionFromFile(Path secretFilePath, String targetEmail, OperatorIdentity operator, String operatorRecoveryKey) throws IOException {
         if (secretFilePath == null) {
             throw new IllegalArgumentException("Secret file path is required.");
         }
@@ -256,7 +293,7 @@ public class AdminCredentialProvisioningService {
             charBuffer.get(passwordChars, 0, trimmedLen);
 
             // Execute provisioning
-            provisionAdminCredential(targetEmail, passwordChars, operator);
+            provisionAdminCredential(targetEmail, passwordChars, operator, operatorRecoveryKey);
         } finally {
             // Guarantee in-place zero-byte overwrite and deletion on BOTH success and failure
             zeroAndUnlinkFile(channel, secretFilePath, fileSize);

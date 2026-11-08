@@ -85,6 +85,7 @@ public class ServiceHourEntry {
     public Volunteer getVolunteer() { return volunteer; }
     public Event getEvent() { return event; }
     public AttendanceRecord getAttendanceRecord() { return attendanceRecord; }
+    public void setAttendanceRecord(AttendanceRecord attendanceRecord) { this.attendanceRecord = attendanceRecord; }
     public BigDecimal getHours() { return hours; }
     public void setHours(BigDecimal hours) { this.hours = hours; }
     public String getStatus() { return status; }

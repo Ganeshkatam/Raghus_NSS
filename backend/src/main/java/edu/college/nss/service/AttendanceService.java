@@ -628,14 +628,49 @@ public class AttendanceService {
         long minutes = Math.max(30, Duration.between(event.getStartAt(), event.getEndAt()).toMinutes());
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
-        Optional<ServiceHourEntry> existing = serviceHourRepository.findByAttendanceRecord_AttendanceIdWithLock(record.getAttendanceId());
-        if (existing.isEmpty()) {
-            ServiceHourEntry entry = new ServiceHourEntry(
-                volunteer, event, record, hours, "APPROVED", approvedBy, "Verified attendance at " + event.getTitle()
-            );
-            serviceHourRepository.save(entry);
-        } else {
-            ServiceHourEntry entry = existing.get();
+        // Lock parent EventRegistration if present to serialize against concurrent claims
+        registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(event.getEventId(), volunteer.getVolunteerId());
+
+        Optional<ServiceHourEntry> existingActive = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
+            volunteer.getVolunteerId(), event.getEventId(), List.of("PENDING", "APPROVED")
+        );
+
+        if (existingActive.isPresent()) {
+            ServiceHourEntry entry = existingActive.get();
+            if (entry.getAttendanceRecord() == null) {
+                if ("PENDING".equalsIgnoreCase(entry.getStatus())) {
+                    entry.setStatus("APPROVED");
+                    entry.setAttendanceRecord(record);
+                    entry.setApprovedBy(approvedBy);
+                    String auditTrail = (entry.getEvidenceNote() != null ? entry.getEvidenceNote() + "\n" : "") +
+                        "[AUTO-APPROVED on " + Instant.now() + " by " + (approvedBy != null ? approvedBy.getName() : "SYSTEM") + "]: Pending claim linked and approved upon attendance verification";
+                    entry.setEvidenceNote(auditTrail);
+                    serviceHourRepository.save(entry);
+                } else if ("APPROVED".equalsIgnoreCase(entry.getStatus())) {
+                    entry.setAttendanceRecord(record);
+                    if (approvedBy != null && entry.getApprovedBy() == null) {
+                        entry.setApprovedBy(approvedBy);
+                    }
+                    String auditTrail = (entry.getEvidenceNote() != null ? entry.getEvidenceNote() + "\n" : "") +
+                        "[LINKED on " + Instant.now() + " by " + (approvedBy != null ? approvedBy.getName() : "SYSTEM") + "]: Attendance record linked to pre-existing approved service hours";
+                    entry.setEvidenceNote(auditTrail);
+                    serviceHourRepository.save(entry);
+                }
+            } else if (!"APPROVED".equals(entry.getStatus())) {
+                entry.setStatus("APPROVED");
+                entry.setApprovedBy(approvedBy);
+                String auditTrail = (entry.getEvidenceNote() != null ? entry.getEvidenceNote() + "\n" : "") +
+                    "[RESTORED on " + Instant.now() + " by " + (approvedBy != null ? approvedBy.getName() : "SYSTEM") + "]: Re-approved upon attendance verification";
+                entry.setEvidenceNote(auditTrail);
+                serviceHourRepository.save(entry);
+            }
+            return;
+        }
+
+        // If no active entry for event, check if this attendance record was previously linked (e.g. revoked/rejected)
+        Optional<ServiceHourEntry> existingByAtt = serviceHourRepository.findByAttendanceRecord_AttendanceIdWithLock(record.getAttendanceId());
+        if (existingByAtt.isPresent()) {
+            ServiceHourEntry entry = existingByAtt.get();
             if (!"APPROVED".equals(entry.getStatus())) {
                 entry.setStatus("APPROVED");
                 entry.setApprovedBy(approvedBy);
@@ -644,6 +679,26 @@ public class AttendanceService {
                 entry.setEvidenceNote(auditTrail);
                 serviceHourRepository.save(entry);
             }
+            return;
+        }
+
+        // Otherwise create new approved entry
+        try {
+            ServiceHourEntry entry = new ServiceHourEntry(
+                volunteer, event, record, hours, "APPROVED", approvedBy, "Verified attendance at " + event.getTitle()
+            );
+            serviceHourRepository.saveAndFlush(entry);
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            // Concurrent claim won the race - reconcile by locking and updating existing active entry
+            ServiceHourEntry concurrentEntry = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
+                volunteer.getVolunteerId(), event.getEventId(), List.of("PENDING", "APPROVED")
+            ).orElseThrow(() -> dive);
+            concurrentEntry.setStatus("APPROVED");
+            concurrentEntry.setAttendanceRecord(record);
+            if (approvedBy != null && concurrentEntry.getApprovedBy() == null) {
+                concurrentEntry.setApprovedBy(approvedBy);
+            }
+            serviceHourRepository.save(concurrentEntry);
         }
     }
 

@@ -26,6 +26,14 @@ public interface ServiceHourEntryRepository extends JpaRepository<ServiceHourEnt
     @Query("SELECT s FROM ServiceHourEntry s WHERE s.entryId = :id")
     Optional<ServiceHourEntry> findByIdWithLock(@Param("id") UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM ServiceHourEntry s WHERE s.volunteer.volunteerId = :volunteerId AND s.event.eventId = :eventId AND s.status IN :statuses")
+    Optional<ServiceHourEntry> findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
+        @Param("volunteerId") UUID volunteerId,
+        @Param("eventId") UUID eventId,
+        @Param("statuses") Collection<String> statuses
+    );
+
     boolean existsByVolunteer_VolunteerIdAndEvent_EventIdAndStatusIn(UUID volunteerId, UUID eventId, Collection<String> statuses);
 
     boolean existsByAttendanceRecord_AttendanceId(UUID attendanceId);
