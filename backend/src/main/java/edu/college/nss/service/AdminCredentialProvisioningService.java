@@ -52,7 +52,9 @@ public class AdminCredentialProvisioningService {
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate transactionTemplate;
+    private final String configuredOperatorKey;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AdminCredentialProvisioningService(
         UserRepository userRepository,
         AuthSessionRepository authSessionRepository,
@@ -60,11 +62,35 @@ public class AdminCredentialProvisioningService {
         PasswordEncoder passwordEncoder,
         TransactionTemplate transactionTemplate
     ) {
+        this(userRepository, authSessionRepository, auditLogRepository, passwordEncoder, transactionTemplate, System.getenv("OPERATOR_RECOVERY_KEY"));
+    }
+
+    public AdminCredentialProvisioningService(
+        UserRepository userRepository,
+        AuthSessionRepository authSessionRepository,
+        AuditLogRepository auditLogRepository,
+        PasswordEncoder passwordEncoder,
+        TransactionTemplate transactionTemplate,
+        String configuredOperatorKey
+    ) {
         this.userRepository = userRepository;
         this.authSessionRepository = authSessionRepository;
         this.auditLogRepository = auditLogRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionTemplate = transactionTemplate;
+        this.configuredOperatorKey = configuredOperatorKey;
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void validateConfiguration() {
+        String key = this.configuredOperatorKey != null && !this.configuredOperatorKey.isBlank()
+            ? this.configuredOperatorKey
+            : System.getenv("OPERATOR_RECOVERY_KEY");
+        if (key != null && !key.isBlank()) {
+            log.info("AdminCredentialProvisioningService: OPERATOR_RECOVERY_KEY is active and verified configured.");
+        } else {
+            log.warn("AdminCredentialProvisioningService: OPERATOR_RECOVERY_KEY is not configured. Administrator recovery operations will fail closed.");
+        }
     }
 
     /**
@@ -82,17 +108,29 @@ public class AdminCredentialProvisioningService {
         return password;
     }
 
+    /**
+     * Verifies the operator recovery authorization token.
+     * Enforces strict fail-closed authorization:
+     * 1. The service MUST have a non-blank expected recovery key configured.
+     * 2. The caller MUST supply a non-blank operator recovery key.
+     * 3. Comparison is executed in constant time via MessageDigest.isEqual to prevent timing attacks.
+     */
     public void verifyOperatorAuthorization(String operatorRecoveryKey) {
-        String envKey = System.getenv("OPERATOR_RECOVERY_KEY");
-        if (envKey != null && !envKey.isBlank()) {
-            if (operatorRecoveryKey == null || operatorRecoveryKey.isBlank()) {
-                throw new SecurityException("OPERATOR_RECOVERY_KEY is enforced in this environment, but none was provided.");
-            }
-            byte[] expected = envKey.getBytes(StandardCharsets.UTF_8);
-            byte[] actual = operatorRecoveryKey.getBytes(StandardCharsets.UTF_8);
-            if (!MessageDigest.isEqual(expected, actual)) {
-                throw new SecurityException("Invalid OPERATOR_RECOVERY_KEY provided. Access denied.");
-            }
+        String expectedKey = this.configuredOperatorKey != null && !this.configuredOperatorKey.isBlank()
+            ? this.configuredOperatorKey
+            : System.getenv("OPERATOR_RECOVERY_KEY");
+
+        if (expectedKey == null || expectedKey.isBlank()) {
+            throw new SecurityException("OPERATOR_RECOVERY_KEY is not configured. Administrator credential recovery is fail-closed.");
+        }
+        if (operatorRecoveryKey == null || operatorRecoveryKey.isBlank()) {
+            throw new SecurityException("No operator recovery key was provided for administrator credential recovery.");
+        }
+
+        byte[] expected = expectedKey.getBytes(StandardCharsets.UTF_8);
+        byte[] actual = operatorRecoveryKey.getBytes(StandardCharsets.UTF_8);
+        if (!MessageDigest.isEqual(expected, actual)) {
+            throw new SecurityException("Invalid OPERATOR_RECOVERY_KEY provided. Access denied.");
         }
     }
 

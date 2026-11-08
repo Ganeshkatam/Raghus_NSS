@@ -1,10 +1,12 @@
 package edu.college.nss.repository;
 
 import edu.college.nss.domain.Volunteer;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,6 +19,10 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, UUID>, Jpa
     Optional<Volunteer> findByCollegeId(String collegeId);
     Optional<Volunteer> findByUser_UserId(UUID userId);
     Optional<Volunteer> findByUser_Email(String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM Volunteer v WHERE v.volunteerId = :id")
+    Optional<Volunteer> findByIdWithLock(@Param("id") UUID id);
     boolean existsByCollegeId(String collegeId);
     boolean existsByUser_UserId(UUID userId);
     long countByStatus(String status);

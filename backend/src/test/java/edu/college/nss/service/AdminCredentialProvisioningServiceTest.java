@@ -53,6 +53,7 @@ public class AdminCredentialProvisioningServiceTest {
     private static final String APPROVED_ADMIN_EMAIL = "admin@raghunss.edu";
     private static final String STRONG_PASSWORD_12 = "SecurePass1!"; // Exactly 12 chars
     private static final String WEAK_PASSWORD_11 = "ShortPass1!"; // Exactly 11 chars
+    private static final String TEST_OPERATOR_KEY = "test-operator-key-auth-xyz987";
 
     @BeforeEach
     void setUp() {
@@ -72,7 +73,8 @@ public class AdminCredentialProvisioningServiceTest {
             authSessionRepository,
             auditLogRepository,
             passwordEncoder,
-            transactionTemplate
+            transactionTemplate,
+            TEST_OPERATOR_KEY
         );
     }
 
@@ -96,7 +98,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         OperatorIdentity operator = OperatorIdentity.fromSystemProcess();
-        provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, operator);
+        provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, operator, TEST_OPERATOR_KEY);
 
         // Verify user state updated
         assertEquals("ACTIVE", lockedUser.getStatus());
@@ -126,11 +128,21 @@ public class AdminCredentialProvisioningServiceTest {
     }
 
     @Test
+    @DisplayName("Provisioning without operator key fails closed")
+    void provisionAdminCredential_missingKey_failsClosed() {
+        char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
+        SecurityException ex = assertThrows(SecurityException.class, () ->
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
+        );
+        assertTrue(ex.getMessage().contains("No operator recovery key was provided"));
+    }
+
+    @Test
     @DisplayName("Provisioning is strictly rejected for unapproved email addresses")
     void provisionAdminCredential_unapprovedEmail_throwsSecurityException() {
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         SecurityException ex = assertThrows(SecurityException.class, () ->
-            provisioningService.provisionAdminCredential("attacker@example.com", passwordChars)
+            provisioningService.provisionAdminCredential("attacker@example.com", passwordChars, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("not an approved administrator recovery identity"));
     }
@@ -147,7 +159,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         SecurityException ex = assertThrows(SecurityException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("does not possess ROLE_ADMIN"));
     }
@@ -159,7 +171,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("Target account does not exist"));
     }
@@ -174,7 +186,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] passwordChars = STRONG_PASSWORD_12.toCharArray();
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, passwordChars, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("Target account is not locked"));
     }
@@ -185,7 +197,7 @@ public class AdminCredentialProvisioningServiceTest {
         // 11 characters
         char[] weak11 = WEAK_PASSWORD_11.toCharArray();
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, weak11)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, weak11, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("between 12 and 128 characters"));
 
@@ -199,7 +211,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] valid12 = STRONG_PASSWORD_12.toCharArray();
         assertDoesNotThrow(() ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
     }
 
@@ -219,7 +231,7 @@ public class AdminCredentialProvisioningServiceTest {
         when(passwordEncoder.encode(any())).thenReturn("newHash");
         when(authSessionRepository.findByUser_UserIdAndIsActiveTrue(any())).thenReturn(List.of());
 
-        provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL);
+        provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY);
 
         // Verify file was unlinked from disk after use
         assertFalse(Files.exists(tempSecretFile));
@@ -232,7 +244,7 @@ public class AdminCredentialProvisioningServiceTest {
         Files.writeString(tempSecretFile, WEAK_PASSWORD_11 + "\n");
 
         assertThrows(IllegalArgumentException.class, () ->
-            provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL)
+            provisioningService.provisionFromFile(tempSecretFile, APPROVED_ADMIN_EMAIL, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
 
         // Verify file was cleaned up and unlinked from disk despite failure
@@ -253,7 +265,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] valid12 = STRONG_PASSWORD_12.toCharArray();
         assertDoesNotThrow(() ->
-            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12)
+            provisioningService.provisionAdminCredential(APPROVED_ADMIN_EMAIL, valid12, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
 
         assertEquals("ACTIVE", lockedUser.getStatus());
@@ -278,7 +290,7 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] valid12 = STRONG_PASSWORD_12.toCharArray();
         assertDoesNotThrow(() ->
-            provisioningService.provisionAdminCredential(prodEmail, valid12)
+            provisioningService.provisionAdminCredential(prodEmail, valid12, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
 
         assertEquals("ACTIVE", lockedAdmin.getStatus());
@@ -300,16 +312,42 @@ public class AdminCredentialProvisioningServiceTest {
 
         char[] valid12 = STRONG_PASSWORD_12.toCharArray();
         SecurityException ex = assertThrows(SecurityException.class, () ->
-            provisioningService.provisionAdminCredential(prodEmail, valid12)
+            provisioningService.provisionAdminCredential(prodEmail, valid12, OperatorIdentity.fromSystemProcess(), TEST_OPERATOR_KEY)
         );
         assertTrue(ex.getMessage().contains("UUID mismatch"));
     }
 
     @Test
-    @DisplayName("Operator recovery key verification rejects invalid keys and permits matching keys")
+    @DisplayName("Operator recovery key verification rejects missing, blank, or incorrect keys and fails closed")
     void verifyOperatorAuthorization_checksKeyCorrectness() {
-        // When environment variable is null or empty, any or no key passes
-        assertDoesNotThrow(() -> provisioningService.verifyOperatorAuthorization(null));
-        assertDoesNotThrow(() -> provisioningService.verifyOperatorAuthorization("any-key"));
+        // Missing key (null)
+        SecurityException exNull = assertThrows(SecurityException.class, () ->
+            provisioningService.verifyOperatorAuthorization(null)
+        );
+        assertTrue(exNull.getMessage().contains("No operator recovery key was provided"));
+
+        // Blank key
+        SecurityException exBlank = assertThrows(SecurityException.class, () ->
+            provisioningService.verifyOperatorAuthorization("   ")
+        );
+        assertTrue(exBlank.getMessage().contains("No operator recovery key was provided"));
+
+        // Wrong key
+        SecurityException exWrong = assertThrows(SecurityException.class, () ->
+            provisioningService.verifyOperatorAuthorization("incorrect-key-token")
+        );
+        assertTrue(exWrong.getMessage().contains("Invalid OPERATOR_RECOVERY_KEY provided"));
+
+        // Valid key
+        assertDoesNotThrow(() -> provisioningService.verifyOperatorAuthorization(TEST_OPERATOR_KEY));
+
+        // When service is constructed without an expected key, it must fail closed
+        AdminCredentialProvisioningService unconfiguredService = new AdminCredentialProvisioningService(
+            userRepository, authSessionRepository, auditLogRepository, passwordEncoder, transactionTemplate, null
+        );
+        SecurityException exUnconfigured = assertThrows(SecurityException.class, () ->
+            unconfiguredService.verifyOperatorAuthorization(TEST_OPERATOR_KEY)
+        );
+        assertTrue(exUnconfigured.getMessage().contains("OPERATOR_RECOVERY_KEY is not configured. Administrator credential recovery is fail-closed."));
     }
 }

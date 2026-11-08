@@ -508,4 +508,85 @@ public class PostgreSqlLedgerConcurrencyTest {
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
     }
+
+    @Test
+    void concurrentQrAttendanceCreditAndManualClaim_inPostgreSql_leavesExactlyOneActiveEntry() throws Exception {
+        int threadCount = 6;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger uniqueViolationCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            // 3 threads attempt approved attendance credit; 3 threads attempt pending manual claims
+            for (int i = 0; i < threadCount; i++) {
+                final boolean isApprovedCredit = (i % 2 == 0);
+                final int idx = i;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try (Connection conn = getPostgresConnection()) {
+                        conn.setAutoCommit(false);
+                        try {
+                            String sql = isApprovedCredit
+                                ? "INSERT INTO service_hour_entries (entry_id, volunteer_id, event_id, hours, status, category, description, attendance_id) " +
+                                  "VALUES (?, ?, ?, 2.0, 'APPROVED', 'REGULAR_ACTIVITY', 'QR attendance credit " + idx + "', ?)"
+                                : "INSERT INTO service_hour_entries (entry_id, volunteer_id, event_id, hours, status, category, description, attendance_id) " +
+                                  "VALUES (?, ?, ?, 2.0, 'PENDING', 'REGULAR_ACTIVITY', 'Manual claim " + idx + "', NULL)";
+                            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                                ps.setObject(1, UUID.randomUUID());
+                                ps.setObject(2, testVolunteerId);
+                                ps.setObject(3, testEventId);
+                                if (isApprovedCredit) {
+                                    ps.setObject(4, testAttendanceId);
+                                }
+                                ps.executeUpdate();
+                                conn.commit();
+                                successCount.incrementAndGet();
+                            }
+                        } catch (Exception ex) {
+                            conn.rollback();
+                            if (ex.getMessage().contains("uq_service_hours_one_active_per_volunteer_event") ||
+                                ex.getMessage().contains("duplicate key") ||
+                                ex.getMessage().contains("23505")) {
+                                uniqueViolationCount.incrementAndGet();
+                            } else {
+                                throw ex;
+                            }
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in creating an active entry");
+            assertEquals(threadCount - 1, uniqueViolationCount.get(), "All other concurrent threads must fail closed on unique constraint");
+
+            try (Connection conn = getPostgresConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM service_hour_entries WHERE volunteer_id = ? AND event_id = ? AND status IN ('PENDING', 'APPROVED')")) {
+                ps.setObject(1, testVolunteerId);
+                ps.setObject(2, testEventId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(1, rs.getInt(1), "Database must contain exactly 1 active service hour entry");
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
 }

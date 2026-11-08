@@ -123,12 +123,15 @@ public class ServiceHourService {
                 throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
             }
 
-            // Lock parent EventRegistration if exists to serialize with concurrent check-in
-            registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(req.eventId(), volunteer.getVolunteerId());
+            // Lock parent EventRegistration if exists to serialize with concurrent check-in; otherwise lock Volunteer
+            var regLock = registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(req.eventId(), volunteer.getVolunteerId());
+            if (regLock.isEmpty()) {
+                volunteerRepository.findByIdWithLock(volunteer.getVolunteerId());
+            }
 
-            boolean duplicate = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
+            boolean duplicate = !serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
                 volunteer.getVolunteerId(), req.eventId(), List.of("PENDING", "APPROVED")
-            ).isPresent();
+            ).isEmpty();
             if (duplicate) {
                 throw new IllegalStateException("An active or approved service hour claim already exists for this event.");
             }

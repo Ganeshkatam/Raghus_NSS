@@ -860,4 +860,134 @@ class AttendanceIntegrationTest {
         );
         assertTrue(ex.getMessage().contains("An active or approved service hour claim already exists for this event"));
     }
+
+    @Test
+    void concurrentQrCheckInAndManualClaim_leavesExactlyOneActiveApprovedEntry() throws Exception {
+        registrationRepository.save(new EventRegistration(event, volunteer));
+
+        CreateSessionRequest sessionReq = new CreateSessionRequest(
+            Instant.now().minusSeconds(60),
+            Instant.now().plusSeconds(300)
+        );
+        SessionResponse session = attendanceService.openSession(event.getEventId(), sessionReq, adminPrincipal);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(2);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger qrSuccess = new AtomicInteger(0);
+            AtomicInteger claimSuccess = new AtomicInteger(0);
+            AtomicInteger claimRejected = new AtomicInteger(0);
+
+            // Thread 1: QR Check-in
+            Future<Void> future1 = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                try {
+                    attendanceService.checkInWithQr(new CheckInRequest(session.qrToken()), volunteerPrincipal);
+                    qrSuccess.incrementAndGet();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                return null;
+            });
+
+            // Thread 2: Manual Claim Submission
+            Future<Void> future2 = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                try {
+                    ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+                        BigDecimal.valueOf(1.0),
+                        event.getEventId(),
+                        "Concurrent claim attempt",
+                        "REGULAR_ACTIVITY",
+                        "Photo proof",
+                        java.time.LocalDate.now()
+                    );
+                    serviceHourService.submitClaim(claimReq, volunteerPrincipal);
+                    claimSuccess.incrementAndGet();
+                } catch (IllegalStateException ex) {
+                    claimRejected.incrementAndGet();
+                }
+                return null;
+            });
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            future1.get(15, TimeUnit.SECONDS);
+            future2.get(15, TimeUnit.SECONDS);
+
+            // QR check-in must succeed
+            assertEquals(1, qrSuccess.get(), "QR check-in must succeed");
+
+            // Verify database state: Exactly 1 active entry exists for (volunteer, event)
+            List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+            assertEquals(1, entries.size(), "Database must contain exactly 1 service hour entry, never duplicates");
+
+            ServiceHourEntry activeEntry = entries.get(0);
+            assertEquals("APPROVED", activeEntry.getStatus(), "Entry must be APPROVED");
+            assertNotNull(activeEntry.getAttendanceRecord(), "Entry must be linked to attendance record");
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentManualClaims_withoutParentRegistration_serializesAndAllowsOnlyOneActive() throws Exception {
+        // Volunteer is active in unit, but NO EventRegistration exists for this event
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(4);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger claimSuccess = new AtomicInteger(0);
+            AtomicInteger claimRejected = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                final int idx = i;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    try {
+                        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+                            BigDecimal.valueOf(1.0),
+                            event.getEventId(),
+                            "Concurrent claim without registration " + idx,
+                            "REGULAR_ACTIVITY",
+                            "Proof",
+                            java.time.LocalDate.now()
+                        );
+                        serviceHourService.submitClaim(claimReq, volunteerPrincipal);
+                        claimSuccess.incrementAndGet();
+                    } catch (IllegalStateException ex) {
+                        claimRejected.incrementAndGet();
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            // Exactly 1 claim must succeed, others rejected
+            assertEquals(1, claimSuccess.get(), "Exactly 1 claim must succeed");
+            assertEquals(3, claimRejected.get(), "Remaining claims must be rejected as duplicate active claims");
+
+            List<ServiceHourEntry> entries = serviceHourRepository.findByVolunteer_VolunteerIdOrderByCreatedAtDesc(volunteer.getVolunteerId());
+            assertEquals(1, entries.size(), "Only 1 entry must exist in database");
+            assertEquals("PENDING", entries.get(0).getStatus());
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
 }

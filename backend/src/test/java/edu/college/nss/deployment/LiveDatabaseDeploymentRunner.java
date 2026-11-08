@@ -88,6 +88,23 @@ public class LiveDatabaseDeploymentRunner {
                 }
             }
 
+            // Diagnostic 0b: Flyway Migration History
+            System.out.println("\n[DIAGNOSTIC 0b] Flyway Schema Migration History:");
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT version, description, installed_on, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10")) {
+                System.out.printf("  %-10s | %-45s | %-25s | %-8s%n", "Version", "Description", "Installed On", "Success");
+                System.out.println("  -------------------------------------------------------------------------------------------------");
+                while (rs.next()) {
+                    System.out.printf("  %-10s | %-45s | %-25s | %-8s%n",
+                        rs.getString("version"),
+                        rs.getString("description"),
+                        rs.getString("installed_on"),
+                        rs.getBoolean("success"));
+                }
+            } catch (Exception ex) {
+                System.out.println("  flyway_schema_history not queryable: " + ex.getMessage());
+            }
+
             // Diagnostic 1: Roles, Superuser, and RLS Bypass Attributes
             System.out.println("\n[DIAGNOSTIC 1] Database Roles & RLS Bypass Attributes (pg_roles):");
             String rolesQuery = """
@@ -306,6 +323,114 @@ public class LiveDatabaseDeploymentRunner {
                 }
                 if (!foundDups) {
                     System.out.println("  Zero existing duplicate active service-hour entries found across (volunteer_id, event_id).");
+                }
+            }
+
+            // Diagnostic 8: Routine Privileges to anon, authenticated, & PUBLIC
+            System.out.println("\n[DIAGNOSTIC 8] Routine/Function Privileges to anon, authenticated, & PUBLIC:");
+            String routinesQuery = """
+                SELECT 
+                    grantee,
+                    COUNT(*) AS routine_count,
+                    ARRAY_AGG(DISTINCT privilege_type ORDER BY privilege_type) AS privileges
+                FROM information_schema.routine_privileges
+                WHERE specific_schema = 'public'
+                  AND grantee IN ('anon', 'authenticated', 'PUBLIC')
+                GROUP BY grantee
+                ORDER BY grantee;
+                """;
+            try (ResultSet rs = stmt.executeQuery(routinesQuery)) {
+                System.out.printf("  %-16s | %-14s | %s%n", "Grantee", "Routines Count", "Privileges");
+                System.out.println("  -----------------------------------------------------------------------------");
+                boolean foundRoutines = false;
+                while (rs.next()) {
+                    foundRoutines = true;
+                    Array privArray = rs.getArray("privileges");
+                    Object[] privs = privArray != null ? (Object[]) privArray.getArray() : new Object[0];
+                    System.out.printf("  %-16s | %-14d | %s%n",
+                        rs.getString("grantee"),
+                        rs.getInt("routine_count"),
+                        Arrays.toString(privs));
+                }
+                if (!foundRoutines) {
+                    System.out.println("  (Zero routine privileges granted in information_schema to anon, authenticated, or PUBLIC)");
+                }
+            }
+
+            // Diagnostic 9: Views and security_invoker Setting in Schema public
+            System.out.println("\n[DIAGNOSTIC 9] Views & security_invoker Settings in Schema public:");
+            String viewsQuery = """
+                SELECT 
+                    c.relname AS view_name,
+                    pg_get_userbyid(c.relowner) AS owner,
+                    COALESCE(c.reloptions::text, '[]') AS options
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                  AND c.relkind IN ('v', 'm')
+                ORDER BY c.relname;
+                """;
+            try (ResultSet rs = stmt.executeQuery(viewsQuery)) {
+                boolean foundViews = false;
+                while (rs.next()) {
+                    foundViews = true;
+                    System.out.printf("  View: %-25s | Owner: %-15s | Options: %s%n",
+                        rs.getString("view_name"),
+                        rs.getString("owner"),
+                        rs.getString("options"));
+                }
+                if (!foundViews) {
+                    System.out.println("  Zero views or materialized views found in schema public.");
+                }
+            }
+
+            // Diagnostic 10: SECURITY DEFINER Routines in Schema public
+            System.out.println("\n[DIAGNOSTIC 10] SECURITY DEFINER Routines in Schema public:");
+            String secDefQuery = """
+                SELECT 
+                    p.proname,
+                    pg_get_userbyid(p.proowner) AS owner,
+                    p.prosecdef,
+                    COALESCE(p.proconfig::text, 'DEFAULT') AS search_path_config
+                FROM pg_proc p
+                JOIN pg_namespace n ON n.oid = p.pronamespace
+                WHERE n.nspname = 'public'
+                  AND p.prosecdef = true
+                ORDER BY p.proname;
+                """;
+            try (ResultSet rs = stmt.executeQuery(secDefQuery)) {
+                boolean foundSecDef = false;
+                while (rs.next()) {
+                    foundSecDef = true;
+                    System.out.printf("  Function: %-25s | Owner: %-15s | SearchPath: %s%n",
+                        rs.getString("proname"),
+                        rs.getString("owner"),
+                        rs.getString("search_path_config"));
+                }
+                if (!foundSecDef) {
+                    System.out.println("  Zero SECURITY DEFINER routines found in schema public.");
+                }
+            }
+
+            // Diagnostic 11: Schema Privileges (USAGE/CREATE) on public
+            System.out.println("\n[DIAGNOSTIC 11] Schema Privileges on public:");
+            String schemaPrivsQuery = """
+                SELECT 
+                    r.rolname,
+                    has_schema_privilege(r.rolname, 'public', 'USAGE') AS has_usage,
+                    has_schema_privilege(r.rolname, 'public', 'CREATE') AS has_create
+                FROM pg_roles r
+                WHERE r.rolname IN ('anon', 'authenticated', 'postgres', 'service_role')
+                ORDER BY r.rolname;
+                """;
+            try (ResultSet rs = stmt.executeQuery(schemaPrivsQuery)) {
+                System.out.printf("  %-16s | %-10s | %-10s%n", "Role Name", "Has USAGE", "Has CREATE");
+                System.out.println("  --------------------------------------------------");
+                while (rs.next()) {
+                    System.out.printf("  %-16s | %-10s | %-10s%n",
+                        rs.getString("rolname"),
+                        rs.getBoolean("has_usage"),
+                        rs.getBoolean("has_create"));
                 }
             }
 

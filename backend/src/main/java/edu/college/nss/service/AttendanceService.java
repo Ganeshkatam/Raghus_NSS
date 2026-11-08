@@ -628,15 +628,18 @@ public class AttendanceService {
         long minutes = Math.max(30, Duration.between(event.getStartAt(), event.getEndAt()).toMinutes());
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
-        // Lock parent EventRegistration if present to serialize against concurrent claims
-        registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(event.getEventId(), volunteer.getVolunteerId());
+        // Lock parent EventRegistration if present to serialize against concurrent claims; otherwise lock Volunteer
+        var regLock = registrationRepository.findByEvent_EventIdAndVolunteer_VolunteerIdWithLock(event.getEventId(), volunteer.getVolunteerId());
+        if (regLock.isEmpty()) {
+            volunteerRepository.findByIdWithLock(volunteer.getVolunteerId());
+        }
 
-        Optional<ServiceHourEntry> existingActive = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
+        List<ServiceHourEntry> existingActiveList = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
             volunteer.getVolunteerId(), event.getEventId(), List.of("PENDING", "APPROVED")
         );
 
-        if (existingActive.isPresent()) {
-            ServiceHourEntry entry = existingActive.get();
+        if (!existingActiveList.isEmpty()) {
+            ServiceHourEntry entry = existingActiveList.get(0);
             if (entry.getAttendanceRecord() == null) {
                 if ("PENDING".equalsIgnoreCase(entry.getStatus())) {
                     entry.setStatus("APPROVED");
@@ -692,7 +695,7 @@ public class AttendanceService {
             // Concurrent claim won the race - reconcile by locking and updating existing active entry
             ServiceHourEntry concurrentEntry = serviceHourRepository.findByVolunteer_VolunteerIdAndEvent_EventIdAndStatusInWithLock(
                 volunteer.getVolunteerId(), event.getEventId(), List.of("PENDING", "APPROVED")
-            ).orElseThrow(() -> dive);
+            ).stream().findFirst().orElseThrow(() -> dive);
             concurrentEntry.setStatus("APPROVED");
             concurrentEntry.setAttendanceRecord(record);
             if (approvedBy != null && concurrentEntry.getApprovedBy() == null) {
