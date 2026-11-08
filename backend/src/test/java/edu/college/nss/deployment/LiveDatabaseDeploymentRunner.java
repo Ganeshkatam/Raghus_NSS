@@ -91,13 +91,14 @@ public class LiveDatabaseDeploymentRunner {
             // Diagnostic 0b: Flyway Migration History
             System.out.println("\n[DIAGNOSTIC 0b] Flyway Schema Migration History:");
             try (ResultSet rs = stmt.executeQuery(
-                    "SELECT version, description, installed_on, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10")) {
-                System.out.printf("  %-10s | %-45s | %-25s | %-8s%n", "Version", "Description", "Installed On", "Success");
-                System.out.println("  -------------------------------------------------------------------------------------------------");
+                    "SELECT version, description, checksum, installed_on, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10")) {
+                System.out.printf("  %-10s | %-45s | %-12s | %-25s | %-8s%n", "Version", "Description", "Checksum", "Installed On", "Success");
+                System.out.println("  ---------------------------------------------------------------------------------------------------------------");
                 while (rs.next()) {
-                    System.out.printf("  %-10s | %-45s | %-25s | %-8s%n",
+                    System.out.printf("  %-10s | %-45s | %-12s | %-25s | %-8s%n",
                         rs.getString("version"),
                         rs.getString("description"),
+                        rs.getString("checksum"),
                         rs.getString("installed_on"),
                         rs.getBoolean("success"));
                 }
