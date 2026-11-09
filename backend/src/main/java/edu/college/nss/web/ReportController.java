@@ -29,6 +29,7 @@ public class ReportController {
     }
 
     @GetMapping("/export/volunteers")
+    @PreAuthorize("hasAuthority('REPORTS_EXPORT')")
     public ResponseEntity<byte[]> exportVolunteers(
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
@@ -42,6 +43,7 @@ public class ReportController {
     }
 
     @GetMapping("/export/events")
+    @PreAuthorize("hasAuthority('REPORTS_EXPORT')")
     public ResponseEntity<byte[]> exportEvents(
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
@@ -57,6 +59,7 @@ public class ReportController {
     }
 
     @GetMapping("/export/service-hours")
+    @PreAuthorize("hasAuthority('REPORTS_EXPORT')")
     public ResponseEntity<byte[]> exportServiceHours(
         @org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID unitId,
         @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,

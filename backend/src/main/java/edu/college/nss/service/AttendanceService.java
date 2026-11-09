@@ -69,7 +69,8 @@ public class AttendanceService {
 
     @Transactional
     public SessionResponse openSession(UUID eventId, CreateSessionRequest req, UserDetails principal) {
-        Event event = eventRepository.findById(eventId)
+        // Lock parent Event row with pessimistic write lock to serialize concurrent session creations
+        Event event = eventRepository.findByIdWithLock(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         assertManagerForUnit(principal, event.getUnit());
 
@@ -78,6 +79,14 @@ public class AttendanceService {
         }
         if (!req.expiresAt().isAfter(req.startsAt())) {
             throw new IllegalArgumentException("Expiration time must be strictly after start time.");
+        }
+
+        // Validate session bounds are reasonably aligned with event schedule
+        if (event.getStartAt() != null && req.startsAt().isBefore(event.getStartAt().minus(java.time.Duration.ofHours(2)))) {
+            throw new IllegalArgumentException("Session start time cannot precede event start by more than 2 hours.");
+        }
+        if (event.getEndAt() != null && req.expiresAt().isAfter(event.getEndAt().plus(java.time.Duration.ofHours(4)))) {
+            throw new IllegalArgumentException("Session expiration time cannot exceed event end by more than 4 hours.");
         }
 
         List<AttendanceSession> activeSessions = sessionRepository.findActiveSessionsForEvent(eventId);
@@ -91,7 +100,12 @@ public class AttendanceService {
 
         User manager = currentUser(principal);
         AttendanceSession session = new AttendanceSession(event, manager, req.startsAt(), req.expiresAt(), qrSecret);
-        AttendanceSession saved = sessionRepository.save(session);
+        AttendanceSession saved;
+        try {
+            saved = sessionRepository.saveAndFlush(session);
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            throw new IllegalStateException("An active attendance session is already open for this event. Please close the active session first.");
+        }
 
         String signedToken = generateSignedToken(saved);
         long registeredCount = registrationRepository.countRegistered(eventId);

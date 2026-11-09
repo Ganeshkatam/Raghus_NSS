@@ -101,4 +101,12 @@ public class ServiceHourEntry {
     public java.time.LocalDate getActivityDate() { return activityDate; }
     public void setActivityDate(java.time.LocalDate activityDate) { this.activityDate = activityDate; }
     public Instant getCreatedAt() { return createdAt; }
+
+    @PrePersist
+    @PreUpdate
+    public void validateEventAttendanceIntegrity() {
+        if ("APPROVED".equalsIgnoreCase(status) && event != null && attendanceRecord == null) {
+            throw new IllegalStateException("Approved event service hours must be linked to a verified attendance record.");
+        }
+    }
 }

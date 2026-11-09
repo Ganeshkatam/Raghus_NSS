@@ -118,7 +118,7 @@ public class NssUnitService {
 
     @Transactional
     public UnitResponse updateUnit(UUID unitId, UnitUpdateRequest request, org.springframework.security.core.userdetails.UserDetails principal) {
-        NssUnit unit = unitRepository.findById(unitId)
+        NssUnit unit = unitRepository.findByIdWithLock(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
         if (principal != null) {
@@ -170,7 +170,7 @@ public class NssUnitService {
 
     @Transactional
     public MembershipResponse addMemberToUnit(UUID unitId, UUID volunteerId, org.springframework.security.core.userdetails.UserDetails principal) {
-        NssUnit unit = unitRepository.findById(unitId)
+        NssUnit unit = unitRepository.findByIdWithLock(unitId)
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
         if (principal != null && !unitSecurity.canManageUnit(principal, unitId)) {
@@ -253,7 +253,7 @@ public class NssUnitService {
         }
 
         final UUID targetUnitId = rawTargetUnitId;
-        NssUnit targetUnit = unitRepository.findById(targetUnitId)
+        NssUnit targetUnit = unitRepository.findByIdWithLock(targetUnitId)
             .orElseThrow(() -> new IllegalArgumentException("Target NSS Unit not found: " + targetUnitId));
 
         // Authorization: Admin and Coordinator can transfer across any units.
@@ -314,7 +314,7 @@ public class NssUnitService {
 
     @Transactional(readOnly = true)
     public edu.college.nss.web.dto.UnitStatsResponse getUnitStats(UUID unitId) {
-        NssUnit unit = unitRepository.findById(unitId)
+        NssUnit unit = unitRepository.findByIdWithLock(unitId)
             .orElseThrow(() -> new IllegalArgumentException("Unit not found: " + unitId));
 
         long activeVolunteers = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();

@@ -14,4 +14,8 @@ public interface NssUnitRepository extends JpaRepository<NssUnit, UUID> {
     boolean existsByUnitNumber(String unitNumber);
     List<NssUnit> findByOfficer_UserId(UUID officerId);
     List<NssUnit> findByOfficer_EmailIgnoreCase(String email);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM NssUnit u WHERE u.unitId = :unitId")
+    Optional<NssUnit> findByIdWithLock(@org.springframework.data.repository.query.Param("unitId") UUID unitId);
 }

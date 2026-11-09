@@ -127,7 +127,7 @@ public class ServiceHourService {
                 throw new AccessDeniedException("You can only claim hours for events in which your assigned NSS Unit (" + activeMembership.getUnit().getUnitNumber() + ") participated.");
             }
 
-            // If an attendance record exists, ensure volunteer was not marked ABSENT
+            // If an attendance record exists, ensure volunteer was not marked ABSENT or EXCUSED
             List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(event.getEventId(), volunteer.getVolunteerId());
             if (!presentRecords.isEmpty()) {
                 eventAttendanceRecord = presentRecords.get(0);
@@ -137,6 +137,9 @@ public class ServiceHourService {
                     .toList();
                 if (anyRecords.stream().anyMatch(r -> "ABSENT".equalsIgnoreCase(r.getStatus()))) {
                     throw new IllegalStateException("Cannot claim service hours for an event where attendance is marked ABSENT.");
+                }
+                if (anyRecords.stream().anyMatch(r -> "EXCUSED".equalsIgnoreCase(r.getStatus()))) {
+                    throw new IllegalStateException("Cannot claim service hours for an event where attendance is marked EXCUSED.");
                 }
             }
 
@@ -229,7 +232,6 @@ public class ServiceHourService {
         entry.setApprovedBy(reviewer);
 
         if ("APPROVE".equals(action)) {
-            entry.setStatus("APPROVED");
             if (entry.getEvent() != null) {
                 // Accredited hours are derived from the event's configured service hours
                 entry.setHours(entry.getEvent().getServiceHours());
@@ -239,9 +241,12 @@ public class ServiceHourService {
                     );
                     if (!presentRecords.isEmpty()) {
                         entry.setAttendanceRecord(presentRecords.get(0));
+                    } else {
+                        throw new IllegalStateException("Cannot approve event service hours without a verified PRESENT attendance record.");
                     }
                 }
             }
+            entry.setStatus("APPROVED");
             notificationService.sendNotification(
                 entry.getVolunteer().getUser(),
                 "Service Hour Claim Approved",
@@ -250,15 +255,16 @@ public class ServiceHourService {
                 "/service-hours"
             );
         } else {
-            entry.setStatus("REJECTED");
-            if (req.reason() != null && !req.reason().trim().isBlank()) {
-                String existing = entry.getDescription() != null ? entry.getDescription() + " " : "";
-                entry.setDescription(existing + "[Reason: " + req.reason().trim() + "]");
+            if (req.reason() == null || req.reason().trim().isBlank()) {
+                throw new IllegalArgumentException("Please provide a reason for rejecting this service hour claim.");
             }
+            entry.setStatus("REJECTED");
+            String existing = entry.getDescription() != null ? entry.getDescription() + " " : "";
+            entry.setDescription(existing + "[Reason: " + req.reason().trim() + "]");
             notificationService.sendNotification(
                 entry.getVolunteer().getUser(),
                 "Service Hour Claim Rejected",
-                "Your claim for " + entry.getHours() + " hours was rejected. " + (req.reason() != null ? "Reason: " + req.reason().trim() : ""),
+                "Your claim for " + entry.getHours() + " hours was rejected. Reason: " + req.reason().trim(),
                 "SERVICE_HOURS",
                 "/service-hours"
             );

@@ -71,8 +71,15 @@ class ReportIntegrationTest {
         event.setStatus("COMPLETED");
         event = eventRepository.save(event);
 
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            event, admin, now.minusSeconds(7200), now.minusSeconds(3600), "secret"
+        ));
+        AttendanceRecord record = recordRepository.save(new AttendanceRecord(
+            session, volunteer, "QR", "PRESENT"
+        ));
+
         ServiceHourEntry entry = new ServiceHourEntry(
-            volunteer, event, null, BigDecimal.valueOf(3.50), "APPROVED", admin, "Polio immunization drive assistance"
+            volunteer, event, record, BigDecimal.valueOf(3.50), "APPROVED", admin, "Polio immunization drive assistance"
         );
         serviceHourRepository.save(entry);
     }
