@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.*;
@@ -893,6 +894,175 @@ public class PostgreSqlLedgerConcurrencyTest {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.executeUpdate("DELETE FROM unit_memberships WHERE unit_id = '" + cappedUnitId + "'");
                     stmt.executeUpdate("DELETE FROM nss_units WHERE unit_id = '" + cappedUnitId + "'");
+                }
+                conn.commit();
+            }
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentLockOrder_attendanceRecordBeforeServiceHourEntry_eliminatesDeadlocks() throws Exception {
+        UUID entryId = UUID.randomUUID();
+
+        // Create pending claim linked to testAttendanceId
+        try (Connection conn = getPostgresConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO service_hour_entries (entry_id, volunteer_id, event_id, hours, status, category, description, attendance_id) " +
+                "VALUES (?, ?, ?, 2.0, 'PENDING', 'REGULAR_ACTIVITY', 'Pending race claim', ?)")) {
+                ps.setObject(1, entryId);
+                ps.setObject(2, testVolunteerId);
+                ps.setObject(3, testEventId);
+                ps.setObject(4, testAttendanceId);
+                ps.executeUpdate();
+            }
+            conn.commit();
+        }
+
+        int threadCount = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger deadlockCount = new AtomicInteger(0);
+
+            // Thread 1: Simulating Approval (AttendanceRecord -> ServiceHourEntry)
+            Future<String> approvalFuture = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+
+                try (Connection conn = getPostgresConnection()) {
+                    conn.setAutoCommit(false);
+                    try {
+                        // 1. Lock AttendanceRecord FIRST
+                        String attStatus;
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT attendance_id, status FROM attendance_records WHERE attendance_id = ? FOR UPDATE")) {
+                            ps.setObject(1, testAttendanceId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                assertTrue(rs.next());
+                                attStatus = rs.getString("status");
+                            }
+                        }
+
+                        // 2. Lock ServiceHourEntry SECOND
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT entry_id, status FROM service_hour_entries WHERE entry_id = ? FOR UPDATE")) {
+                            ps.setObject(1, entryId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                assertTrue(rs.next());
+                            }
+                        }
+
+                        if ("PRESENT".equalsIgnoreCase(attStatus)) {
+                            try (PreparedStatement ps = conn.prepareStatement(
+                                "UPDATE service_hour_entries SET status = 'APPROVED' WHERE entry_id = ?")) {
+                                ps.setObject(1, entryId);
+                                ps.executeUpdate();
+                            }
+                            conn.commit();
+                            return "APPROVED";
+                        } else {
+                            conn.rollback();
+                            return "REJECTED_BY_INVARIANT";
+                        }
+                    } catch (SQLException ex) {
+                        conn.rollback();
+                        if ("40P01".equals(ex.getSQLState())) {
+                            deadlockCount.incrementAndGet();
+                        }
+                        throw ex;
+                    }
+                }
+            });
+
+            // Thread 2: Simulating Demotion (AttendanceRecord -> ServiceHourEntry)
+            Future<String> demotionFuture = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+
+                try (Connection conn = getPostgresConnection()) {
+                    conn.setAutoCommit(false);
+                    try {
+                        // 1. Lock AttendanceRecord FIRST
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT attendance_id, status FROM attendance_records WHERE attendance_id = ? FOR UPDATE")) {
+                            ps.setObject(1, testAttendanceId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                assertTrue(rs.next());
+                            }
+                        }
+
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE attendance_records SET status = 'ABSENT' WHERE attendance_id = ?")) {
+                            ps.setObject(1, testAttendanceId);
+                            ps.executeUpdate();
+                        }
+
+                        // 2. Lock ServiceHourEntry SECOND
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT entry_id, status FROM service_hour_entries WHERE attendance_id = ? FOR UPDATE")) {
+                            ps.setObject(1, testAttendanceId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    if ("APPROVED".equals(rs.getString("status"))) {
+                                        try (PreparedStatement psRevoke = conn.prepareStatement(
+                                            "UPDATE service_hour_entries SET status = 'REVOKED' WHERE entry_id = ?")) {
+                                            psRevoke.setObject(1, rs.getObject("entry_id"));
+                                            psRevoke.executeUpdate();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        conn.commit();
+                        return "DEMOTED_ABSENT";
+                    } catch (SQLException ex) {
+                        conn.rollback();
+                        if ("40P01".equals(ex.getSQLState())) {
+                            deadlockCount.incrementAndGet();
+                        }
+                        throw ex;
+                    }
+                }
+            });
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            String approvalResult = approvalFuture.get(15, TimeUnit.SECONDS);
+            String demotionResult = demotionFuture.get(15, TimeUnit.SECONDS);
+
+            assertEquals(0, deadlockCount.get(), "Consistent lock ordering (Attendance -> Entry) must guarantee zero deadlocks (40P01)");
+            assertEquals("DEMOTED_ABSENT", demotionResult);
+            assertTrue("APPROVED".equals(approvalResult) || "REJECTED_BY_INVARIANT".equals(approvalResult));
+
+            // Verify final DB state
+            try (Connection conn = getPostgresConnection()) {
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status FROM attendance_records WHERE attendance_id = ?")) {
+                    ps.setObject(1, testAttendanceId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("ABSENT", rs.getString("status"));
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement("SELECT status FROM service_hour_entries WHERE entry_id = ?")) {
+                    ps.setObject(1, entryId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertNotEquals("APPROVED", rs.getString("status"));
+                    }
+                }
+            }
+        } finally {
+            try (Connection conn = getPostgresConnection()) {
+                conn.setAutoCommit(false);
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("DELETE FROM service_hour_entries WHERE entry_id = '" + entryId + "'");
                 }
                 conn.commit();
             }

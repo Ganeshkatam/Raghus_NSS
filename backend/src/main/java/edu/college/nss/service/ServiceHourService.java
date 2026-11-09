@@ -200,25 +200,26 @@ public class ServiceHourService {
     public ServiceHourResponse reviewClaim(UUID entryId, ServiceHourReviewRequest req, UserDetails principal) {
         assertOfficerOrAdmin(principal);
 
-        ServiceHourEntry entry = serviceHourRepository.findByIdWithLock(entryId)
+        // Step 1: Read the claim to identify entity attributes and associated attendance record
+        ServiceHourEntry peekEntry = serviceHourRepository.findById(entryId)
             .orElseThrow(() -> new IllegalArgumentException("Service hour entry not found: " + entryId));
 
-        if (!"PENDING".equals(entry.getStatus())) {
+        if (!"PENDING".equals(peekEntry.getStatus())) {
             throw new IllegalStateException("Only claims waiting for approval can be reviewed.");
         }
 
         User reviewer = currentUser(principal);
 
         // Self-review prevention: reviewer cannot approve or reject their own claim
-        if (entry.getVolunteer() != null && entry.getVolunteer().getUser() != null) {
-            if (entry.getVolunteer().getUser().getUserId().equals(reviewer.getUserId()) ||
-                entry.getVolunteer().getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
+        if (peekEntry.getVolunteer() != null && peekEntry.getVolunteer().getUser() != null) {
+            if (peekEntry.getVolunteer().getUser().getUserId().equals(reviewer.getUserId()) ||
+                peekEntry.getVolunteer().getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
                 throw new AccessDeniedException("Reviewer cannot approve or reject their own service hour claim.");
             }
         }
 
         if (!unitSecurity.isGlobalManager(principal)) {
-            UnitMembership mem = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(entry.getVolunteer().getVolunteerId()).orElse(null);
+            UnitMembership mem = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(peekEntry.getVolunteer().getVolunteerId()).orElse(null);
             if (mem == null || !unitSecurity.canManageUnit(principal, mem.getUnit().getUnitId())) {
                 throw new AccessDeniedException("You do not have permission to review claims outside your assigned unit.");
             }
@@ -229,37 +230,48 @@ public class ServiceHourService {
             throw new IllegalArgumentException("Action must be either APPROVE or REJECT.");
         }
 
+        // Step 2: Global Deadlock-Prevention Lock Ordering: AttendanceRecord -> ServiceHourEntry
+        AttendanceRecord attRecord = null;
+        if ("APPROVE".equals(action) && peekEntry.getEvent() != null) {
+            UUID targetAttendanceId;
+            if (peekEntry.getAttendanceRecord() != null) {
+                targetAttendanceId = peekEntry.getAttendanceRecord().getAttendanceId();
+            } else {
+                List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(
+                    peekEntry.getEvent().getEventId(), peekEntry.getVolunteer().getVolunteerId()
+                );
+                if (!presentRecords.isEmpty()) {
+                    targetAttendanceId = presentRecords.get(0).getAttendanceId();
+                } else {
+                    throw new IllegalStateException("Cannot approve event service hours without a verified PRESENT attendance record.");
+                }
+            }
+
+            // Acquire lock on AttendanceRecord FIRST
+            final UUID lockedAttendanceId = targetAttendanceId;
+            attRecord = recordRepository.findByIdWithLock(lockedAttendanceId)
+                .orElseThrow(() -> new IllegalStateException("Attendance record not found with ID: " + lockedAttendanceId));
+        }
+
+        // Acquire lock on ServiceHourEntry SECOND
+        ServiceHourEntry entry = serviceHourRepository.findByIdWithLock(entryId)
+            .orElseThrow(() -> new IllegalArgumentException("Service hour entry not found: " + entryId));
+
+        // Step 3: Revalidate claim status and invariants under acquired locks
+        if (!"PENDING".equals(entry.getStatus())) {
+            throw new IllegalStateException("Only claims waiting for approval can be reviewed.");
+        }
+
         entry.setApprovedBy(reviewer);
 
         if ("APPROVE".equals(action)) {
             if (entry.getEvent() != null) {
+                // Link the locked attendance record
+                entry.setAttendanceRecord(attRecord);
                 // Accredited hours are derived from the event's configured service hours
                 entry.setHours(entry.getEvent().getServiceHours());
 
-                AttendanceRecord attRecord = entry.getAttendanceRecord();
-
-                // If no record is linked, attempt to find a verified PRESENT record for this event and volunteer
-                if (attRecord == null) {
-                    List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(
-                        entry.getEvent().getEventId(), entry.getVolunteer().getVolunteerId()
-                    );
-                    if (!presentRecords.isEmpty()) {
-                        UUID recId = presentRecords.get(0).getAttendanceId();
-                        attRecord = recordRepository.findByIdWithLock(recId)
-                            .orElseThrow(() -> new IllegalStateException("Verified attendance record not found with ID: " + recId));
-                        entry.setAttendanceRecord(attRecord);
-                    } else {
-                        throw new IllegalStateException("Cannot approve event service hours without a verified PRESENT attendance record.");
-                    }
-                } else {
-                    // Lock the linked record to guarantee atomicity against concurrent corrections/demotions
-                    UUID recId = attRecord.getAttendanceId();
-                    attRecord = recordRepository.findByIdWithLock(recId)
-                        .orElseThrow(() -> new IllegalStateException("Linked attendance record not found with ID: " + recId));
-                    entry.setAttendanceRecord(attRecord);
-                }
-
-                // Invariant revalidation: verify status is PRESENT, volunteer matches, and event matches
+                // Invariant revalidation under row lock: verify status is PRESENT, volunteer matches, and event matches
                 if (!"PRESENT".equalsIgnoreCase(attRecord.getStatus())) {
                     throw new IllegalStateException("Cannot approve event service hours: linked attendance record is not PRESENT (current status: " + attRecord.getStatus() + ").");
                 }

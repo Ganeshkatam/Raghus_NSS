@@ -458,89 +458,116 @@ public class Phase1DataIntegrityIntegrationTest {
     }
 
     @Test
-    @DisplayName("P1 Concurrency: Racing claim approval against attendance demotion guarantees no approved credit for non-PRESENT attendance")
+    @DisplayName("P1 Concurrency: Consistent lock ordering (AttendanceRecord -> ServiceHourEntry) eliminates deadlocks and guarantees zero approved hours on demotion")
     void concurrentClaimApprovalAndAttendanceDemotion_leavesZeroApprovedHours() throws Exception {
-        // Register volunteer for openEvent so manualCheckIn passes validation
-        registrationRepository.save(new EventRegistration(openEvent, volunteer));
+        int iterations = 5;
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(4);
 
-        AttendanceSession session = sessionRepository.save(new AttendanceSession(
-            openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-race"
-        ));
-        AttendanceRecord attRecord = recordRepository.save(new AttendanceRecord(session, volunteer, "QR", "PRESENT"));
-
-        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
-            BigDecimal.valueOf(2.0),
-            openEvent.getEventId(),
-            "Claim submitted before race",
-            "REGULAR_ACTIVITY",
-            "Evidence",
-            LocalDate.now()
-        );
-
-        ServiceHourResponse pendingClaim = serviceHourService.submitClaim(claimReq, volunteerPrincipal);
-        assertEquals("PENDING", pendingClaim.status());
-
-        int threadCount = 2;
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
         try {
-            java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(threadCount);
-            java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+            for (int i = 0; i < iterations; i++) {
+                final int idx = i;
+                User u = userRepository.save(new User("Race Vol " + idx, "race" + idx + "@raghunss.edu", "pass", null));
+                Volunteer v = new Volunteer(u, "22RACE" + idx, "CSE", 2);
+                v.setStatus("ACTIVE");
+                final Volunteer targetVolunteer = volunteerRepository.save(v);
+                membershipRepository.save(new UnitMembership(targetVolunteer, unit1));
 
-            java.util.concurrent.Future<String> approvalFuture = executor.submit(() -> {
-                readyLatch.countDown();
-                startLatch.await();
-                try {
-                    ServiceHourResponse resp = serviceHourService.reviewClaim(
-                        pendingClaim.entryId(),
-                        new ServiceHourReviewRequest("APPROVE", "Race approval"),
-                        po1Principal
-                    );
-                    return resp.status();
-                } catch (IllegalStateException ex) {
-                    return "REJECTED_BY_INVARIANT: " + ex.getMessage();
+                UserDetails vPrincipal = org.springframework.security.core.userdetails.User
+                    .withUsername(u.getEmail()).password("pass").roles("VOLUNTEER").build();
+
+                registrationRepository.save(new EventRegistration(openEvent, targetVolunteer));
+
+                AttendanceSession session = sessionRepository.save(new AttendanceSession(
+                    openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-race-" + idx
+                ));
+                AttendanceRecord attRecord = recordRepository.save(new AttendanceRecord(session, targetVolunteer, "QR", "PRESENT"));
+
+                ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+                    BigDecimal.valueOf(2.0),
+                    openEvent.getEventId(),
+                    "Claim submitted before race " + idx,
+                    "REGULAR_ACTIVITY",
+                    "Evidence " + idx,
+                    LocalDate.now()
+                );
+
+                ServiceHourResponse pendingClaim = serviceHourService.submitClaim(claimReq, vPrincipal);
+                assertEquals("PENDING", pendingClaim.status());
+
+                java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(2);
+                java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+
+                java.util.concurrent.Future<String> approvalFuture = executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    try {
+                        ServiceHourResponse resp = serviceHourService.reviewClaim(
+                            pendingClaim.entryId(),
+                            new ServiceHourReviewRequest("APPROVE", "Race approval " + idx),
+                            po1Principal
+                        );
+                        return resp.status();
+                    } catch (IllegalStateException ex) {
+                        return "REJECTED_BY_INVARIANT: " + ex.getMessage();
+                    } catch (Exception ex) {
+                        return "FAILED: " + ex.getClass().getSimpleName() + " - " + ex.getMessage();
+                    }
+                });
+
+                java.util.concurrent.Future<String> demotionFuture = executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    try {
+                        attendanceService.manualCheckIn(
+                            session.getSessionId(),
+                            new ManualCheckInRequest(targetVolunteer.getVolunteerId(), "ABSENT", "Demoted concurrently " + idx),
+                            po1Principal
+                        );
+                        return "DEMOTED_ABSENT";
+                    } catch (Exception ex) {
+                        return "DEMOTION_FAILED: " + ex.getClass().getSimpleName() + " - " + ex.getMessage();
+                    }
+                });
+
+                readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                startLatch.countDown();
+
+                String approvalResult = approvalFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
+                String demotionResult = demotionFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+                // Neither thread should ever fail with a deadlock or unexpected error
+                assertFalse(approvalResult.startsWith("FAILED"), "Approval worker encountered deadlock or failure: " + approvalResult);
+                assertEquals("DEMOTED_ABSENT", demotionResult, "Attendance demotion must succeed without deadlock");
+
+                // Final state assertions:
+                AttendanceRecord finalRecord = recordRepository.findById(attRecord.getAttendanceId()).orElseThrow();
+                assertEquals("ABSENT", finalRecord.getStatus(), "Attendance record must be committed as ABSENT");
+
+                ServiceHourEntry finalEntry = serviceHourRepository.findById(pendingClaim.entryId()).orElseThrow();
+                assertNotEquals("APPROVED", finalEntry.getStatus(),
+                    "Service hour entry must never be left in APPROVED status when attendance is ABSENT");
+
+                // Assert explicit correlation between approval worker outcome and entry status:
+                if ("APPROVED".equals(approvalResult)) {
+                    // Approval completed first, and was subsequently revoked by demotion workflow
+                    assertEquals("REVOKED", finalEntry.getStatus(),
+                        "When approval succeeds first, subsequent demotion must revoke the approved entry");
+                } else {
+                    // Demotion completed first; approval was rejected because attendance record was not PRESENT
+                    assertTrue(approvalResult.startsWith("REJECTED_BY_INVARIANT"),
+                        "Approval must be rejected by invariant if demotion ran first; was: " + approvalResult);
+                    assertEquals("PENDING", finalEntry.getStatus(),
+                        "When demotion succeeds first, claim must remain PENDING");
                 }
-            });
 
-            java.util.concurrent.Future<String> demotionFuture = executor.submit(() -> {
-                readyLatch.countDown();
-                startLatch.await();
-                try {
-                    attendanceService.manualCheckIn(
-                        session.getSessionId(),
-                        new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT", "Demoted concurrently"),
-                        po1Principal
-                    );
-                    return "DEMOTED_ABSENT";
-                } catch (Exception ex) {
-                    return "DEMOTION_FAILED: " + ex.getMessage();
-                }
-            });
-
-            readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
-            startLatch.countDown();
-
-            String approvalResult = approvalFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
-            String demotionResult = demotionFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
-
-            assertEquals("DEMOTED_ABSENT", demotionResult, "Attendance demotion must succeed");
-
-            // Final state assertions:
-            AttendanceRecord finalRecord = recordRepository.findById(attRecord.getAttendanceId()).orElseThrow();
-            assertEquals("ABSENT", finalRecord.getStatus(), "Attendance record must be committed as ABSENT");
-
-            ServiceHourEntry finalEntry = serviceHourRepository.findById(pendingClaim.entryId()).orElseThrow();
-            assertNotEquals("APPROVED", finalEntry.getStatus(),
-                "Service hour entry must never be left in APPROVED status when attendance is ABSENT");
-            assertTrue("PENDING".equals(finalEntry.getStatus()) || "REVOKED".equals(finalEntry.getStatus()),
-                "Entry status must be either PENDING or REVOKED, was: " + finalEntry.getStatus());
-
-            // Check total accredited hours for this volunteer & event
-            List<ServiceHourEntry> approvedEntries = serviceHourRepository.findAll().stream()
-                .filter(e -> e.getVolunteer().getVolunteerId().equals(volunteer.getVolunteerId())
-                    && e.getEvent() != null && e.getEvent().getEventId().equals(openEvent.getEventId())
-                    && "APPROVED".equals(e.getStatus()))
-                .toList();
-            assertTrue(approvedEntries.isEmpty(), "Zero approved service hour entries must exist for demoted volunteer");
+                // Check total accredited hours for this volunteer & event is strictly zero
+                List<ServiceHourEntry> approvedEntries = serviceHourRepository.findAll().stream()
+                    .filter(e -> e.getVolunteer().getVolunteerId().equals(targetVolunteer.getVolunteerId())
+                        && e.getEvent() != null && e.getEvent().getEventId().equals(openEvent.getEventId())
+                        && "APPROVED".equals(e.getStatus()))
+                    .toList();
+                assertTrue(approvedEntries.isEmpty(), "Zero approved service hour entries must exist for demoted volunteer");
+            }
         } finally {
             executor.shutdownNow();
             executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
