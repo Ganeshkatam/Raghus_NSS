@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -303,6 +304,156 @@ public class Phase1DataIntegrityIntegrationTest {
             attendanceService.openSession(openEvent.getEventId(), tooLate, adminPrincipal)
         );
         assertTrue(exLate.getMessage().contains("Session expiration time cannot exceed event end"));
+    }
+
+    @Test
+    @DisplayName("P1: Event claim approval fails closed if linked attendance record was demoted from PRESENT to ABSENT/EXCUSED")
+    void eventClaimApproval_withDemotedAttendanceRecord_failsClosed() {
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-key-1"
+        ));
+        AttendanceRecord attRecord = recordRepository.save(new AttendanceRecord(session, volunteer, "MANUAL", "PRESENT"));
+
+        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(1.0),
+            openEvent.getEventId(),
+            "Claim submitted when present",
+            "REGULAR_ACTIVITY",
+            "Note",
+            LocalDate.now()
+        );
+
+        ServiceHourResponse pendingClaim = serviceHourService.submitClaim(claimReq, volunteerPrincipal);
+        assertEquals("PENDING", pendingClaim.status());
+
+        // Now an officer demotes or changes attendance record status to ABSENT before claim approval
+        attRecord.setStatus("ABSENT");
+        recordRepository.save(attRecord);
+
+        // Attempting to approve must fail closed
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            serviceHourService.reviewClaim(
+                pendingClaim.entryId(),
+                new ServiceHourReviewRequest("APPROVE", "Attempted approval after demotion"),
+                po1Principal
+            )
+        );
+        assertTrue(ex.getMessage().contains("is not PRESENT"));
+
+        // Status remains PENDING
+        ServiceHourEntry entry = serviceHourRepository.findById(pendingClaim.entryId()).orElseThrow();
+        assertEquals("PENDING", entry.getStatus());
+    }
+
+    @Test
+    @DisplayName("P1: Event claim approval fails closed if attendance record belongs to a different volunteer or different event")
+    void eventClaimApproval_withMismatchedVolunteerOrEvent_failsClosed() {
+        User otherUser = userRepository.save(new User("Other Vol", "other@raghunss.edu", "pass", null));
+        Volunteer otherVolunteer = volunteerRepository.save(new Volunteer(otherUser, "22B91A0599", "CSE", 2));
+
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-key-2"
+        ));
+        AttendanceRecord otherRecord = recordRepository.save(new AttendanceRecord(session, otherVolunteer, "MANUAL", "PRESENT"));
+
+        ServiceHourEntry entry = new ServiceHourEntry(
+            volunteer, openEvent, otherRecord, BigDecimal.valueOf(2.0), "PENDING", null, "Mismatched record"
+        );
+        entry = serviceHourRepository.save(entry);
+
+        UUID entryId = entry.getEntryId();
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+            serviceHourService.reviewClaim(
+                entryId,
+                new ServiceHourReviewRequest("APPROVE", "Attempted approval with mismatched record"),
+                po1Principal
+            )
+        );
+        assertTrue(ex.getMessage().contains("does not belong to the claim's volunteer"));
+    }
+
+    @Test
+    @DisplayName("P1: ServiceHourEntry entity lifecycle guard rejects direct save of invalid approved event entries")
+    void entityLifecycleValidation_preventsDirectInvalidApprovedState() {
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-key-3"
+        ));
+        AttendanceRecord recordAbsent = recordRepository.save(new AttendanceRecord(session, volunteer, "MANUAL", "ABSENT"));
+
+        // Case 1: Approved with null record
+        ServiceHourEntry e1 = new ServiceHourEntry(volunteer, openEvent, null, BigDecimal.valueOf(2.0), "APPROVED", adminUser, "Desc");
+        assertThrows(IllegalStateException.class, e1::validateEventAttendanceIntegrity);
+
+        // Case 2: Approved with non-PRESENT record
+        ServiceHourEntry e2 = new ServiceHourEntry(volunteer, openEvent, recordAbsent, BigDecimal.valueOf(2.0), "APPROVED", adminUser, "Desc");
+        assertThrows(IllegalStateException.class, e2::validateEventAttendanceIntegrity);
+
+        // Case 3: Approved with record belonging to different volunteer
+        User u3 = userRepository.save(new User("Vol 3", "vol3@raghunss.edu", "pass", null));
+        Volunteer v3 = volunteerRepository.save(new Volunteer(u3, "22B91A0598", "CSE", 2));
+        AttendanceRecord recordV3 = recordRepository.save(new AttendanceRecord(session, v3, "MANUAL", "PRESENT"));
+
+        ServiceHourEntry e3 = new ServiceHourEntry(volunteer, openEvent, recordV3, BigDecimal.valueOf(2.0), "APPROVED", adminUser, "Desc");
+        assertThrows(IllegalStateException.class, e3::validateEventAttendanceIntegrity);
+    }
+
+    @Test
+    @DisplayName("I-04: Concurrent unit member assignment under multi-threading strictly respects capacity limit")
+    void concurrentUnitMemberAssignment_strictlyEnforcesCapacity() throws Exception {
+        NssUnit cappedUnit = unitRepository.save(new NssUnit("Capped Unit", "REC-CAP-1", po1User, 2));
+
+        int threadCount = 6;
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+        try {
+            java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(threadCount);
+            java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+
+            java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            java.util.concurrent.atomic.AtomicInteger capacityErrorCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+            List<java.util.concurrent.Future<Void>> futures = new java.util.ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                final int idx = i;
+                User u = userRepository.save(new User("Candidate " + idx, "cand" + idx + "@raghunss.edu", "pass", null));
+                Volunteer v = volunteerRepository.save(new Volunteer(u, "22CAP" + idx, "CSE", 2));
+
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try {
+                        nssUnitService.addMemberToUnit(cappedUnit.getUnitId(), v.getVolunteerId(), adminPrincipal);
+                        successCount.incrementAndGet();
+                    } catch (IllegalStateException ex) {
+                        if (ex.getMessage().contains("is full")) {
+                            capacityErrorCount.incrementAndGet();
+                        } else {
+                            throw ex;
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (java.util.concurrent.Future<Void> f : futures) {
+                f.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            }
+
+            assertEquals(2, successCount.get(), "Exactly 2 members should be admitted to a unit with capacity 2");
+            assertEquals(4, capacityErrorCount.get(), "All other 4 concurrent assignments must be rejected with capacity error");
+
+            List<UnitMembership> activeMembers = membershipRepository.findAll().stream()
+                .filter(m -> m.getUnit().getUnitId().equals(cappedUnit.getUnitId()) && m.getIsActive())
+                .toList();
+            assertEquals(2, activeMembers.size(), "Unit must contain exactly 2 active members");
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
     }
 }
 

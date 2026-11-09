@@ -105,8 +105,21 @@ public class ServiceHourEntry {
     @PrePersist
     @PreUpdate
     public void validateEventAttendanceIntegrity() {
-        if ("APPROVED".equalsIgnoreCase(status) && event != null && attendanceRecord == null) {
-            throw new IllegalStateException("Approved event service hours must be linked to a verified attendance record.");
+        if ("APPROVED".equalsIgnoreCase(status) && event != null) {
+            if (attendanceRecord == null) {
+                throw new IllegalStateException("Approved event service hours must be linked to a verified attendance record.");
+            }
+            if (!"PRESENT".equalsIgnoreCase(attendanceRecord.getStatus())) {
+                throw new IllegalStateException("Approved event service hours must be linked to an attendance record with status PRESENT.");
+            }
+            if (attendanceRecord.getVolunteer() == null || volunteer == null ||
+                !attendanceRecord.getVolunteer().getVolunteerId().equals(volunteer.getVolunteerId())) {
+                throw new IllegalStateException("Approved event service hours attendance record must belong to the claim's volunteer.");
+            }
+            if (attendanceRecord.getSession() == null || attendanceRecord.getSession().getEvent() == null ||
+                !attendanceRecord.getSession().getEvent().getEventId().equals(event.getEventId())) {
+                throw new IllegalStateException("Approved event service hours attendance record must belong to the claim's event.");
+            }
         }
     }
 }

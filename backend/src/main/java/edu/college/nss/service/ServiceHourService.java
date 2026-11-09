@@ -235,15 +235,33 @@ public class ServiceHourService {
             if (entry.getEvent() != null) {
                 // Accredited hours are derived from the event's configured service hours
                 entry.setHours(entry.getEvent().getServiceHours());
-                if (entry.getAttendanceRecord() == null) {
+
+                AttendanceRecord attRecord = entry.getAttendanceRecord();
+
+                // If no record is linked, attempt to find a verified PRESENT record for this event and volunteer
+                if (attRecord == null) {
                     List<AttendanceRecord> presentRecords = recordRepository.findPresentRecordsByEventAndVolunteer(
                         entry.getEvent().getEventId(), entry.getVolunteer().getVolunteerId()
                     );
                     if (!presentRecords.isEmpty()) {
-                        entry.setAttendanceRecord(presentRecords.get(0));
+                        attRecord = presentRecords.get(0);
+                        entry.setAttendanceRecord(attRecord);
                     } else {
                         throw new IllegalStateException("Cannot approve event service hours without a verified PRESENT attendance record.");
                     }
+                }
+
+                // Invariant revalidation: verify status is PRESENT, volunteer matches, and event matches
+                if (!"PRESENT".equalsIgnoreCase(attRecord.getStatus())) {
+                    throw new IllegalStateException("Cannot approve event service hours: linked attendance record is not PRESENT (current status: " + attRecord.getStatus() + ").");
+                }
+                if (attRecord.getVolunteer() == null ||
+                    !attRecord.getVolunteer().getVolunteerId().equals(entry.getVolunteer().getVolunteerId())) {
+                    throw new IllegalStateException("Cannot approve event service hours: attendance record does not belong to the claim's volunteer.");
+                }
+                if (attRecord.getSession() == null || attRecord.getSession().getEvent() == null ||
+                    !attRecord.getSession().getEvent().getEventId().equals(entry.getEvent().getEventId())) {
+                    throw new IllegalStateException("Cannot approve event service hours: attendance record does not belong to the claim's event.");
                 }
             }
             entry.setStatus("APPROVED");

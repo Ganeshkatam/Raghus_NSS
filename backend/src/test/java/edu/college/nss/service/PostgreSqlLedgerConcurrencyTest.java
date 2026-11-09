@@ -211,21 +211,22 @@ public class PostgreSqlLedgerConcurrencyTest {
             try (Statement stmt = conn.createStatement()) {
                 if (testVolunteerId != null) {
                     stmt.executeUpdate("DELETE FROM service_hour_entries WHERE volunteer_id = '" + testVolunteerId + "'");
+                    stmt.executeUpdate("DELETE FROM unit_memberships WHERE volunteer_id = '" + testVolunteerId + "'");
                 }
                 if (testAttendanceId != null) {
                     stmt.executeUpdate("DELETE FROM attendance_corrections WHERE attendance_id = '" + testAttendanceId + "'");
                     stmt.executeUpdate("DELETE FROM attendance_records WHERE attendance_id = '" + testAttendanceId + "'");
                 }
-                if (testSessionId != null) {
-                    stmt.executeUpdate("DELETE FROM attendance_sessions WHERE session_id = '" + testSessionId + "'");
-                }
                 if (testEventId != null) {
+                    stmt.executeUpdate("DELETE FROM attendance_records WHERE session_id IN (SELECT session_id FROM attendance_sessions WHERE event_id = '" + testEventId + "')");
+                    stmt.executeUpdate("DELETE FROM attendance_sessions WHERE event_id = '" + testEventId + "'");
                     stmt.executeUpdate("DELETE FROM events WHERE event_id = '" + testEventId + "'");
                 }
                 if (testVolunteerId != null) {
                     stmt.executeUpdate("DELETE FROM volunteers WHERE volunteer_id = '" + testVolunteerId + "'");
                 }
                 if (testUnitId != null) {
+                    stmt.executeUpdate("DELETE FROM unit_memberships WHERE unit_id = '" + testUnitId + "'");
                     stmt.executeUpdate("DELETE FROM nss_units WHERE unit_id = '" + testUnitId + "'");
                 }
                 stmt.executeUpdate("DELETE FROM users WHERE user_id = '" + testUserId + "'");
@@ -585,6 +586,316 @@ public class PostgreSqlLedgerConcurrencyTest {
                 }
             }
         } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentAttendanceSessionCreation_againstUniqueIndex_leavesExactlyOneOpenSession() throws Exception {
+        // Clear any existing session for testEventId
+        try (Connection conn = getPostgresConnection()) {
+            conn.setAutoCommit(false);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DELETE FROM attendance_records WHERE session_id IN (SELECT session_id FROM attendance_sessions WHERE event_id = '" + testEventId + "')");
+                stmt.executeUpdate("DELETE FROM attendance_sessions WHERE event_id = '" + testEventId + "'");
+            }
+            conn.commit();
+        }
+
+        int threadCount = 8;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger uniqueViolationCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                final int idx = i;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try (Connection conn = getPostgresConnection()) {
+                        conn.setAutoCommit(false);
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT INTO attendance_sessions (session_id, event_id, opened_by, starts_at, expires_at, status, qr_secret) " +
+                            "VALUES (?, ?, ?, CURRENT_TIMESTAMP - INTERVAL '10 minutes', CURRENT_TIMESTAMP + INTERVAL '50 minutes', 'OPEN', ?)")) {
+                            ps.setObject(1, UUID.randomUUID());
+                            ps.setObject(2, testEventId);
+                            ps.setObject(3, testUserId);
+                            ps.setString(4, "secret-" + idx);
+                            ps.executeUpdate();
+                            conn.commit();
+                            successCount.incrementAndGet();
+                        } catch (Exception ex) {
+                            conn.rollback();
+                            if (ex.getMessage().contains("uq_one_open_session_per_event") ||
+                                ex.getMessage().contains("duplicate key") ||
+                                ex.getMessage().contains("23505")) {
+                                uniqueViolationCount.incrementAndGet();
+                            } else {
+                                throw ex;
+                            }
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in creating an OPEN session");
+            assertEquals(threadCount - 1, uniqueViolationCount.get(), "All other concurrent creations must fail closed on unique index");
+
+            try (Connection conn = getPostgresConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM attendance_sessions WHERE event_id = ? AND status = 'OPEN'")) {
+                ps.setObject(1, testEventId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(1, rs.getInt(1), "Database must contain exactly 1 OPEN session for the event");
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentUnitTransfers_sameVolunteer_leavesExactlyOneActiveMembership() throws Exception {
+        UUID unitA = testUnitId;
+        UUID unitB = UUID.randomUUID();
+
+        // Create unit B
+        try (Connection conn = getPostgresConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO nss_units (unit_id, unit_name, unit_number, officer_id) VALUES (?, ?, ?, ?)")) {
+                ps.setObject(1, unitB);
+                ps.setString(2, "Concurrency Unit B");
+                ps.setString(3, "CONC-B-" + testRunId.toString().substring(0, 8));
+                ps.setObject(4, testUserId);
+                ps.executeUpdate();
+            }
+            // Clear any existing memberships for testVolunteerId
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM unit_memberships WHERE volunteer_id = ?")) {
+                ps.setObject(1, testVolunteerId);
+                ps.executeUpdate();
+            }
+            conn.commit();
+        }
+
+        int threadCount = 8;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger uniqueViolationCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                final UUID targetUnit = (i % 2 == 0) ? unitA : unitB;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    try (Connection conn = getPostgresConnection()) {
+                        conn.setAutoCommit(false);
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT INTO unit_memberships (membership_id, volunteer_id, unit_id, is_active) VALUES (?, ?, ?, true)")) {
+                            ps.setObject(1, UUID.randomUUID());
+                            ps.setObject(2, testVolunteerId);
+                            ps.setObject(3, targetUnit);
+                            ps.executeUpdate();
+                            conn.commit();
+                            successCount.incrementAndGet();
+                        } catch (Exception ex) {
+                            conn.rollback();
+                            if (ex.getMessage().contains("uq_active_unit_membership_per_volunteer") ||
+                                ex.getMessage().contains("duplicate key") ||
+                                ex.getMessage().contains("23505")) {
+                                uniqueViolationCount.incrementAndGet();
+                            } else {
+                                throw ex;
+                            }
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            assertEquals(1, successCount.get(), "Exactly one concurrent thread must succeed in setting active membership");
+            assertEquals(threadCount - 1, uniqueViolationCount.get(), "All other concurrent transfers must fail on uq_active_unit_membership_per_volunteer");
+
+            try (Connection conn = getPostgresConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM unit_memberships WHERE volunteer_id = ? AND is_active = true")) {
+                ps.setObject(1, testVolunteerId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(1, rs.getInt(1), "Database must contain exactly 1 active unit membership for volunteer");
+                }
+            }
+        } finally {
+            try (Connection conn = getPostgresConnection()) {
+                conn.setAutoCommit(false);
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("DELETE FROM unit_memberships WHERE unit_id = '" + unitB + "'");
+                    stmt.executeUpdate("DELETE FROM nss_units WHERE unit_id = '" + unitB + "'");
+                }
+                conn.commit();
+            }
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void concurrentUnitCapacityAssignment_underPostgresRowLocking_strictlyEnforcesCapacity() throws Exception {
+        UUID cappedUnitId = UUID.randomUUID();
+        int maxCapacity = 2;
+
+        try (Connection conn = getPostgresConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO nss_units (unit_id, unit_name, unit_number, officer_id, capacity) VALUES (?, ?, ?, ?, ?)")) {
+                ps.setObject(1, cappedUnitId);
+                ps.setString(2, "Capped Concurrency Unit");
+                ps.setString(3, "CAP-" + testRunId.toString().substring(0, 8));
+                ps.setObject(4, testUserId);
+                ps.setInt(5, maxCapacity);
+                ps.executeUpdate();
+            }
+            conn.commit();
+        }
+
+        int threadCount = 6;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        try {
+            CountDownLatch readyLatch = new CountDownLatch(threadCount);
+            CountDownLatch startLatch = new CountDownLatch(1);
+
+            AtomicInteger successCount = new AtomicInteger(0);
+            AtomicInteger capacityExceededCount = new AtomicInteger(0);
+
+            List<Future<Void>> futures = new ArrayList<>();
+
+            for (int i = 0; i < threadCount; i++) {
+                final int idx = i;
+                futures.add(executor.submit(() -> {
+                    readyLatch.countDown();
+                    startLatch.await();
+
+                    UUID uId = UUID.randomUUID();
+                    UUID vId = UUID.randomUUID();
+
+                    try (Connection conn = getPostgresConnection()) {
+                        conn.setAutoCommit(false);
+
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT INTO users (user_id, name, email, password_hash, status) VALUES (?, ?, ?, '*', 'ACTIVE')")) {
+                            ps.setObject(1, uId);
+                            ps.setString(2, "Member " + idx);
+                            ps.setString(3, "m" + idx + "-" + testRunId + "@raghunss.edu");
+                            ps.executeUpdate();
+                        }
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT INTO volunteers (volunteer_id, user_id, college_id, department, year_of_study, status) VALUES (?, ?, ?, 'CSE', 2, 'ACTIVE')")) {
+                            ps.setObject(1, vId);
+                            ps.setObject(2, uId);
+                            ps.setString(3, "CL" + idx + "-" + testRunId.toString().substring(0, 4));
+                            ps.executeUpdate();
+                        }
+
+                        // Acquire row lock FOR UPDATE on unit
+                        int unitCapacity;
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT unit_id, capacity FROM nss_units WHERE unit_id = ? FOR UPDATE")) {
+                            ps.setObject(1, cappedUnitId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                assertTrue(rs.next());
+                                unitCapacity = rs.getInt("capacity");
+                            }
+                        }
+
+                        int currentCount;
+                        try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT COUNT(*) FROM unit_memberships WHERE unit_id = ? AND is_active = true")) {
+                            ps.setObject(1, cappedUnitId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                assertTrue(rs.next());
+                                currentCount = rs.getInt(1);
+                            }
+                        }
+
+                        if (currentCount < unitCapacity) {
+                            try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO unit_memberships (membership_id, volunteer_id, unit_id, is_active) VALUES (?, ?, ?, true)")) {
+                                ps.setObject(1, UUID.randomUUID());
+                                ps.setObject(2, vId);
+                                ps.setObject(3, cappedUnitId);
+                                ps.executeUpdate();
+                            }
+                            conn.commit();
+                            successCount.incrementAndGet();
+                        } else {
+                            conn.rollback();
+                            capacityExceededCount.incrementAndGet();
+                        }
+                    }
+                    return null;
+                }));
+            }
+
+            readyLatch.await(5, TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            for (Future<Void> f : futures) {
+                f.get(15, TimeUnit.SECONDS);
+            }
+
+            assertEquals(2, successCount.get(), "Exactly 2 members should be admitted under FOR UPDATE serialization");
+            assertEquals(4, capacityExceededCount.get(), "Other 4 concurrent threads must observe capacity reached");
+
+            try (Connection conn = getPostgresConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                     "SELECT COUNT(*) FROM unit_memberships WHERE unit_id = ? AND is_active = true")) {
+                ps.setObject(1, cappedUnitId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(2, rs.getInt(1), "Database must contain exactly 2 active memberships");
+                }
+            }
+        } finally {
+            try (Connection conn = getPostgresConnection()) {
+                conn.setAutoCommit(false);
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("DELETE FROM unit_memberships WHERE unit_id = '" + cappedUnitId + "'");
+                    stmt.executeUpdate("DELETE FROM nss_units WHERE unit_id = '" + cappedUnitId + "'");
+                }
+                conn.commit();
+            }
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
