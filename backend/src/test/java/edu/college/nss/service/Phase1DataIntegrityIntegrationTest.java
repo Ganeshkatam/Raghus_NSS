@@ -3,6 +3,7 @@ package edu.college.nss.service;
 import edu.college.nss.domain.*;
 import edu.college.nss.repository.*;
 import edu.college.nss.web.dto.AttendanceDTOs.CreateSessionRequest;
+import edu.college.nss.web.dto.AttendanceDTOs.ManualCheckInRequest;
 import edu.college.nss.web.dto.AttendanceDTOs.SessionResponse;
 import edu.college.nss.web.dto.ServiceHourDTOs.ServiceHourClaimRequest;
 import edu.college.nss.web.dto.ServiceHourDTOs.ServiceHourResponse;
@@ -450,6 +451,96 @@ public class Phase1DataIntegrityIntegrationTest {
                 .filter(m -> m.getUnit().getUnitId().equals(cappedUnit.getUnitId()) && m.getIsActive())
                 .toList();
             assertEquals(2, activeMembers.size(), "Unit must contain exactly 2 active members");
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    @DisplayName("P1 Concurrency: Racing claim approval against attendance demotion guarantees no approved credit for non-PRESENT attendance")
+    void concurrentClaimApprovalAndAttendanceDemotion_leavesZeroApprovedHours() throws Exception {
+        // Register volunteer for openEvent so manualCheckIn passes validation
+        registrationRepository.save(new EventRegistration(openEvent, volunteer));
+
+        AttendanceSession session = sessionRepository.save(new AttendanceSession(
+            openEvent, po1User, Instant.now().minusSeconds(1800), Instant.now().plusSeconds(1800), "secret-race"
+        ));
+        AttendanceRecord attRecord = recordRepository.save(new AttendanceRecord(session, volunteer, "QR", "PRESENT"));
+
+        ServiceHourClaimRequest claimReq = new ServiceHourClaimRequest(
+            BigDecimal.valueOf(2.0),
+            openEvent.getEventId(),
+            "Claim submitted before race",
+            "REGULAR_ACTIVITY",
+            "Evidence",
+            LocalDate.now()
+        );
+
+        ServiceHourResponse pendingClaim = serviceHourService.submitClaim(claimReq, volunteerPrincipal);
+        assertEquals("PENDING", pendingClaim.status());
+
+        int threadCount = 2;
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+        try {
+            java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(threadCount);
+            java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+
+            java.util.concurrent.Future<String> approvalFuture = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                try {
+                    ServiceHourResponse resp = serviceHourService.reviewClaim(
+                        pendingClaim.entryId(),
+                        new ServiceHourReviewRequest("APPROVE", "Race approval"),
+                        po1Principal
+                    );
+                    return resp.status();
+                } catch (IllegalStateException ex) {
+                    return "REJECTED_BY_INVARIANT: " + ex.getMessage();
+                }
+            });
+
+            java.util.concurrent.Future<String> demotionFuture = executor.submit(() -> {
+                readyLatch.countDown();
+                startLatch.await();
+                try {
+                    attendanceService.manualCheckIn(
+                        session.getSessionId(),
+                        new ManualCheckInRequest(volunteer.getVolunteerId(), "ABSENT", "Demoted concurrently"),
+                        po1Principal
+                    );
+                    return "DEMOTED_ABSENT";
+                } catch (Exception ex) {
+                    return "DEMOTION_FAILED: " + ex.getMessage();
+                }
+            });
+
+            readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            startLatch.countDown();
+
+            String approvalResult = approvalFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            String demotionResult = demotionFuture.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            assertEquals("DEMOTED_ABSENT", demotionResult, "Attendance demotion must succeed");
+
+            // Final state assertions:
+            AttendanceRecord finalRecord = recordRepository.findById(attRecord.getAttendanceId()).orElseThrow();
+            assertEquals("ABSENT", finalRecord.getStatus(), "Attendance record must be committed as ABSENT");
+
+            ServiceHourEntry finalEntry = serviceHourRepository.findById(pendingClaim.entryId()).orElseThrow();
+            assertNotEquals("APPROVED", finalEntry.getStatus(),
+                "Service hour entry must never be left in APPROVED status when attendance is ABSENT");
+            assertTrue("PENDING".equals(finalEntry.getStatus()) || "REVOKED".equals(finalEntry.getStatus()),
+                "Entry status must be either PENDING or REVOKED, was: " + finalEntry.getStatus());
+
+            // Check total accredited hours for this volunteer & event
+            List<ServiceHourEntry> approvedEntries = serviceHourRepository.findAll().stream()
+                .filter(e -> e.getVolunteer().getVolunteerId().equals(volunteer.getVolunteerId())
+                    && e.getEvent() != null && e.getEvent().getEventId().equals(openEvent.getEventId())
+                    && "APPROVED".equals(e.getStatus()))
+                .toList();
+            assertTrue(approvedEntries.isEmpty(), "Zero approved service hour entries must exist for demoted volunteer");
         } finally {
             executor.shutdownNow();
             executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);

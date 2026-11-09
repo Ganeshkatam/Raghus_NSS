@@ -244,11 +244,19 @@ public class ServiceHourService {
                         entry.getEvent().getEventId(), entry.getVolunteer().getVolunteerId()
                     );
                     if (!presentRecords.isEmpty()) {
-                        attRecord = presentRecords.get(0);
+                        UUID recId = presentRecords.get(0).getAttendanceId();
+                        attRecord = recordRepository.findByIdWithLock(recId)
+                            .orElseThrow(() -> new IllegalStateException("Verified attendance record not found with ID: " + recId));
                         entry.setAttendanceRecord(attRecord);
                     } else {
                         throw new IllegalStateException("Cannot approve event service hours without a verified PRESENT attendance record.");
                     }
+                } else {
+                    // Lock the linked record to guarantee atomicity against concurrent corrections/demotions
+                    UUID recId = attRecord.getAttendanceId();
+                    attRecord = recordRepository.findByIdWithLock(recId)
+                        .orElseThrow(() -> new IllegalStateException("Linked attendance record not found with ID: " + recId));
+                    entry.setAttendanceRecord(attRecord);
                 }
 
                 // Invariant revalidation: verify status is PRESENT, volunteer matches, and event matches
