@@ -391,7 +391,7 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       const rawError = data?.error;
-      const rawMessage = rawError?.message || data?.message || response.statusText || "Request failed";
+      const rawMessage = rawError?.message || data?.message || response.statusText || "Unable to complete request. Please try again.";
       const sanitizedMsg = sanitizeErrorMessage(rawMessage, response.status);
       const { category, retryable } = classifyError(response.status, endpoint);
 
@@ -433,7 +433,7 @@ export async function apiRequestBlob(
   });
 
   if (!response.ok) {
-    throw new Error(`Export request failed with status HTTP ${response.status}`);
+    throw new Error("Unable to download the report right now. Please try again.");
   }
 
   return await response.blob();

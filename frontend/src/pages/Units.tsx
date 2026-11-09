@@ -43,7 +43,7 @@ export const Units: React.FC = () => {
       setUnits(data);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Failed to load NSS units.");
+      setError(apiErr.message || "Unable to load NSS units. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ export const Units: React.FC = () => {
       loadUnits();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setModalError(apiErr.message || "Failed to create unit.");
+      setModalError(apiErr.message || "Unable to create unit. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -117,9 +117,9 @@ export const Units: React.FC = () => {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1>NSS Units Management</h1>
+          <h1>NSS Units</h1>
           <p className="subtitle">
-            Configure institutional NSS units and assign volunteers and officers.
+            View and manage NSS units, volunteers, and Programme Officers.
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export const Units: React.FC = () => {
 
       <div className="section-card">
         {loading ? (
-          <p className="loading-state">Loading operational units...</p>
+          <p className="loading-state">Loading units...</p>
         ) : units.length === 0 ? (
           <div className="empty-state">
             <p>No units currently exist in this institution.</p>

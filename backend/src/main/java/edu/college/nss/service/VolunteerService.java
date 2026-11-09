@@ -86,7 +86,7 @@ public class VolunteerService {
     @Transactional
     public VolunteerResponse createVolunteer(VolunteerRequest request) {
         if (volunteerRepository.existsByCollegeId(request.collegeId())) {
-            throw new IllegalArgumentException("Volunteer already exists with college ID: " + request.collegeId());
+            throw new IllegalArgumentException("A volunteer profile already exists with this college ID: " + request.collegeId());
         }
 
         String email = request.email().toLowerCase().trim();
@@ -104,7 +104,7 @@ public class VolunteerService {
             user = userRepository.save(user);
         } else {
             if (volunteerRepository.existsByUser_UserId(user.getUserId())) {
-                throw new IllegalArgumentException("User " + email + " is already linked to a volunteer profile.");
+                throw new IllegalArgumentException("This user account is already linked to a volunteer profile.");
             }
         }
 
@@ -248,7 +248,7 @@ public class VolunteerService {
 
         java.util.Set<String> allowed = ALLOWED_STATUS_TRANSITIONS.getOrDefault(previousStatus, java.util.Set.of());
         if (!allowed.contains(targetStatus)) {
-            throw new IllegalStateException("Illegal volunteer status transition from " + previousStatus + " to " + targetStatus);
+            throw new IllegalStateException("Cannot change volunteer status from " + previousStatus + " to " + targetStatus);
         }
 
         volunteer.setStatus(targetStatus);
@@ -341,7 +341,7 @@ public class VolunteerService {
         if (unitSecurity.canManageVolunteer(principal, volunteer.getVolunteerId())) {
             return;
         }
-        throw new AccessDeniedException("Access is denied to this volunteer profile.");
+        throw new AccessDeniedException("You do not have permission to view this volunteer profile.");
     }
 
     private String generateSecurePassword() {

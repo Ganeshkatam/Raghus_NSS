@@ -319,7 +319,7 @@ public class AttendanceService {
                 throw new DuplicateAttendanceException();
             }
             if (req.reason() == null || req.reason().trim().isBlank()) {
-                throw new IllegalArgumentException("A valid non-blank audit reason is mandatory when modifying existing attendance status.");
+                throw new IllegalArgumentException("Please provide a reason. A reason is mandatory when modifying existing attendance status.");
             }
             record.setStatus(requestedStatus);
             record.setCheckInMethod("MANUAL_COORDINATOR");
@@ -366,7 +366,7 @@ public class AttendanceService {
     @Transactional
     public CorrectionResponse correctAttendance(UUID attendanceId, CorrectionRequest req, UserDetails principal) {
         if (req.reason() == null || req.reason().trim().isBlank()) {
-            throw new IllegalArgumentException("A valid non-blank audit reason is mandatory for attendance corrections.");
+            throw new IllegalArgumentException("Please provide a reason for this attendance request.");
         }
 
         // Shared lock on AttendanceRecord serializes correction creation against manual check-in and other corrections
@@ -385,7 +385,7 @@ public class AttendanceService {
         }
 
         if (correctionRepository.existsByAttendanceRecord_AttendanceIdAndStatus(attendanceId, "PENDING")) {
-            throw new IllegalStateException("A correction request is already pending review for this attendance record.");
+            throw new IllegalStateException("An attendance request is already pending review for this record.");
         }
 
         User officer = currentUser(principal);
@@ -434,7 +434,7 @@ public class AttendanceService {
         assertOfficerForUnit(principal, correction.getAttendanceRecord().getSession().getEvent().getUnit());
 
         if (!"PENDING".equalsIgnoreCase(correction.getStatus())) {
-            throw new IllegalStateException("Correction is not pending review. Current status: " + correction.getStatus());
+            throw new IllegalStateException("This attendance request is not waiting for review.");
         }
 
         // Shared lock on the associated AttendanceRecord ensures reviewCorrection and manualCheckIn share a common serialization boundary
@@ -555,7 +555,7 @@ public class AttendanceService {
         Event event = eventRepository.findByIdWithReadLock(session.getEvent().getEventId())
             .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + session.getEvent().getEventId()));
         if (!"OPEN".equalsIgnoreCase(event.getStatus())) {
-            throw new IllegalStateException("Event is not open for attendance (current status: " + event.getStatus() + "). Attendance cannot be recorded.");
+            throw new IllegalStateException("Event is not open for attendance. Attendance cannot be recorded.");
         }
         if (!"OPEN".equalsIgnoreCase(session.getStatus())) {
             throw new AttendanceSessionExpiredException("Attendance session is not open.");
@@ -745,14 +745,14 @@ public class AttendanceService {
             User user = currentUser(principal);
             if (unit.getOfficer() != null && unit.getOfficer().getUserId().equals(user.getUserId())) return;
         }
-        throw new AccessDeniedException("Access denied. Programme Officer or Admin privileges required for this NSS unit.");
+        throw new AccessDeniedException("You do not have permission to perform this action for this NSS unit.");
     }
 
     private void assertOfficerOrAdmin(UserDetails principal) {
         if (hasRole(principal, "ADMIN") || hasRole(principal, "FACULTY_COORDINATOR") || hasRole(principal, "PROGRAMME_OFFICER")) {
             return;
         }
-        throw new AccessDeniedException("Access denied. Officer or Admin privileges required.");
+        throw new AccessDeniedException("You do not have permission to perform this action.");
     }
 
     private boolean hasRole(UserDetails principal, String role) {

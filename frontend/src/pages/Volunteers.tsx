@@ -73,9 +73,9 @@ export const Volunteers: React.FC = () => {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "FORBIDDEN") {
-        setError("You do not have administrative permission to view the global volunteers list.");
+        setError("You do not have permission to view the volunteer list.");
       } else {
-        setError(apiErr.message || "Failed to load volunteers.");
+        setError(apiErr.message || "Unable to load volunteers. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -112,7 +112,7 @@ export const Volunteers: React.FC = () => {
       loadVolunteers();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setModalError(apiErr.message || "Failed to register volunteer.");
+      setModalError(apiErr.message || "Unable to enroll volunteer. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -148,12 +148,12 @@ export const Volunteers: React.FC = () => {
           remarks: transitionRemarks.trim() || undefined,
         }),
       });
-      setStatusActionSuccess(`Volunteer status changed to ${targetStatus}.`);
+      setStatusActionSuccess(`Volunteer status changed to ${targetStatus === "ACTIVE" ? "Active" : targetStatus === "INACTIVE" ? "Inactive" : targetStatus}.`);
       setStatusModalVol(null);
       setTransitionRemarks("");
       loadVolunteers();
     } catch (err: any) {
-      alert(err.message || "Failed to update volunteer status.");
+      alert(err.message || "Unable to update volunteer status. Please try again.");
     } finally {
       setProcessingStatus(false);
     }
@@ -171,9 +171,9 @@ export const Volunteers: React.FC = () => {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1>Volunteers Registry</h1>
+          <h1>Volunteers</h1>
           <p className="subtitle">
-            Manage enrolled NSS student volunteers and their unit allocations.
+            Manage enrolled NSS student volunteers and their assigned units.
           </p>
         </div>
 
@@ -438,7 +438,7 @@ export const Volunteers: React.FC = () => {
                   </div>
                   <div className="modal-body">
                     <p className="subtitle" style={{ marginBottom: "1rem" }}>
-                      Target Status: <strong>{targetStatus}</strong> for candidate <strong>{statusModalVol.name}</strong> ({statusModalVol.collegeId}).
+                      New status: <strong>{targetStatus === "ACTIVE" ? "Active" : targetStatus === "INACTIVE" ? "Inactive" : targetStatus}</strong> for volunteer <strong>{statusModalVol.name}</strong> ({statusModalVol.collegeId}).
                     </p>
                     <form onSubmit={handleQuickStatusSubmit} className="form-stack" style={{ padding: 0 }}>
                       <div className="form-group">

@@ -103,7 +103,7 @@ export const Attendance: React.FC = () => {
         setSelectedEventId(safeEvents[0].eventId);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to load events.");
+      setError(err.message || "Unable to load events. Please try again.");
     }
   }, [selectedEventId]);
 
@@ -200,7 +200,7 @@ export const Attendance: React.FC = () => {
       setManualTokenInput("");
       loadVolunteerHistory();
     } catch (err: any) {
-      setError(err.message || "Check-in failed. This code has expired or is invalid. Please get a new one.");
+      setError(err.message || "Unable to record attendance. This code has expired or is invalid. Please scan again.");
     } finally {
       setCheckingIn(false);
     }
@@ -268,7 +268,7 @@ export const Attendance: React.FC = () => {
       loadPendingCorrections();
       if (selectedEventId) loadSessionAndList(selectedEventId);
     } catch (err: any) {
-      setError(err.message || `Failed to ${reviewAction.toLowerCase()} attendance request.`);
+      setError(err.message || `Unable to ${reviewAction.toLowerCase()} attendance request. Please try again.`);
     } finally {
       setReviewing(false);
     }
@@ -379,7 +379,7 @@ export const Attendance: React.FC = () => {
                   Volunteer: <strong>{checkInResult.volunteerName}</strong> ({checkInResult.rollNumber})
                 </div>
                 <div style={{ fontSize: "0.85rem", color: "#15803d" }}>
-                  Method: <strong>{checkInResult.checkInMethod || "QR / Token"}</strong> &bull; Status: <strong>{checkInResult.status}</strong>
+                  Method: <strong>{checkInResult.checkInMethod || "QR Code"}</strong> &bull; Status: <strong>{checkInResult.status}</strong>
                 </div>
               </div>
             )}
@@ -393,7 +393,7 @@ export const Attendance: React.FC = () => {
                 <p className="subtitle">Verified records accumulating towards your 240-hour certificate.</p>
               </div>
               <Link to="/service-hours" className="btn-secondary-sm">
-                View Full Ledger
+                View Service Hours
               </Link>
             </div>
 
@@ -443,7 +443,7 @@ export const Attendance: React.FC = () => {
                           </span>
                         </td>
                         <td>
-                          <span className="cell-sub">{item.approvedByName || "Audited by NSS Cell"}</span>
+                          <span className="cell-sub">{item.approvedByName || "Approved by NSS Cell"}</span>
                         </td>
                       </tr>
                     ))}
@@ -502,7 +502,7 @@ export const Attendance: React.FC = () => {
               <div className="section-header">
                 <div>
                   <h2>Attendance Requests Waiting for Review</h2>
-                  <p className="subtitle">Audit and review requested attendance adjustments from event coordinators.</p>
+                  <p className="subtitle">Review and verify requested attendance updates from event coordinators.</p>
                 </div>
                 <button type="button" onClick={loadPendingCorrections} className="btn-secondary-sm">
                   Refresh Queue
@@ -780,7 +780,7 @@ export const Attendance: React.FC = () => {
                                       }}
                                       className="btn-secondary-sm"
                                     >
-                                      Audit Correct
+                                      Update Attendance
                                     </button>
                                   ) : (
                                     <span className="cell-sub">Unrecorded</span>

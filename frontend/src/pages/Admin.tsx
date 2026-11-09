@@ -106,7 +106,7 @@ export const Admin: React.FC = () => {
       setAuditLogs(auditData || []);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Failed to load administrative console data.");
+      setError(apiErr.message || "Unable to load administrative data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -133,11 +133,11 @@ export const Admin: React.FC = () => {
       setShowUnitModal(false);
       setUnitName("");
       setUnitNumber("");
-      setSuccessNotice("NSS operational unit provisioned successfully.");
+      setSuccessNotice("NSS unit created successfully.");
       await loadAdminData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setUnitModalError(apiErr.message || "Unable to provision NSS unit.");
+      setUnitModalError(apiErr.message || "Unable to create NSS unit. Please try again.");
     } finally {
       setSavingUnit(false);
     }
@@ -154,7 +154,7 @@ export const Admin: React.FC = () => {
       await loadAdminData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      alert("Failed to update user status: " + apiErr.message);
+      alert("Unable to update user status: " + apiErr.message);
     }
   };
 
@@ -172,7 +172,7 @@ export const Admin: React.FC = () => {
       await loadAdminData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      alert("Failed to update role: " + apiErr.message);
+      alert("Unable to update role: " + apiErr.message);
     } finally {
       setUpdatingRole(false);
     }
@@ -213,7 +213,7 @@ export const Admin: React.FC = () => {
       await loadAdminData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setCreateUserError(apiErr.message || "Failed to create user account.");
+      setCreateUserError(apiErr.message || "Unable to create user account. Please check the details and try again.");
     } finally {
       setCreatingUser(false);
     }
@@ -244,14 +244,14 @@ export const Admin: React.FC = () => {
       {/* Header */}
       <div className="page-header" style={{ alignItems: "flex-start" }}>
         <div>
-          <h1>Institutional System Administration</h1>
+          <h1>System Administration</h1>
           <p className="subtitle">
-            System settings, user accounts, role permissions, activity history, and NSS units.
+            Manage user accounts, roles, activity history, and NSS units.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button onClick={() => setShowUnitModal(true)} className="btn-primary">
-            + Provision NSS Unit
+            + Create NSS Unit
           </button>
         </div>
       </div>
@@ -435,7 +435,7 @@ export const Admin: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          System Health &amp; Security Controls
+          System Status &amp; Security
         </button>
       </div>
 
@@ -662,7 +662,7 @@ export const Admin: React.FC = () => {
             <div>
               <h2 style={{ margin: 0 }}>Activity History</h2>
               <p className="subtitle" style={{ margin: 0 }}>
-                Immutable ledger of volunteer status approvals, unit transfers, and role actions.
+                Record of volunteer status approvals, unit transfers, and role actions.
               </p>
             </div>
             <SearchBar
@@ -727,47 +727,47 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: SYSTEM HEALTH & SECURITY CONTROLS */}
+      {/* TAB 4: SYSTEM STATUS & SECURITY */}
       {activeTab === "health" && (
         <div className="grid-2-col">
           <div className="section-card">
             <div className="section-header">
-              <h2>Infrastructure &amp; Server Health</h2>
+              <h2>System Status &amp; Security</h2>
             </div>
             <dl className="detail-list">
               <div>
-                <dt>Primary Database</dt>
-                <dd>PostgreSQL 15 (HikariCP Connection Pool Active)</dd>
+                <dt>Database Service</dt>
+                <dd>Connected and operational</dd>
               </div>
               <div>
-                <dt>Application Runtime</dt>
-                <dd>Spring Boot 3.4.3 / Java 21 LTS</dd>
+                <dt>Application Service</dt>
+                <dd>Running and up to date</dd>
               </div>
               <div>
-                <dt>Security Architecture</dt>
-                <dd>Stateless JWT with IssuedAt Revocation &amp; BCrypt Hashing</dd>
+                <dt>Account Security</dt>
+                <dd>Protected with secure sessions and encrypted credentials</dd>
               </div>
               <div>
                 <dt>Password Policy</dt>
-                <dd>Enforced: 8+ chars, upper, lower, numeric, special char</dd>
+                <dd>At least 8 characters with uppercase, lowercase, numbers, and symbols</dd>
               </div>
               <div>
-                <dt>Operational Unit Limit</dt>
-                <dd>Max 100 volunteers / Unit (Ministry NSS Guidelines)</dd>
+                <dt>Unit Size Guideline</dt>
+                <dd>Up to 100 volunteers per unit (as per NSS guidelines)</dd>
               </div>
               <div>
-                <dt>Certificate Milestone</dt>
-                <dd>120 Approved Service Hours accreditation threshold</dd>
+                <dt>Certification Requirement</dt>
+                <dd>120 approved service hours</dd>
               </div>
             </dl>
           </div>
 
           <div className="section-card">
             <div className="section-header">
-              <h2>Role Hierarchy &amp; Access Controls</h2>
+              <h2>Roles and Permissions</h2>
             </div>
             <p className="subtitle" style={{ marginBottom: "1rem" }}>
-              Server-side security enforced via Spring Security method authorization rules.
+              Permissions are checked securely on the server for all actions.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

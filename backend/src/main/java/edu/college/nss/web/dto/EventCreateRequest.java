@@ -8,7 +8,7 @@ import java.util.UUID;
 public record EventCreateRequest(
     UUID unitId,
     UUID organizingUnitId,
-    @Pattern(regexp = "UNIT|MULTI_UNIT|COLLEGE_WIDE", flags = Pattern.Flag.CASE_INSENSITIVE, message = "Event scope must be UNIT, MULTI_UNIT, or COLLEGE_WIDE")
+    @Pattern(regexp = "UNIT|MULTI_UNIT|COLLEGE_WIDE", flags = Pattern.Flag.CASE_INSENSITIVE, message = "Event scope must be for a single unit, multiple units, or college-wide.")
     String eventScope,
     List<UUID> participatingUnitIds,
     List<UUID> unitIds,

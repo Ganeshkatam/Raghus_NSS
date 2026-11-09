@@ -183,7 +183,7 @@ export const EventDetail: React.FC = () => {
       }
     } catch (e) {
       const err = e as ApiError;
-      setError(err.message || "Failed to load event.");
+      setError(err.message || "Unable to load event details. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -200,7 +200,7 @@ export const EventDetail: React.FC = () => {
     setMessage(null);
     try {
       await apiRequest("/events/" + id + "/" + action, { method: "POST" });
-      setMessage("Event transition applied: " + action);
+      setMessage("Event status updated: " + action);
       await load();
     } catch (e) {
       const err = e as ApiError;
@@ -221,11 +221,11 @@ export const EventDetail: React.FC = () => {
         method: "POST",
         body: JSON.stringify({ volunteerId: volunteer.volunteerId, joinWaitlist }),
       });
-      setMessage(joinWaitlist ? "Added to event waitlist." : "Registration confirmed.");
+      setMessage(joinWaitlist ? "Added to event waitlist." : "You have joined this event.");
       await load();
     } catch (e) {
       const err = e as ApiError;
-      setError(err.message || "Registration failed.");
+      setError(err.message || "Unable to join event. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -283,7 +283,7 @@ export const EventDetail: React.FC = () => {
       await load();
     } catch (e) {
       const err = e as ApiError;
-      setError(err.message || "Failed to close attendance session.");
+      setError(err.message || "Unable to close attendance session. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -1047,7 +1047,7 @@ export const EventDetail: React.FC = () => {
                   >
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase" }}>
-                        Session Check-in Token
+                        Attendance Check-in Code
                       </span>
                       <div
                         style={{
@@ -1160,11 +1160,11 @@ export const EventDetail: React.FC = () => {
             <section className="section-card">
               <h3>Attendance Verification</h3>
               <p style={{ color: "#475569", marginBottom: "1rem" }}>
-                During the event, your Programme Officer will display the attendance QR token on the
-                projector. Enter the token in the Attendance Console to record your check-in.
+                During the event, your Programme Officer will display the attendance QR code on
+                screen. Enter or scan the code on the Attendance page to record your check-in.
               </p>
               <Link to="/attendance" className="btn-primary-sm">
-                Open Check-In Console
+                Go to Attendance Check-In
               </Link>
             </section>
           )}
@@ -1202,10 +1202,10 @@ export const EventDetail: React.FC = () => {
               <div>
                 <p style={{ color: "#475569", marginBottom: "1rem" }}>
                   Programme Officers can review volunteer hours claims and verify accredited logs in
-                  the Service Hours Ledger.
+                  Service Hours.
                 </p>
                 <Link to="/service-hours" className="btn-secondary-sm">
-                  Open Service Hours Ledger
+                  View Service Hours
                 </Link>
               </div>
             ) : (
@@ -1293,7 +1293,7 @@ export const EventDetail: React.FC = () => {
               <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#16a34a" }}>
                 {stats?.presentCount ?? 0}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Verified via token</div>
+              <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Verified check-in</div>
             </div>
 
             <div
@@ -1305,7 +1305,7 @@ export const EventDetail: React.FC = () => {
               }}
             >
               <div style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>
-                Absent Count
+                Absent
               </div>
               <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#dc2626" }}>
                 {stats?.absentCount ?? 0}

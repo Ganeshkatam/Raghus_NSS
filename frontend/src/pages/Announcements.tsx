@@ -73,7 +73,7 @@ export const Announcements: React.FC = () => {
         setNotifications(notifs || []);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to load announcements.");
+      setError(err.message || "Unable to load announcements. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export const Announcements: React.FC = () => {
           expiresAt: newExpiresAt ? new Date(newExpiresAt).toISOString() : null
         })
       });
-      setSuccess("Announcement published and notifications broadcast successfully.");
+      setSuccess("Announcement published successfully.");
       setShowCreateModal(false);
       setNewTitle("");
       setNewContent("");
@@ -112,7 +112,7 @@ export const Announcements: React.FC = () => {
       setNewExpiresAt("");
       loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to create announcement.");
+      setError(err.message || "Unable to post announcement. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -125,7 +125,7 @@ export const Announcements: React.FC = () => {
       setSuccess("Announcement deleted.");
       loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to delete announcement.");
+      setError(err.message || "Unable to delete announcement. Please try again.");
     }
   };
 
@@ -228,7 +228,7 @@ export const Announcements: React.FC = () => {
       {showNotifications && (
         <div style={{ background: "#ffffff", borderRadius: "0.75rem", border: "1px solid var(--border-color, #e2e8f0)", padding: "1.5rem", marginBottom: "2rem", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>My Broadcast Notifications</h3>
+            <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700 }}>My Notifications</h3>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{unreadNotifsCount} unread</span>
               {unreadNotifsCount > 0 && (
@@ -586,7 +586,7 @@ export const Announcements: React.FC = () => {
                     disabled={creating}
                     className="btn-primary"
                   >
-                    {creating ? "Publishing..." : "Publish & Broadcast"}
+                    {creating ? "Publishing..." : "Publish Announcement"}
                   </button>
                 </div>
               </form>

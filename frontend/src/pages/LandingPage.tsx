@@ -104,7 +104,7 @@ export const LandingPage: React.FC = () => {
               Initiatives
             </a>
             <a href="#records" onClick={closeMenu} className="rec-nav-link">
-              Service Ledger
+              Service Hours
             </a>
             <a href="#journey" onClick={closeMenu} className="rec-nav-link">
               How to Join
@@ -578,9 +578,9 @@ export const LandingPage: React.FC = () => {
             <ul className="rec-footer-links">
               <li><a href="#about">About Raghu NSS</a></li>
               <li><a href="#initiatives">Flagship Initiatives</a></li>
-              <li><a href="#records">Service Ledger</a></li>
+              <li><a href="#records">Service Hours</a></li>
               <li><a href="#journey">Volunteer Enrolment</a></li>
-              <li><Link to="/login">Portal Login</Link></li>
+              <li><Link to="/login">Sign In</Link></li>
             </ul>
           </div>
 
@@ -605,7 +605,7 @@ export const LandingPage: React.FC = () => {
             </p>
             <div className="rec-footer-portal-link">
               <Link to="/login" className="rec-footer-login-btn">
-                <span>Access Student / Officer Login</span>
+                <span>Access Student / Officer Sign In</span>
                 <ArrowRight />
               </Link>
             </div>

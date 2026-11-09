@@ -152,13 +152,13 @@ export const InstitutionalDashboard: React.FC = () => {
 
         <div className="section-card" style={{ padding: "1.25rem" }}>
           <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-            Accredited Hours
+            Approved Hours
           </div>
           <div style={{ fontSize: "2rem", fontWeight: 800, color: "#ea580c", marginTop: "0.25rem" }}>
             {metrics?.totalServiceHours ?? 0} <span style={{ fontSize: "1rem", fontWeight: 500 }}>hrs</span>
           </div>
           <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-            Verified student service ledger
+            Verified student service hours
           </span>
         </div>
       </div>
@@ -169,7 +169,7 @@ export const InstitutionalDashboard: React.FC = () => {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <strong style={{ color: "#92400e" }}>Pending Onboarding Approvals</strong>
-              <div style={{ fontSize: "0.85rem", color: "#b45309" }}>{pendingApprovals} volunteer registrations awaiting officer verification</div>
+              <div style={{ fontSize: "0.85rem", color: "#b45309" }}>{pendingApprovals} volunteer sign-ups waiting for officer review</div>
             </div>
             <Link to="/volunteers?status=PENDING_APPROVAL" className="btn-primary-sm">
               Review
@@ -180,11 +180,11 @@ export const InstitutionalDashboard: React.FC = () => {
         <div style={{ padding: "1rem", backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "0.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <strong style={{ color: "#065f46" }}>Service Hour Claims Queue</strong>
-              <div style={{ fontSize: "0.85rem", color: "#047857" }}>{pendingClaims} claims requiring coordinator or officer verification</div>
+              <strong style={{ color: "#065f46" }}>Service Hour Claims</strong>
+              <div style={{ fontSize: "0.85rem", color: "#047857" }}>{pendingClaims} claims waiting for officer review</div>
             </div>
             <Link to="/service-hours" className="btn-primary-sm">
-              Audit
+              Review
             </Link>
           </div>
         </div>
@@ -194,11 +194,11 @@ export const InstitutionalDashboard: React.FC = () => {
       <div className="section-card">
         <div className="section-header">
           <div>
-            <h3>NSS Operational Units Comparison</h3>
-            <p className="subtitle">Capacity allocation, faculty officer jurisdiction, and participation lists.</p>
+            <h3>NSS Units Overview</h3>
+            <p className="subtitle">Unit capacity, assigned Programme Officers, and volunteer participation.</p>
           </div>
           <Link to="/units" className="btn-secondary-sm">
-            Units Console
+            View Units
           </Link>
         </div>
 
@@ -212,8 +212,8 @@ export const InstitutionalDashboard: React.FC = () => {
                   <th>Unit Number</th>
                   <th>Unit Name</th>
                   <th>Officer In Charge</th>
-                  <th>List / Capacity</th>
-                  <th>Capacity Utilisation</th>
+                  <th>Volunteers / Capacity</th>
+                  <th>Capacity Used</th>
                   <th>Actions</th>
                 </tr>
               </thead>

@@ -49,11 +49,11 @@ public class AnnouncementService {
             unit = unitRepository.findById(req.unitId())
                 .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + req.unitId()));
             if (principal != null && !unitSecurity.isGlobalManager(principal) && !unitSecurity.canManageUnit(principal, req.unitId())) {
-                throw new AccessDeniedException("You are not authorized to publish announcements for Unit " + unit.getUnitNumber());
+                throw new AccessDeniedException("You do not have permission to post announcements for Unit " + unit.getUnitNumber());
             }
         } else {
             if (principal != null && !unitSecurity.isGlobalManager(principal)) {
-                throw new AccessDeniedException("Programme Officers can only publish announcements for their assigned unit.");
+                throw new AccessDeniedException("Programme Officers can only post announcements for their assigned unit.");
             }
         }
 
@@ -139,7 +139,7 @@ public class AnnouncementService {
         boolean isAuthor = announcement.getCreatedBy().getUserId().equals(current.getUserId());
 
         if (!isAdmin && !isAuthor) {
-            throw new AccessDeniedException("You are not authorized to delete this announcement.");
+            throw new AccessDeniedException("You do not have permission to delete this announcement.");
         }
 
         announcementRepository.delete(announcement);
@@ -170,7 +170,7 @@ public class AnnouncementService {
                       hasRole(principal, "FACULTY_COORDINATOR") ||
                       hasRole(principal, "PROGRAMME_OFFICER");
         if (!can) {
-            throw new AccessDeniedException("Only designated Officers and Administrators can publish announcements.");
+            throw new AccessDeniedException("You do not have permission to post announcements.");
         }
     }
 

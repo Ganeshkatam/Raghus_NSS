@@ -174,12 +174,12 @@ public class NssUnitService {
             .orElseThrow(() -> new IllegalArgumentException("NSS Unit not found with ID: " + unitId));
 
         if (principal != null && !unitSecurity.canManageUnit(principal, unitId)) {
-            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to allot volunteers to Unit " + unit.getUnitNumber());
+            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to assign volunteers to Unit " + unit.getUnitNumber());
         }
 
         long currentCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(unitId).size();
         if (unit.getCapacity() != null && currentCount >= unit.getCapacity()) {
-            throw new IllegalStateException("Unit " + unit.getUnitName() + " has reached maximum capacity of " + unit.getCapacity() + " volunteers.");
+            throw new IllegalStateException("Unit " + unit.getUnitName() + " is full (" + unit.getCapacity() + " volunteers maximum).");
         }
 
         Volunteer volunteer = volunteerRepository.findById(volunteerId)
@@ -193,9 +193,9 @@ public class NssUnitService {
             String currentUnitName = active.getUnit() != null ? active.getUnit().getUnitName() : "another unit";
             String currentUnitNumber = active.getUnit() != null ? active.getUnit().getUnitNumber() : "";
             String volName = volunteer.getUser() != null ? volunteer.getUser().getName() : "Volunteer";
-            throw new IllegalStateException(volName + " is already actively allotted to " + currentUnitName +
+            throw new IllegalStateException(volName + " is already assigned to " + currentUnitName +
                 (currentUnitNumber.isBlank() ? "" : " (" + currentUnitNumber + ")") +
-                ". Please use the explicit Transfer Volunteer action to move them between units.");
+                ". Each volunteer can belong to only one unit at a time. Please use the transfer option to move them.");
         }
 
         UnitMembership membership = new UnitMembership(volunteer, unit);
@@ -262,14 +262,14 @@ public class NssUnitService {
         boolean canManageTarget = unitSecurity.canManageUnit(principal, targetUnitId);
         if (!canManageSource && !canManageTarget) {
             throw new org.springframework.security.access.AccessDeniedException(
-                "You are not authorized to transfer volunteers between Unit " + sourceUnit.getUnitNumber() +
+                "You do not have permission to transfer volunteers between Unit " + sourceUnit.getUnitNumber() +
                 " and Unit " + targetUnit.getUnitNumber()
             );
         }
 
         long targetActiveCount = membershipRepository.findByUnit_UnitIdAndIsActiveTrue(targetUnitId).size();
         if (targetUnit.getCapacity() != null && targetActiveCount >= targetUnit.getCapacity()) {
-            throw new IllegalStateException("Target unit " + targetUnit.getUnitName() + " has reached maximum capacity.");
+            throw new IllegalStateException("Unit " + targetUnit.getUnitName() + " is full.");
         }
 
         activeMembership.setIsActive(false);

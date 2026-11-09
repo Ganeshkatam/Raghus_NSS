@@ -99,7 +99,7 @@ public class ServiceHourService {
             .orElseThrow(() -> new AccessDeniedException("Only active volunteers can submit service hour claims."));
 
         if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus())) {
-            throw new AccessDeniedException("Volunteer status must be ACTIVE to claim service hours.");
+            throw new AccessDeniedException("Your volunteer status must be active to claim service hours.");
         }
 
         if (req.hours() == null || req.hours().compareTo(BigDecimal.ZERO) <= 0 || req.hours().compareTo(BigDecimal.valueOf(60)) > 0) {
@@ -201,7 +201,7 @@ public class ServiceHourService {
             .orElseThrow(() -> new IllegalArgumentException("Service hour entry not found: " + entryId));
 
         if (!"PENDING".equals(entry.getStatus())) {
-            throw new IllegalStateException("Only PENDING claims can be reviewed.");
+            throw new IllegalStateException("Only claims waiting for approval can be reviewed.");
         }
 
         User reviewer = currentUser(principal);
@@ -217,7 +217,7 @@ public class ServiceHourService {
         if (!unitSecurity.isGlobalManager(principal)) {
             UnitMembership mem = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(entry.getVolunteer().getVolunteerId()).orElse(null);
             if (mem == null || !unitSecurity.canManageUnit(principal, mem.getUnit().getUnitId())) {
-                throw new AccessDeniedException("You are not authorized to review claims for volunteers outside your assigned unit.");
+                throw new AccessDeniedException("You do not have permission to review claims outside your assigned unit.");
             }
         }
 
@@ -287,7 +287,7 @@ public class ServiceHourService {
             a.getAuthority().equals("PROGRAMME_OFFICER") || a.getAuthority().equals("ROLE_PROGRAMME_OFFICER")
         );
         if (!authorized) {
-            throw new AccessDeniedException("Access denied. Officer or Admin privileges required.");
+            throw new AccessDeniedException("You do not have permission to perform this action.");
         }
     }
 

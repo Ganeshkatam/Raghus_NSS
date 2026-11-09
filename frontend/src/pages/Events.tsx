@@ -131,7 +131,7 @@ export const Events: React.FC = () => {
       }
     } catch (e) {
       const err = e as ApiError;
-      setError(err.message || "Failed to load events.");
+      setError(err.message || "Unable to load events. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -272,7 +272,7 @@ export const Events: React.FC = () => {
       load();
     } catch (e) {
       const err = e as ApiError;
-      setModalError(err.message || "Failed to create event.");
+      setModalError(err.message || "Unable to create event. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -281,7 +281,7 @@ export const Events: React.FC = () => {
   const getRegistrationWindowState = (event: EventItem) => {
     const now = new Date();
     if (event.status === "CLOSED" || event.status === "COMPLETED" || event.status === "CANCELLED") {
-      return { label: "Registration Closed", state: "CLOSED", color: "#64748b", bg: "#f1f5f9" };
+      return { label: "Sign-up Closed", state: "CLOSED", color: "#64748b", bg: "#f1f5f9" };
     }
     if (event.status === "DRAFT") {
       return { label: "Draft - Not Opened", state: "NOT_OPENED", color: "#64748b", bg: "#f1f5f9" };
@@ -304,12 +304,12 @@ export const Events: React.FC = () => {
     }
     if (event.status === "OPEN") {
       if (event.registrationCloseAt && new Date(event.registrationCloseAt) < now) {
-        return { label: "Registration Closed", state: "CLOSED", color: "#b45309", bg: "#fef3c7" };
+        return { label: "Sign-up Closed", state: "CLOSED", color: "#b45309", bg: "#fef3c7" };
       }
       if (event.registrationOpenAt && new Date(event.registrationOpenAt) > now) {
         return { label: "Not Opened", state: "NOT_OPENED", color: "#0369a1", bg: "#e0f2fe" };
       }
-      return { label: "Registration Open", state: "OPEN", color: "#15803d", bg: "#dcfce7" };
+      return { label: "Sign-up Open", state: "OPEN", color: "#15803d", bg: "#dcfce7" };
     }
     return { label: "Closed", state: "CLOSED", color: "#64748b", bg: "#f1f5f9" };
   };

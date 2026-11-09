@@ -93,7 +93,7 @@ export const VolunteerDetail: React.FC = () => {
       }
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Failed to load volunteer profile.");
+      setError(apiErr.message || "Unable to load volunteer profile. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -121,7 +121,7 @@ export const VolunteerDetail: React.FC = () => {
       setStatusRemarks("");
       loadData();
     } catch (err: any) {
-      setError(err.message || "Failed to update volunteer status.");
+      setError(err.message || "Unable to update volunteer status. Please try again.");
     } finally {
       setUpdatingStatus(false);
     }
@@ -405,23 +405,23 @@ export const VolunteerDetail: React.FC = () => {
             <div className="modal-body">
               <form onSubmit={handleUpdateStatus} className="form-stack" style={{ padding: 0 }}>
                 <div className="form-group">
-                  <label htmlFor="newStatusSelect">Status Transition *</label>
+                  <label htmlFor="newStatusSelect">New Status *</label>
                   <CustomSelect
                     id="newStatusSelect"
                     value={selectedNewStatus}
                     onChange={setSelectedNewStatus}
                     options={[
-                      { value: "ACTIVE", label: "ACTIVE - Fully Approved Volunteer" },
-                      { value: "PENDING_APPROVAL", label: "PENDING_APPROVAL - Under Verification" },
-                      { value: "INACTIVE", label: "INACTIVE - Suspended Participation" },
-                      { value: "ALUMNI", label: "ALUMNI - Graduated NSS Member" },
-                      { value: "SUSPENDED", label: "SUSPENDED - Disciplinary Hold" },
+                      { value: "ACTIVE", label: "Active - Fully Approved Volunteer" },
+                      { value: "PENDING_APPROVAL", label: "Waiting for approval - Under Verification" },
+                      { value: "INACTIVE", label: "Inactive - Suspended Participation" },
+                      { value: "ALUMNI", label: "Alumni - Graduated NSS Member" },
+                      { value: "SUSPENDED", label: "Suspended - Disciplinary Hold" },
                     ]}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="statusRemarksInput">Audit Remarks / Justification</label>
+                  <label htmlFor="statusRemarksInput">Reason for Status Change</label>
                   <textarea
                     id="statusRemarksInput"
                     rows={3}

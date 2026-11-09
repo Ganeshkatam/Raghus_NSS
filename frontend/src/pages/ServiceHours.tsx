@@ -94,7 +94,7 @@ export const ServiceHours: React.FC = () => {
         err?.message?.includes("FORBIDDEN") ||
         err?.code === "FORBIDDEN";
       if (!isExpectedNonVolunteer) {
-        setError(err.message || "Failed to load personal service hours.");
+        setError(err.message || "Unable to load service hours. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export const ServiceHours: React.FC = () => {
           : [];
       setPendingClaims(safeList);
     } catch (err: any) {
-      setError(err.message || "Failed to load pending claims.");
+      setError(err.message || "Unable to load claims waiting for review. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -179,7 +179,7 @@ export const ServiceHours: React.FC = () => {
       setClaimEvidenceNote("");
       loadMyHours();
     } catch (err: any) {
-      setError(err.message || "Failed to submit claim.");
+      setError(err.message || "Unable to submit claim. Please try again.");
     } finally {
       setSubmittingClaim(false);
     }
@@ -196,7 +196,7 @@ export const ServiceHours: React.FC = () => {
       setSuccess("Service hour claim approved successfully.");
       loadPendingClaims();
     } catch (err: any) {
-      setError(err.message || "Failed to approve claim.");
+      setError(err.message || "Unable to approve claim. Please try again.");
     } finally {
       setReviewing(false);
     }
@@ -218,7 +218,7 @@ export const ServiceHours: React.FC = () => {
       setRejectionReason("");
       loadPendingClaims();
     } catch (err: any) {
-      setError(err.message || "Failed to reject claim.");
+      setError(err.message || "Unable to reject claim. Please try again.");
     } finally {
       setReviewing(false);
     }
@@ -586,7 +586,7 @@ export const ServiceHours: React.FC = () => {
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h2>Log Service Hours Claim</h2>
+              <h2>Submit Service Hours Claim</h2>
               <button
                 type="button"
                 className="btn-close"
@@ -718,7 +718,7 @@ export const ServiceHours: React.FC = () => {
             </div>
             <div className="modal-body">
               <p style={{ margin: "0 0 1rem", fontSize: "0.875rem", color: "#64748b" }}>
-                Reject claim for <strong>{rejectingEntry.volunteerName}</strong> ({rejectingEntry.hours} hrs). Please state the audit rationale.
+                Reject claim for <strong>{rejectingEntry.volunteerName}</strong> ({rejectingEntry.hours} hrs). Please provide a reason for this decision.
               </p>
               <form onSubmit={handleRejectClaim} className="form-stack">
                 <div className="form-group">

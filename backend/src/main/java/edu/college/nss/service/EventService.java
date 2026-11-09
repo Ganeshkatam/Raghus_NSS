@@ -301,22 +301,22 @@ public class EventService {
 
         assertCanRegister(principal, volunteer);
         if (!"OPEN".equals(event.getStatus())) {
-            throw new RegistrationClosedException("Event registration is not open.");
+            throw new RegistrationClosedException("Sign-up for this event is not open.");
         }
 
         Instant now = Instant.now();
         if (event.getRegistrationOpenAt() != null && now.isBefore(event.getRegistrationOpenAt())) {
-            throw new RegistrationClosedException("Registration window has not opened yet.");
+            throw new RegistrationClosedException("Sign-up for this event has not opened yet.");
         }
         if (event.getRegistrationCloseAt() != null && !now.isBefore(event.getRegistrationCloseAt())) {
-            throw new RegistrationClosedException("Registration window has closed.");
+            throw new RegistrationClosedException("Sign-up for this event has closed.");
         }
 
         UnitMembership activeMembership = membershipRepository.findByVolunteer_VolunteerIdAndIsActiveTrue(volunteer.getVolunteerId())
             .orElseThrow(() -> new AccessDeniedException("Volunteer does not have an active NSS unit membership."));
 
         if (!event.isUnitEligible(activeMembership.getUnit().getUnitId())) {
-            throw new AccessDeniedException("Volunteer's NSS unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
+            throw new AccessDeniedException("Your NSS unit (" + activeMembership.getUnit().getUnitNumber() + ") is not eligible to participate in this event.");
         }
 
         EventRegistration existing = registrationRepository
@@ -540,10 +540,10 @@ public class EventService {
 
     private void assertCanRegister(UserDetails principal, Volunteer volunteer) {
         if (!volunteer.getUser().getEmail().equalsIgnoreCase(principal.getUsername())) {
-            throw new AccessDeniedException("You can only register yourself for an event.");
+            throw new AccessDeniedException("You can only join events for yourself.");
         }
         if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus()) || !"ACTIVE".equalsIgnoreCase(volunteer.getUser().getStatus())) {
-            throw new AccessDeniedException("Only active volunteers may register.");
+            throw new AccessDeniedException("Only active volunteers can join events.");
         }
     }
 

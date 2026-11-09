@@ -88,7 +88,7 @@ export const UnitDetail: React.FC = () => {
   const [assigningOfficer, setAssigningOfficer] = useState(false);
   const [officerModalError, setOfficerModalError] = useState<string | null>(null);
 
-  // Add (Allot) Member Modal
+  // Add (Assign) Member Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableVolunteers, setAvailableVolunteers] = useState<AvailableVolunteer[]>([]);
   const [selectedVolunteerId, setSelectedVolunteerId] = useState<string>("");
@@ -122,7 +122,7 @@ export const UnitDetail: React.FC = () => {
       setAllUnits(unitsList || []);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Failed to load unit details.");
+      setError(apiErr.message || "Unable to load unit details. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ export const UnitDetail: React.FC = () => {
       setOfficerCandidates(candidates || []);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setOfficerModalError(apiErr.message || "Failed to load officer candidates.");
+      setOfficerModalError(apiErr.message || "Unable to load officer candidates. Please try again.");
     } finally {
       setLoadingCandidates(false);
     }
@@ -177,7 +177,7 @@ export const UnitDetail: React.FC = () => {
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setOfficerModalError(apiErr.message || "Failed to update unit settings.");
+      setOfficerModalError(apiErr.message || "Unable to update unit settings. Please try again.");
     } finally {
       setAssigningOfficer(false);
     }
@@ -190,7 +190,7 @@ export const UnitDetail: React.FC = () => {
       const res = await apiRequest<{ content: AvailableVolunteer[] }>("/volunteers?size=100");
       const list = res.content || [];
       setAvailableVolunteers(list);
-      // Prefer unallotted volunteers by default
+      // Prefer unassigned volunteers by default
       const unassigned = list.find((v) => !v.activeUnitName);
       if (unassigned) {
         setSelectedVolunteerId(unassigned.volunteerId);
@@ -238,7 +238,7 @@ export const UnitDetail: React.FC = () => {
     setShowTransferModal(true);
   };
 
-  const switchToTransferFromAllot = (vol: AvailableVolunteer) => {
+  const switchToTransferFromAssign = (vol: AvailableVolunteer) => {
     setShowAddModal(false);
     setTransferMode("in");
     setTransferringMember(null);
@@ -254,7 +254,7 @@ export const UnitDetail: React.FC = () => {
 
     const chosenVol = availableVolunteers.find((v) => v.volunteerId === selectedVolunteerId);
     if (chosenVol?.activeUnitName) {
-      setModalError(`Cannot allot ${chosenVol.name}: Volunteer is already active in ${chosenVol.activeUnitName}. Please use the Transfer Volunteer action.`);
+      setModalError(`Cannot assign ${chosenVol.name}: Volunteer is already active in ${chosenVol.activeUnitName}. Please use the Transfer Volunteer action.`);
       return;
     }
 
@@ -270,11 +270,11 @@ export const UnitDetail: React.FC = () => {
       });
 
       setShowAddModal(false);
-      setSuccess("Volunteer allotted to unit successfully.");
+      setSuccess("Volunteer assigned to unit successfully.");
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setModalError(apiErr.message || "Failed to allot volunteer to unit.");
+      setModalError(apiErr.message || "Unable to assign volunteer to unit. Please try again.");
     } finally {
       setAdding(false);
     }
@@ -327,7 +327,7 @@ export const UnitDetail: React.FC = () => {
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setTransferError(apiErr.message || "Failed to transfer volunteer.");
+      setTransferError(apiErr.message || "Unable to transfer volunteer. Please try again.");
     } finally {
       setTransferring(false);
     }
@@ -345,14 +345,14 @@ export const UnitDetail: React.FC = () => {
       loadData();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      alert(apiErr.message || "Failed to update membership.");
+      alert(apiErr.message || "Unable to update membership. Please try again.");
     }
   };
 
   if (loading) {
     return (
       <div className="page-container">
-        <p className="loading-state">Loading NSS Unit details...</p>
+        <p className="loading-state">Loading unit details...</p>
       </div>
     );
   }
@@ -416,10 +416,10 @@ export const UnitDetail: React.FC = () => {
               {unit.officerName ? "Configure Unit" : "Assign Officer"}
             </button>
             <button onClick={openTransferModal} className="btn-secondary">
-              Transfer Volunteer In
+              Transfer Volunteer Here
             </button>
             <button onClick={openAddModal} className="btn-primary">
-              + Allot Volunteer
+              + Assign Volunteer
             </button>
           </div>
         )}
@@ -436,7 +436,7 @@ export const UnitDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Unit KPI Statistics */}
+      {/* Unit Statistics */}
       {stats && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
           <div className="section-card" style={{ padding: "1.25rem" }}>
@@ -452,7 +452,7 @@ export const UnitDetail: React.FC = () => {
             </div>
           </div>
           <div className="section-card" style={{ padding: "1.25rem" }}>
-            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Accredited Service Hours</div>
+            <div className="cell-sub" style={{ textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Approved Service Hours</div>
             <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#c2410c", marginTop: "0.25rem" }}>
               {stats.totalServiceHours} <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400 }}>hrs</span>
             </div>
@@ -496,7 +496,7 @@ export const UnitDetail: React.FC = () => {
                 <p>No volunteers are currently assigned to this unit.</p>
                 {isCoordinatorOrOfficer && (
                   <button onClick={openAddModal} className="btn-primary-sm">
-                    Allot First Volunteer
+                    Assign First Volunteer
                   </button>
                 )}
               </div>
@@ -568,12 +568,12 @@ export const UnitDetail: React.FC = () => {
         );
       })()}
 
-      {/* ALLOT VOLUNTEER MODAL */}
+      {/* ASSIGN VOLUNTEER MODAL */}
       {showAddModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Allot Volunteer to {unit.unitName}</h3>
+              <h3>Assign Volunteer to {unit.unitName}</h3>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="btn-close"
@@ -590,7 +590,7 @@ export const UnitDetail: React.FC = () => {
 
             <form onSubmit={handleAddMember} className="form-stack">
               <div className="form-group">
-                <label htmlFor="volunteerSelect">Select Registered Volunteer to Allot *</label>
+                <label htmlFor="volunteerSelect">Select Volunteer to Assign *</label>
                 <CustomSelect
                   id="volunteerSelect"
                   value={selectedVolunteerId}
@@ -599,7 +599,7 @@ export const UnitDetail: React.FC = () => {
                     { value: "", label: "-- Choose a volunteer --" },
                     ...availableVolunteers.map((v) => ({
                       value: v.volunteerId,
-                      label: `${v.name} (${v.collegeId}) - ${v.department} ${v.activeUnitName ? `[Already in: ${v.activeUnitName}]` : "[Unallotted]"
+                      label: `${v.name} (${v.collegeId}) - ${v.department} ${v.activeUnitName ? `[Already in: ${v.activeUnitName}]` : "[Unassigned]"
                         }`,
                     })),
                   ]}
@@ -622,7 +622,7 @@ export const UnitDetail: React.FC = () => {
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
                           <span style={{ fontWeight: 700, color: "#92400e", fontSize: "0.9rem" }}>
-                            Volunteer Already Allotted
+                            Volunteer Already Assigned
                           </span>
                           <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>
                             {selVol.activeUnitName}
@@ -630,13 +630,13 @@ export const UnitDetail: React.FC = () => {
                         </div>
                         <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.82rem", color: "#78350f" }}>
                           <strong>{selVol.name}</strong> ({selVol.collegeId}) is currently active in <strong>{selVol.activeUnitName}</strong>.
-                          Each volunteer can belong to at most one NSS Unit. Direct allotment is blocked to prevent silent reassignment.
+                          Each volunteer can belong to at most one NSS Unit. Direct assignment is blocked to prevent unintended reassignment.
                         </p>
                         <button
                           type="button"
                           className="btn-primary-sm"
                           style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem" }}
-                          onClick={() => switchToTransferFromAllot(selVol)}
+                          onClick={() => switchToTransferFromAssign(selVol)}
                         >
                           Transfer {selVol.name} to {unit.unitName}
                         </button>
@@ -645,7 +645,7 @@ export const UnitDetail: React.FC = () => {
                   }
                   return (
                     <small className="form-hint" style={{ color: "#16a34a" }}>
-                      Volunteer is currently unallotted and eligible for primary unit allotment.
+                      Volunteer is currently unassigned and eligible for unit assignment.
                     </small>
                   );
                 })()}
@@ -668,7 +668,7 @@ export const UnitDetail: React.FC = () => {
                     Boolean(availableVolunteers.find((v) => v.volunteerId === selectedVolunteerId)?.activeUnitName)
                   }
                 >
-                  {adding ? "Allotting..." : "Allot to Unit"}
+                  {adding ? "Assigning..." : "Assign to Unit"}
                 </button>
               </div>
             </form>
@@ -753,7 +753,7 @@ export const UnitDetail: React.FC = () => {
                       value={transferVolunteerId}
                       onChange={setTransferVolunteerId}
                       options={[
-                        { value: "", label: "-- Choose an actively allotted volunteer --" },
+                        { value: "", label: "-- Choose an actively assigned volunteer --" },
                         ...availableVolunteers
                           .filter((v) => v.activeUnitName && v.activeUnitId !== id)
                           .map((v) => ({
@@ -761,7 +761,7 @@ export const UnitDetail: React.FC = () => {
                             label: `${v.name} (${v.collegeId}) - [Current: ${v.activeUnitName}]`,
                           })),
                       ]}
-                      placeholder="-- Choose an actively allotted volunteer --"
+                      placeholder="-- Choose an actively assigned volunteer --"
                     />
                     <small className="form-hint">
                       Lists volunteers currently active in other units. Destination unit is <strong>{unit.unitName}</strong>.
@@ -799,7 +799,7 @@ export const UnitDetail: React.FC = () => {
                     (transferMode === "out" ? !transferTargetUnitId : !transferVolunteerId)
                   }
                 >
-                  {transferring ? "Processing Transfer..." : "Confirm & Execute Transfer"}
+                  {transferring ? "Processing Transfer..." : "Confirm Transfer"}
                 </button>
               </div>
             </form>
@@ -875,7 +875,7 @@ export const UnitDetail: React.FC = () => {
                   className="btn-primary"
                   disabled={assigningOfficer}
                 >
-                  {assigningOfficer ? "Saving Settings..." : "Save Configuration"}
+                  {assigningOfficer ? "Saving Settings..." : "Save Settings"}
                 </button>
               </div>
             </form>

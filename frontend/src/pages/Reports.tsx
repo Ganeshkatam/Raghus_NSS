@@ -95,7 +95,7 @@ export const Reports: React.FC = () => {
       setUnits(unitsData || []);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setError(apiErr.message || "Failed to load institutional analytics.");
+      setError(apiErr.message || "Unable to load reports data. Please try again.");
     } finally {
       setLoading(false);
     }

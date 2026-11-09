@@ -120,7 +120,7 @@ public class ReportService {
             List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
             if (unitId != null) {
                 if (!managedIds.contains(unitId)) {
-                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export lists for this unit.");
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to download reports for this unit.");
                 }
             } else {
                 if (managedIds.isEmpty()) return new byte[0];
@@ -179,7 +179,7 @@ public class ReportService {
             List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
             if (unitId != null) {
                 if (!managedIds.contains(unitId)) {
-                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export events for this unit.");
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to download reports for this unit.");
                 }
             } else {
                 if (managedIds.isEmpty()) return new byte[0];
@@ -244,7 +244,7 @@ public class ReportService {
             List<UUID> managedIds = unitSecurity.getManagedUnitIds(principal);
             if (unitId != null) {
                 if (!managedIds.contains(unitId)) {
-                    throw new org.springframework.security.access.AccessDeniedException("You are not authorized to export service hours for this unit.");
+                    throw new org.springframework.security.access.AccessDeniedException("You do not have permission to download reports for this unit.");
                 }
             } else {
                 if (managedIds.isEmpty()) return new byte[0];

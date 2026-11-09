@@ -153,7 +153,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileMenu, isMobileMenu
         setShowConfirmPassword(false);
       }, 1500);
     } catch (err: any) {
-      setPasswordError(err.message || "Failed to update password.");
+      setPasswordError(err.message || "Unable to update password. Please check your details and try again.");
     } finally {
       setChangingPassword(false);
     }
